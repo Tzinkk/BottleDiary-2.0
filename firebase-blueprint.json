@@ -1,0 +1,34 @@
+{
+  "entities": {
+    "WineBottle": {
+      "title": "WineBottle",
+      "description": "A bottle of wine in the user's cellar.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "producer": { "type": "string" },
+        "year": { "type": "string" },
+        "type": { "type": "string" },
+        "region": { "type": "string" },
+        "country": { "type": "string" },
+        "grape": { "type": "array", "items": { "type": "string" } },
+        "rating": { "type": "number" },
+        "tastingNotes": { "type": "string" },
+        "additionalNote": { "type": "string" },
+        "locationPurchased": { "type": "string" },
+        "price": { "type": "number" },
+        "imageUrl": { "type": "string" },
+        "dateAdded": { "type": "number" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "name", "producer", "type", "dateAdded", "userId"]
+    }
+  },
+  "firestore": {
+    "bottles/{bottleId}": {
+      "schema": "WineBottle",
+      "description": "User's wine collection."
+    }
+  }
+}

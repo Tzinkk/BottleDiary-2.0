@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Cormorant Garamond", serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-gold: #D4AF37;
+  --color-wine-bg: #0F0D0D;
+  --color-wine-accent: #3A0E12;
+  --color-ink: #E5E1DA;
+  
+  --color-glass: rgba(255, 255, 255, 0.03);
+  --color-glass-border: rgba(255, 255, 255, 0.08);
+}
+
+@layer base {
+  body {
+    @apply bg-wine-bg text-ink font-sans antialiased;
+    background: radial-gradient(circle at 50% 0%, var(--color-wine-accent) 0%, var(--color-wine-bg) 70%);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+  }
+}
+
+.glass-panel {
+  @apply bg-glass backdrop-blur-xl border border-glass-border;
+}
+
+.gold-border {
+  @apply border border-gold/40 hover:border-gold transition-colors;
+}
+
+.scroll-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.wine-gradient {
+  background: radial-gradient(circle at 50% 0%, var(--color-wine-accent) 0%, var(--color-wine-bg) 70%);
+}
