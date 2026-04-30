@@ -42,7 +42,96 @@ const WINE_TYPE_CONFIG: Record<string, { text: string, bg: string, border: strin
   'Sake': { text: 'text-[#f5f5f5]', bg: 'bg-[#f5f5f5]/10', border: 'border-[#f5f5f5]/20', accent: 'bg-[#f5f5f5]', hex: '#F0F8FF' },
 };
 
+// --- Animation Variants ---
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2
+    }
+  }
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 20, scale: 0.95 },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    scale: 1,
+    transition: { 
+      type: "spring", 
+      stiffness: 100, 
+      damping: 15 
+    }
+  },
+  exit: { 
+    opacity: 0, 
+    scale: 0.9, 
+    transition: { duration: 0.2 } 
+  }
+};
+
 // --- Components ---
+
+interface ConfirmationModalProps {
+  title: string;
+  message: string;
+  onConfirm: () => void;
+  onClose: () => void;
+  confirmText?: string;
+  isDanger?: boolean;
+}
+
+const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ title, message, onConfirm, onClose, confirmText = "Confirm", isDanger = true }) => {
+  return (
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-[#000]/80 backdrop-blur-md z-40"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        className="glass-panel p-8 max-w-sm w-full space-y-6 relative z-50 rounded-sm border-white/10 shadow-2xl bg-[#1a1414]"
+      >
+        <div className="space-y-4">
+          <div className="w-12 h-12 bg-red-900/20 border border-red-900/30 rounded-full flex items-center justify-center text-red-500 mx-auto">
+            <Trash2 size={24} strokeWidth={1.5} />
+          </div>
+          <div className="text-center space-y-2">
+            <h3 className="text-lg font-serif text-ink uppercase tracking-widest">{title}</h3>
+            <p className="text-[10px] text-ink/40 uppercase tracking-[0.2em] leading-relaxed">{message}</p>
+          </div>
+        </div>
+        
+        <div className="flex gap-4 pt-2">
+          <button
+            onClick={onClose}
+            className="flex-1 px-6 py-4 border border-white/10 text-[10px] uppercase tracking-widest text-ink/60 hover:bg-white/5 transition-all rounded-sm font-bold active:scale-95"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+            className={`flex-1 px-6 py-4 ${isDanger ? 'bg-red-700/80 text-[#f8f4ed] hover:bg-red-600' : 'bg-gold text-wine-bg hover:bg-gold/90'} text-[10px] uppercase tracking-widest transition-all rounded-sm font-bold shadow-lg shadow-black/40 active:scale-95`}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
 
 interface GrapeCardProps {
   grape: GrapeVariety;
@@ -54,6 +143,11 @@ const GrapeCard: React.FC<GrapeCardProps> = ({ grape, onEdit, onDelete }) => {
   return (
     <motion.div
       layout
+      variants={cardVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      whileHover={{ y: -8, transition: { duration: 0.2 } }}
       className={`glass-panel p-6 flex flex-col h-full group relative transition-all duration-300 rounded-sm overflow-hidden border-l-2 ${grape.type === 'Red' ? 'border-red-900/50' : 'border-yellow-800/30'}`}
     >
       <div className="flex justify-between items-start mb-6">
@@ -258,16 +352,11 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.9, y: 30 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.9, y: 30 }}
-      transition={{ 
-        type: "spring",
-        stiffness: 260,
-        damping: 25,
-        opacity: { duration: 0.4 }
-      }}
-      whileHover={{ y: -4 }}
+      variants={cardVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      whileHover={{ y: -8, transition: { duration: 0.2 } }}
       className={`glass-panel p-6 flex flex-col h-full group relative transition-all duration-300 rounded-sm overflow-hidden border-l-2 ${typeConfig.border.replace('border-', 'border-l-')}`}
     >
       <div className="flex justify-between items-start mb-6">
@@ -382,8 +471,10 @@ interface RecommendationCardProps {
 const RecommendationCard: React.FC<RecommendationCardProps> = ({ recommendation }) => {
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
+      variants={cardVariants}
+      initial="hidden"
+      animate="visible"
+      whileHover={{ y: -8, transition: { duration: 0.2 } }}
       className="glass-panel p-6 flex flex-col h-full bg-gold/5 border-gold/10 relative overflow-hidden"
     >
       <div className="absolute -top-4 -right-4 w-24 h-24 bg-gold/5 blur-3xl rounded-full"></div>
@@ -985,6 +1076,7 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [isRecLoading, setIsRecLoading] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'bottle' | 'grape' } | null>(null);
 
   const filteredGrapes = grapes.filter(g => {
     const term = searchQuery.toLowerCase();
@@ -1109,25 +1201,22 @@ export default function App() {
     }
   };
 
-  const handleDeleteBottle = async (id: string) => {
-    if (!user) return;
-    if (confirm('Are you sure you want to remove this entry from your diary?')) {
-      try {
-        await deleteDoc(doc(db, 'bottles', id));
-      } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `bottles/${id}`);
-      }
-    }
+  const handleDeleteBottle = (id: string) => {
+    setItemToDelete({ id, type: 'bottle' });
   };
 
-  const handleDeleteGrape = async (id: string) => {
-    if (!user) return;
-    if (confirm('Are you sure you want to remove this variety?')) {
-      try {
-        await deleteDoc(doc(db, 'grapes', id));
-      } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `grapes/${id}`);
-      }
+  const handleDeleteGrape = (id: string) => {
+    setItemToDelete({ id, type: 'grape' });
+  };
+
+  const confirmDelete = async () => {
+    if (!user || !itemToDelete) return;
+    const { id, type } = itemToDelete;
+    
+    try {
+      await deleteDoc(doc(db, type === 'bottle' ? 'bottles' : 'grapes', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `${type === 'bottle' ? 'bottles' : 'grapes'}/${id}`);
     }
   };
 
@@ -1794,7 +1883,12 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
+              <motion.div 
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10"
+              >
                 <AnimatePresence mode="popLayout">
                   {filteredGrapes.map(grape => (
                     <GrapeCard
@@ -1810,7 +1904,11 @@ export default function App() {
                 </AnimatePresence>
                 
                 {grapes.length === 0 && (
-                  <div className="col-span-full py-32 flex flex-col items-center text-center space-y-6">
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="col-span-full py-32 flex flex-col items-center text-center space-y-6"
+                  >
                     <div className="w-24 h-24 border border-white/5 rounded-full flex items-center justify-center text-ink/10">
                       <FlaskConical size={48} strokeWidth={1} />
                     </div>
@@ -1818,9 +1916,9 @@ export default function App() {
                        <p className="font-serif text-2xl text-ink/40 font-light italic">Your Encyclopedia is Empty</p>
                        <p className="text-[10px] uppercase tracking-[0.3em] text-ink/20">Start cataloging grape varieties to build your knowledge base</p>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
-              </div>
+              </motion.div>
             </motion.div>
           ) : view === 'cellar' ? (
             <motion.div
@@ -1865,7 +1963,12 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
+              <motion.div 
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10"
+              >
                 <AnimatePresence mode="popLayout">
                   {filteredBottles.map(bottle => (
                     <WineCard
@@ -1881,7 +1984,11 @@ export default function App() {
                 </AnimatePresence>
                 
                 {filteredBottles.length === 0 && (
-                  <div className="col-span-full py-32 flex flex-col items-center text-center space-y-6">
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="col-span-full py-32 flex flex-col items-center text-center space-y-6"
+                  >
                     <div className="w-24 h-24 border border-white/5 rounded-full flex items-center justify-center text-ink/10">
                       <Search size={48} strokeWidth={1} />
                     </div>
@@ -1889,9 +1996,9 @@ export default function App() {
                       <p className="font-serif text-2xl text-ink/40 font-light italic">No bottles match your current filters</p>
                       <p className="text-[10px] uppercase tracking-[0.3em] text-ink/20">Try adjusting your search criteria</p>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
-              </div>
+              </motion.div>
             </motion.div>
           ) : view === 'recommendations' ? (
             <motion.div
@@ -1941,7 +2048,12 @@ export default function App() {
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <motion.div 
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+                >
                   {isRecLoading ? (
                     [1, 2, 3].map(i => (
                       <div key={i} className="glass-panel p-6 h-[400px] animate-pulse bg-white/5 border-white/5 flex flex-col justify-between">
@@ -1958,7 +2070,7 @@ export default function App() {
                       <RecommendationCard key={i} recommendation={rec} />
                     ))
                   )}
-                </div>
+                </motion.div>
               )}
             </motion.div>
           ) : (
@@ -2296,6 +2408,18 @@ export default function App() {
               onSave={handleCreateOrUpdateGrape}
             />
           </>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {itemToDelete && (
+          <ConfirmationModal
+            title={`Confirm Deletion`}
+            message={`Are you sure you want to remove this ${itemToDelete.type}? This action cannot be undone.`}
+            onConfirm={confirmDelete}
+            onClose={() => setItemToDelete(null)}
+            confirmText="Delete"
+          />
         )}
       </AnimatePresence>
 
