@@ -45,6 +45,15 @@ service cloud.firestore {
         && data.userId == request.auth.uid;
     }
 
+    function isValidGrapeVariety(data) {
+      let requiredFields = ['id', 'name', 'type', 'userId', 'dateAdded'];
+      return data.keys().hasAll(requiredFields)
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.type is string && (data.type == 'Red' || data.type == 'White')
+        && data.userId == request.auth.uid;
+    }
+
     // --- Collections ---
     match /bottles/{bottleId} {
       allow get: if isSignedIn() && isOwner(existing());
@@ -65,6 +74,27 @@ service cloud.firestore {
 
       allow delete: if isSignedIn() 
         && isValidId(bottleId)
+        && isOwner(existing());
+    }
+
+    match /grapes/{grapeId} {
+      allow get: if isSignedIn() && isOwner(existing());
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() 
+        && isValidId(grapeId)
+        && isValidGrapeVariety(incoming())
+        && incoming().id == grapeId;
+
+      allow update: if isSignedIn()
+        && isValidId(grapeId)
+        && isValidGrapeVariety(incoming())
+        && isOwner(existing())
+        && incoming().id == existing().id
+        && incoming().userId == existing().userId;
+
+      allow delete: if isSignedIn() 
+        && isValidId(grapeId)
         && isOwner(existing());
     }
 

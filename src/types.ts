@@ -16,6 +16,26 @@ export interface WineBottle {
   price?: number;
   imageUrl?: string;
   dateAdded: number;
+  userId: string;
+}
+
+export interface GrapeVariety {
+  id: string;
+  name: string;
+  type: 'Red' | 'White';
+  skin: string;
+  region: string;
+  country: string;
+  body: string;
+  acidity: string;
+  tannin: string;
+  sweetness: string;
+  aromaFlavor: string;
+  otherNotes: string;
+  foodPairing: string;
+  additionalNotes: string;
+  userId: string;
+  dateAdded: number;
 }
 
 export type SortOption = 'newest' | 'rating' | 'year' | 'name';

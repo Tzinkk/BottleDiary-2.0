@@ -23,12 +23,40 @@
         "userId": { "type": "string" }
       },
       "required": ["id", "name", "producer", "type", "dateAdded", "userId"]
+    },
+    "GrapeVariety": {
+      "title": "GrapeVariety",
+      "description": "A database of grape varieties and their characteristics.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "enum": ["Red", "White"] },
+        "skin": { "type": "string" },
+        "region": { "type": "string" },
+        "country": { "type": "string" },
+        "body": { "type": "string" },
+        "acidity": { "type": "string" },
+        "tannin": { "type": "string" },
+        "sweetness": { "type": "string" },
+        "aromaFlavor": { "type": "string" },
+        "otherNotes": { "type": "string" },
+        "foodPairing": { "type": "string" },
+        "additionalNotes": { "type": "string" },
+        "userId": { "type": "string" },
+        "dateAdded": { "type": "number" }
+      },
+      "required": ["id", "name", "type", "userId", "dateAdded"]
     }
   },
   "firestore": {
     "bottles/{bottleId}": {
       "schema": "WineBottle",
       "description": "User's wine collection."
+    },
+    "grapes/{grapeId}": {
+      "schema": "GrapeVariety",
+      "description": "User's grape encyclopedia."
     }
   }
 }

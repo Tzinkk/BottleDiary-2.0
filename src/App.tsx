@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Plus, Search, Filter, Wine, Trash2, Edit2, Star, X, Info, Globe, Banknote, ChevronDown, Upload, Camera, Loader2, Sparkles, Sparkle, BarChart3, LogIn, LogOut, User as UserIcon } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Plus, Search, Filter, Wine, Trash2, Edit2, Star, X, Info, Globe, Banknote, ChevronDown, Upload, Camera, Loader2, Sparkles, Sparkle, BarChart3, LogIn, LogOut, User as UserIcon, Droplets, FlaskConical, Leaf } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   PieChart, 
@@ -20,27 +20,231 @@ import {
   ZAxis
 } from 'recharts';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, updateDoc, limit } from 'firebase/firestore';
 import { auth, db, signInWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
-import { WineBottle, WineType, SortOption } from './types';
+import { WineBottle, WineType, SortOption, GrapeVariety } from './types';
 import { getWineRecommendations, Recommendation, analyzeWineLabel } from './services/aiService';
 
 // --- Configuration ---
 
+const WINE_TYPES: WineType[] = ['Red', 'White', 'Rosé', 'Sparkling', 'Natural Red', 'Natural White', 'Pet Nat', 'Orange', 'Sato', 'Sake'];
+
 const WINE_TYPE_CONFIG: Record<string, { text: string, bg: string, border: string, accent: string, hex: string }> = {
-  'Red': { text: 'text-red-400', bg: 'bg-red-950/40', border: 'border-red-900/50', accent: 'bg-red-500', hex: '#f87171' },
-  'White': { text: 'text-yellow-100', bg: 'bg-yellow-950/30', border: 'border-yellow-800/30', accent: 'bg-yellow-200', hex: '#fef3c7' },
-  'Rosé': { text: 'text-rose-300', bg: 'bg-rose-950/30', border: 'border-rose-800/30', accent: 'bg-rose-400', hex: '#fb7185' },
-  'Sparkling': { text: 'text-emerald-300', bg: 'bg-emerald-950/30', border: 'border-emerald-800/30', accent: 'bg-emerald-400', hex: '#34d399' },
-  'Natural Red': { text: 'text-red-500', bg: 'bg-red-950/50', border: 'border-red-800/60', accent: 'bg-red-600', hex: '#ef4444' },
-  'Natural White': { text: 'text-yellow-400', bg: 'bg-yellow-950/40', border: 'border-yellow-800/40', accent: 'bg-yellow-500', hex: '#fbbf24' },
-  'Pet Nat': { text: 'text-purple-400', bg: 'bg-purple-950/30', border: 'border-purple-800/30', accent: 'bg-purple-500', hex: '#a855f7' },
-  'Orange': { text: 'text-orange-400', bg: 'bg-orange-950/40', border: 'border-orange-800/50', accent: 'bg-orange-500', hex: '#f97316' },
-  'Sato': { text: 'text-blue-300', bg: 'bg-blue-950/30', border: 'border-blue-800/30', accent: 'bg-blue-400', hex: '#60a5fa' },
-  'Sake': { text: 'text-cyan-200', bg: 'bg-cyan-950/20', border: 'border-cyan-800/20', accent: 'bg-cyan-300', hex: '#a5f3fc' },
+  'Red': { text: 'text-[#ff4d4d]', bg: 'bg-[#ff4d4d]/10', border: 'border-[#ff4d4d]/20', accent: 'bg-[#ff4d4d]', hex: '#800020' },
+  'White': { text: 'text-[#f0e68c]', bg: 'bg-[#f0e68c]/10', border: 'border-[#f0e68c]/20', accent: 'bg-[#f0e68c]', hex: '#D4AF37' },
+  'Rosé': { text: 'text-[#ffb6c1]', bg: 'bg-[#ffb6c1]/10', border: 'border-[#ffb6c1]/20', accent: 'bg-[#ffb6c1]', hex: '#FFC0CB' },
+  'Sparkling': { text: 'text-[#e0ffff]', bg: 'bg-[#e0ffff]/10', border: 'border-[#e0ffff]/20', accent: 'bg-[#e0ffff]', hex: '#C0C0C0' },
+  'Natural Red': { text: 'text-[#8b0000]', bg: 'bg-[#8b0000]/10', border: 'border-[#8b0000]/20', accent: 'bg-[#8b0000]', hex: '#4A0404' },
+  'Natural White': { text: 'text-[#fafad2]', bg: 'bg-[#fafad2]/10', border: 'border-[#fafad2]/20', accent: 'bg-[#fafad2]', hex: '#EEDC82' },
+  'Pet Nat': { text: 'text-[#ffe4b5]', bg: 'bg-[#ffe4b5]/10', border: 'border-[#ffe4b5]/20', accent: 'bg-[#ffe4b5]', hex: '#FFDB58' },
+  'Orange': { text: 'text-[#ffa500]', bg: 'bg-[#ffa500]/10', border: 'border-[#ffa500]/20', accent: 'bg-[#ffa500]', hex: '#CC5500' },
+  'Sato': { text: 'text-[#fffaf0]', bg: 'bg-[#fffaf0]/10', border: 'border-[#fffaf0]/20', accent: 'bg-[#fffaf0]', hex: '#FDF5E6' },
+  'Sake': { text: 'text-[#f5f5f5]', bg: 'bg-[#f5f5f5]/10', border: 'border-[#f5f5f5]/20', accent: 'bg-[#f5f5f5]', hex: '#F0F8FF' },
 };
 
 // --- Components ---
+
+interface GrapeCardProps {
+  grape: GrapeVariety;
+  onEdit: (grape: GrapeVariety) => void;
+  onDelete: (id: string) => void;
+}
+
+const GrapeCard: React.FC<GrapeCardProps> = ({ grape, onEdit, onDelete }) => {
+  return (
+    <motion.div
+      layout
+      className={`glass-panel p-6 flex flex-col h-full group relative transition-all duration-300 rounded-sm overflow-hidden border-l-2 ${grape.type === 'Red' ? 'border-red-900/50' : 'border-yellow-800/30'}`}
+    >
+      <div className="flex justify-between items-start mb-6">
+        <span className={`text-[9px] uppercase tracking-[0.2em] font-bold px-3 py-1 rounded-full border ${grape.type === 'Red' ? 'text-red-400 bg-red-950/40 border-red-900/50' : 'text-yellow-100 bg-yellow-950/30 border-yellow-800/30'}`}>
+          {grape.type}
+        </span>
+        <div className="flex space-x-1">
+          <button onClick={() => onEdit(grape)} className="p-1.5 text-ink/40 hover:text-gold transition-colors">
+            <Edit2 size={14} />
+          </button>
+          <button onClick={() => onDelete(grape.id)} className="p-1.5 text-ink/40 hover:text-red-500 transition-colors">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <h3 className="font-serif text-2xl font-light text-ink tracking-wide leading-tight">{grape.name}</h3>
+        <p className="text-[10px] text-gold/60 uppercase tracking-widest mt-1">{grape.region}, {grape.country}</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 mb-6 pt-4 border-t border-white/5">
+        <div className="space-y-1">
+          <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold">Skin</p>
+          <p className="text-xs text-ink/80">{grape.skin || '—'}</p>
+        </div>
+        <div className="space-y-1">
+          <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold">Body</p>
+          <p className="text-xs text-ink/80">{grape.body || '—'}</p>
+        </div>
+        <div className="space-y-1">
+          <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold">Acidity</p>
+          <p className="text-xs text-ink/80">{grape.acidity || '—'}</p>
+        </div>
+        <div className="space-y-1">
+          <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold">Tannin</p>
+          <p className="text-xs text-ink/80">{grape.tannin || '—'}</p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold mb-1">Aroma & Flavor</p>
+          <p className="text-xs italic text-ink/60 line-clamp-2">{grape.aromaFlavor || '—'}</p>
+        </div>
+        <div>
+          <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold mb-1">Food Pairing</p>
+          <p className="text-xs text-gold/60 line-clamp-2 font-serif italic">{grape.foodPairing || '—'}</p>
+        </div>
+      </div>
+
+      <button 
+        onClick={() => onEdit(grape)}
+        className="mt-6 w-full py-2 border border-gold/20 text-gold hover:bg-gold/5 text-[9px] uppercase tracking-[0.3em] transition-all rounded-sm"
+      >
+        View Details
+      </button>
+    </motion.div>
+  );
+};
+
+interface GrapeFormProps {
+  grape?: GrapeVariety;
+  onSave: (grape: Omit<GrapeVariety, 'id' | 'dateAdded' | 'userId'>) => void;
+  onClose: () => void;
+}
+
+const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
+  const [formData, setFormData] = useState({
+    name: grape?.name || '',
+    type: (grape?.type || 'Red') as 'Red' | 'White',
+    skin: grape?.skin || '',
+    region: grape?.region || '',
+    country: grape?.country || '',
+    body: grape?.body || '',
+    acidity: grape?.acidity || '',
+    tannin: grape?.tannin || '',
+    sweetness: grape?.sweetness || '',
+    aromaFlavor: grape?.aromaFlavor || '',
+    otherNotes: grape?.otherNotes || '',
+    foodPairing: grape?.foodPairing || '',
+    additionalNotes: grape?.additionalNotes || '',
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  return (
+    <motion.div
+      initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+      className="fixed inset-y-0 right-0 w-full max-w-lg bg-[#141212] shadow-2xl z-50 overflow-y-auto border-l border-white/5"
+    >
+      <div className="p-10">
+        <div className="flex justify-between items-center mb-12">
+          <div>
+            <h2 className="font-serif text-4xl text-ink font-light tracking-wide">{grape ? 'Edit Variety' : 'New Variety'}</h2>
+            <p className="text-[10px] uppercase tracking-[0.3em] text-gold/60 mt-2">Grape Encyclopedia</p>
+          </div>
+          <button onClick={onClose} className="p-3 bg-white/5 rounded-full border border-white/5"><X size={20} /></button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-8">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Variety Name</label>
+            <input
+              required value={formData.name}
+              onChange={e => setFormData({ ...formData, name: e.target.value })}
+              className="w-full bg-transparent border-b border-white/10 py-3 text-2xl font-serif text-ink"
+              placeholder="e.g. Pinot Noir"
+            />
+          </div>
+
+          <div className="flex gap-4">
+            {['Red', 'White'].map(t => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setFormData({ ...formData, type: t as any })}
+                className={`px-6 py-2 text-[10px] uppercase tracking-widest border transition-all rounded-sm ${formData.type === t ? 'bg-gold/10 border-gold text-gold font-bold' : 'border-white/10 text-ink/60'}`}
+              >
+                {t} Grape
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Skin</label>
+              <input value={formData.skin} onChange={e => setFormData({ ...formData, skin: e.target.value })} className="w-full bg-transparent border-b border-white/10 py-2 text-ink" placeholder="Thick/Thin" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Body</label>
+              <input value={formData.body} onChange={e => setFormData({ ...formData, body: e.target.value })} className="w-full bg-transparent border-b border-white/10 py-2 text-ink" placeholder="Light/Medium/Full" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Region</label>
+              <input value={formData.region} onChange={e => setFormData({ ...formData, region: e.target.value })} className="w-full bg-transparent border-b border-white/10 py-2 text-ink" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Country</label>
+              <input value={formData.country} onChange={e => setFormData({ ...formData, country: e.target.value })} className="w-full bg-transparent border-b border-white/10 py-2 text-ink" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-ink/30">Acidity</label>
+              <input value={formData.acidity} onChange={e => setFormData({ ...formData, acidity: e.target.value })} className="w-full bg-transparent border-b border-white/10 py-2 text-xs text-ink" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-ink/30">Tannin</label>
+              <input value={formData.tannin} onChange={e => setFormData({ ...formData, tannin: e.target.value })} className="w-full bg-transparent border-b border-white/10 py-2 text-xs text-ink" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-ink/30">Sweetness</label>
+              <input value={formData.sweetness} onChange={e => setFormData({ ...formData, sweetness: e.target.value })} className="w-full bg-transparent border-b border-white/10 py-2 text-xs text-ink" />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Aroma & Flavor</label>
+              <textarea rows={2} value={formData.aromaFlavor} onChange={e => setFormData({ ...formData, aromaFlavor: e.target.value })} className="w-full bg-white/5 border border-white/10 p-4 rounded text-sm text-ink italic" placeholder="Red fruits, spice, earthy..." />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Food Pairing</label>
+              <textarea rows={2} value={formData.foodPairing} onChange={e => setFormData({ ...formData, foodPairing: e.target.value })} className="w-full bg-white/5 border border-white/10 p-4 rounded text-sm text-ink" placeholder="Grilled salmon, duck..." />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Other Notes</label>
+              <textarea rows={2} value={formData.otherNotes} onChange={e => setFormData({ ...formData, otherNotes: e.target.value })} className="w-full bg-white/5 border border-white/10 p-4 rounded text-sm text-ink" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Additional Notes</label>
+              <textarea rows={2} value={formData.additionalNotes} onChange={e => setFormData({ ...formData, additionalNotes: e.target.value })} className="w-full bg-white/5 border border-white/10 p-4 rounded text-sm text-ink" />
+            </div>
+          </div>
+
+          <button type="submit" className="w-full bg-gold text-wine-bg py-5 font-bold tracking-[0.3em] uppercase text-xs hover:bg-gold/90 transition-all shadow-2xl">
+            Register Variety
+          </button>
+        </form>
+      </div>
+    </motion.div>
+  );
+};
 
 interface WineCardProps {
   bottle: WineBottle;
@@ -244,7 +448,7 @@ const WineForm = ({ bottle, onSave, onClose }: WineFormProps) => {
     type: bottle?.type || 'Red' as WineType,
     region: bottle?.region || '',
     country: bottle?.country || '',
-    grape: bottle?.grape || [] as string[],
+    grape: Array.isArray(bottle?.grape) ? bottle.grape : (typeof bottle?.grape === 'string' ? [bottle.grape] : []),
     rating: bottle?.rating || 3,
     tastingNotes: bottle?.tastingNotes || '',
     additionalNote: bottle?.additionalNote || '',
@@ -312,6 +516,7 @@ const WineForm = ({ bottle, onSave, onClose }: WineFormProps) => {
       }
 
       setFormData(prev => ({ ...prev, imageUrl: result.url }));
+      setIsUploading(false);
       
       // Automatically trigger AI scan for new uploads
       await handleAIScan(result.url);
@@ -349,7 +554,17 @@ const WineForm = ({ bottle, onSave, onClose }: WineFormProps) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const currentGrapes = Array.isArray(formData.grape) ? formData.grape : [];
-    onSave({ ...formData, grape: grapeInput.trim() ? [...currentGrapes, grapeInput.trim()] : currentGrapes });
+    const finalGrapes = grapeInput.trim() ? [...currentGrapes, grapeInput.trim()] : currentGrapes;
+    
+    onSave({ 
+      ...formData, 
+      grape: finalGrapes,
+      region: formData.region || '',
+      country: formData.country || '',
+      producer: formData.producer || '',
+      year: formData.year || 'NV',
+      type: formData.type || 'Red'
+    });
   };
 
   const addGrape = () => {
@@ -407,6 +622,7 @@ const WineForm = ({ bottle, onSave, onClose }: WineFormProps) => {
             <div className="space-y-2">
               <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Producer</label>
               <input
+                required
                 value={formData.producer}
                 onChange={e => setFormData({ ...formData, producer: e.target.value })}
                 className="w-full bg-transparent border-b border-white/10 focus:border-gold outline-none py-2 transition-all text-ink font-light"
@@ -416,6 +632,7 @@ const WineForm = ({ bottle, onSave, onClose }: WineFormProps) => {
             <div className="space-y-2">
               <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Vintage (NV or Year)</label>
               <input
+                required
                 value={formData.year}
                 onChange={e => setFormData({ ...formData, year: e.target.value })}
                 className="w-full bg-transparent border-b border-white/10 focus:border-gold outline-none py-2 transition-all text-ink font-light"
@@ -503,6 +720,26 @@ const WineForm = ({ bottle, onSave, onClose }: WineFormProps) => {
                 >
                   <Plus size={16} />
                 </button>
+                {grapeInput.trim() && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-[#1a1414] border border-white/10 rounded-sm z-50 max-h-32 overflow-y-auto shadow-2xl scroll-hide">
+                    {/* Suggestions from Encyclopedia */}
+                    {grapes
+                      .filter(g => g.name.toLowerCase().includes(grapeInput.toLowerCase()) && !(formData.grape || []).includes(g.name))
+                      .map(g => (
+                        <button
+                          key={g.id}
+                          type="button"
+                          onClick={() => {
+                            setFormData({ ...formData, grape: [...(formData.grape || []), g.name] });
+                            setGrapeInput('');
+                          }}
+                          className="w-full text-left px-4 py-2 text-[10px] uppercase tracking-widest text-ink/60 hover:bg-gold/10 hover:text-gold transition-colors border-b border-white/5 last:border-0"
+                        >
+                          {g.name} <span className="opacity-40 italic ml-2">({g.region})</span>
+                        </button>
+                      ))}
+                  </div>
+                )}
               </div>
             </div>
             <div className="space-y-2">
@@ -686,6 +923,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [bottles, setBottles] = useState<WineBottle[]>([]);
+  const [grapes, setGrapes] = useState<GrapeVariety[]>([]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -698,29 +936,40 @@ export default function App() {
   useEffect(() => {
     if (!user) {
       setBottles([]);
+      setGrapes([]);
       return;
     }
 
-    const q = query(
+    const qBottles = query(
       collection(db, 'bottles'),
-      where('userId', '==', user.uid)
+      where('userId', '==', user.uid),
+      limit(200)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id
-      })) as WineBottle[];
-      setBottles(docs);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'bottles');
-    });
+    const qGrapes = query(
+      collection(db, 'grapes'),
+      where('userId', '==', user.uid),
+      limit(200)
+    );
 
-    return () => unsubscribe();
+    const unsubBottles = onSnapshot(qBottles, (snapshot) => {
+      setBottles(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as WineBottle[]);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'bottles'));
+
+    const unsubGrapes = onSnapshot(qGrapes, (snapshot) => {
+      setGrapes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as GrapeVariety[]);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'grapes'));
+
+    return () => {
+      unsubBottles();
+      unsubGrapes();
+    };
   }, [user]);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isGrapeFormOpen, setIsGrapeFormOpen] = useState(false);
   const [editingBottle, setEditingBottle] = useState<WineBottle | undefined>();
+  const [editingGrape, setEditingGrape] = useState<GrapeVariety | undefined>();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<WineType | 'All'>('All');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
@@ -729,9 +978,54 @@ export default function App() {
   const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 100000 });
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
   const [selectedGrapes, setSelectedGrapes] = useState<string[]>([]);
-  const [view, setView] = useState<'cellar' | 'recommendations' | 'stats'>('cellar');
+  const [view, setView] = useState<'cellar' | 'recommendations' | 'stats' | 'wine-of-the-day' | 'grapes'>('cellar');
+  const [statsSubTab, setStatsSubTab] = useState<'bottles' | 'grapes'>('bottles');
+  const [selectedAnalysisCountry, setSelectedAnalysisCountry] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [isRecLoading, setIsRecLoading] = useState(false);
+
+  const filteredGrapes = grapes.filter(g => {
+    const term = searchQuery.toLowerCase();
+    return g.name.toLowerCase().includes(term) ||
+           (g.region || '').toLowerCase().includes(term) ||
+           (g.country || '').toLowerCase().includes(term) ||
+           (g.aromaFlavor || '').toLowerCase().includes(term);
+  });
+
+  const wineOfTheDay = useMemo(() => {
+    if (bottles.length === 0) return null;
+    
+    // Use current date as seed for consistent daily selection
+    const today = new Date();
+    const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+    
+    // Prefer higher rated bottles
+    const potentialWines = bottles.filter(b => b.rating >= 4);
+    const sourcePool = potentialWines.length > 0 ? potentialWines : bottles;
+    
+    // Pseudo-random index based on seed
+    const index = seed % sourcePool.length;
+    return sourcePool[index];
+  }, [bottles]);
+
+  const topVarietals = useMemo(() => {
+    const counts: Record<string, { count: number; totalRating: number }> = {};
+    bottles.forEach(b => {
+      (b.grape || []).forEach(g => {
+        if (!counts[g]) counts[g] = { count: 0, totalRating: 0 };
+        counts[g].count += 1;
+        counts[g].totalRating += b.rating;
+      });
+    });
+    return Object.entries(counts)
+      .map(([name, data]) => ({
+        name,
+        count: data.count,
+        avgRating: parseFloat((data.totalRating / data.count).toFixed(1))
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [bottles]);
 
   const fetchRecommendations = async () => {
     if (bottles.length === 0) return;
@@ -773,12 +1067,49 @@ export default function App() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleCreateOrUpdateGrape = async (data: Omit<GrapeVariety, 'id' | 'dateAdded' | 'userId'>) => {
     if (!user) return;
+
     try {
-      await deleteDoc(doc(db, 'bottles', id));
+      if (editingGrape) {
+        const grapeRef = doc(db, 'grapes', editingGrape.id);
+        await updateDoc(grapeRef, { ...data, userId: user.uid });
+      } else {
+        const grapeId = Math.random().toString(36).substr(2, 9);
+        const grapeRef = doc(db, 'grapes', grapeId);
+        await setDoc(grapeRef, {
+          ...data,
+          id: grapeId,
+          dateAdded: Date.now(),
+          userId: user.uid
+        });
+      }
+      setIsGrapeFormOpen(false);
+      setEditingGrape(undefined);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `bottles/${id}`);
+      handleFirestoreError(error, OperationType.WRITE, 'grapes');
+    }
+  };
+
+  const handleDeleteBottle = async (id: string) => {
+    if (!user) return;
+    if (confirm('Are you sure you want to remove this entry from your diary?')) {
+      try {
+        await deleteDoc(doc(db, 'bottles', id));
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `bottles/${id}`);
+      }
+    }
+  };
+
+  const handleDeleteGrape = async (id: string) => {
+    if (!user) return;
+    if (confirm('Are you sure you want to remove this variety?')) {
+      try {
+        await deleteDoc(doc(db, 'grapes', id));
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `grapes/${id}`);
+      }
     }
   };
 
@@ -876,6 +1207,27 @@ export default function App() {
       type: b.type
     }));
 
+  const grapeGeographyData = useMemo(() => {
+    const countries: Record<string, { regions: Set<string>; grapes: Set<string>; total: number }> = {};
+    
+    grapes.forEach(g => {
+      const country = g.country || 'Unknown';
+      if (!countries[country]) {
+        countries[country] = { regions: new Set(), grapes: new Set(), total: 0 };
+      }
+      countries[country].total += 1;
+      if (g.region) countries[country].regions.add(g.region);
+      if (g.name) countries[country].grapes.add(g.name);
+    });
+
+    return Object.entries(countries).map(([name, data]) => ({
+      name,
+      total: data.total,
+      regions: Array.from(data.regions),
+      grapes: Array.from(data.grapes)
+    })).sort((a, b) => b.total - a.total);
+  }, [grapes]);
+
   const COLORS = ['#D4AF37', '#800020', '#C0C0C0', '#FFD700', '#E5E4E2', '#B8860B', '#BC8F8F', '#8B4513'];
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -927,6 +1279,24 @@ export default function App() {
               My Cellar
             </button>
             <button
+              onClick={() => setView('wine-of-the-day')}
+              className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
+                view === 'wine-of-the-day' ? 'bg-gold/10 text-gold font-bold shadow-lg' : 'text-ink/40 hover:text-ink hover:bg-white/5'
+              }`}
+            >
+              <Star size={16} />
+              Wine of the Day
+            </button>
+            <button
+              onClick={() => setView('grapes')}
+              className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
+                view === 'grapes' ? 'bg-gold/10 text-gold font-bold shadow-lg' : 'text-ink/40 hover:text-ink hover:bg-white/5'
+              }`}
+            >
+              <FlaskConical size={16} />
+              Grape Varieties
+            </button>
+            <button
               onClick={() => {
                 setView('recommendations');
                 if (recommendations.length === 0) fetchRecommendations();
@@ -939,76 +1309,76 @@ export default function App() {
               AI Sommelier
             </button>
             <button
-              onClick={() => setView('stats')}
-              className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
-                view === 'stats' ? 'bg-white/10 text-gold font-bold shadow-lg' : 'text-ink/40 hover:text-ink hover:bg-white/5'
-              }`}
-            >
-              <BarChart3 size={16} />
-              Cellar Analytics
-            </button>
-          </div>
-
-          <div>
-            <button 
-              onClick={() => setIsFilterExpanded(!isFilterExpanded)}
-              className="w-full flex items-center justify-between group mb-6 hover:text-gold transition-colors"
-            >
-              <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold transition-colors">
-                {isFilterExpanded ? 'Hide Filters' : 'Filter Collection'}
-              </h3>
-              <div className={`transition-transform duration-300 ${isFilterExpanded ? 'rotate-180' : ''}`}>
-                <ChevronDown size={14} className="text-ink/20 group-hover:text-gold" />
-              </div>
-            </button>
-            
-            <AnimatePresence initial={false}>
-              {isFilterExpanded && (
-                <motion.div 
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="space-y-6 overflow-hidden pb-10"
-                >
-                  <div className="space-y-1.5">
-                    <button 
-                      onClick={() => setActiveFilter('All')}
-                      className={`w-full flex items-center justify-between px-4 py-2.5 rounded-sm transition-all text-[9px] uppercase tracking-[0.3em] ${
-                        activeFilter === 'All' 
-                          ? 'bg-gold/10 text-gold border border-gold/20 font-bold' 
-                          : 'text-ink/40 hover:text-ink hover:bg-white/5 border border-transparent'
-                      }`}
-                    >
-                      <span>Entire Cellar</span>
-                      <span className="opacity-40">{bottles.length}</span>
-                    </button>
-                    
-                    <div className="h-4"></div>
-                    <p className="text-[8px] uppercase tracking-widest text-ink/20 font-bold px-4 mb-2">Classifications</p>
-                    
-                    {wineTypes.map(type => {
-                      const typeConfig = WINE_TYPE_CONFIG[type];
-                      return (
-                        <button 
-                          key={type}
-                          onClick={() => setActiveFilter(type)}
-                          className={`w-full flex items-center justify-between px-4 py-2.5 rounded-sm transition-all text-[9px] uppercase tracking-[0.3em] group ${
-                            activeFilter === type 
-                              ? `${typeConfig.bg} ${typeConfig.text} ${typeConfig.border} border font-bold` 
-                              : 'text-ink/40 hover:text-ink hover:bg-white/5 border border-transparent'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className={`w-1 h-1 rounded-full ${typeConfig.accent} ${activeFilter === type ? 'opacity-100' : 'opacity-40 group-hover:opacity-100'}`}></div>
-                            <span>{type}</span>
-                          </div>
-                          <span className="opacity-40">
-                            {bottles.filter(b => b.type === type).length}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
+               onClick={() => setView('stats')}
+               className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
+                 view === 'stats' ? 'bg-white/10 text-gold font-bold shadow-lg' : 'text-ink/40 hover:text-ink hover:bg-white/5'
+               }`}
+             >
+               <BarChart3 size={16} />
+               Cellar Analytics
+             </button>
+           </div>
+ 
+           <div>
+             <button 
+               onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+               className="w-full flex items-center justify-between group mb-6 hover:text-gold transition-colors"
+             >
+               <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold transition-colors">
+                 {isFilterExpanded ? 'Hide Filters' : 'Filter Collection'}
+               </h3>
+               <div className={`transition-transform duration-300 ${isFilterExpanded ? 'rotate-180' : ''}`}>
+                 <ChevronDown size={14} className="text-ink/20 group-hover:text-gold" />
+               </div>
+             </button>
+             
+             <AnimatePresence initial={false}>
+               {isFilterExpanded && (
+                 <motion.div 
+                   initial={{ height: 0, opacity: 0 }}
+                   animate={{ height: 'auto', opacity: 1 }}
+                   exit={{ height: 0, opacity: 0 }}
+                   className="space-y-6 overflow-hidden pb-10"
+                 >
+                   <div className="space-y-1.5">
+                     <button 
+                       onClick={() => setActiveFilter('All')}
+                       className={`w-full flex items-center justify-between px-4 py-2.5 rounded-sm transition-all text-[9px] uppercase tracking-[0.3em] ${
+                         activeFilter === 'All' 
+                           ? 'bg-gold/10 text-gold border border-gold/20 font-bold' 
+                           : 'text-ink/40 hover:text-ink hover:bg-white/5 border border-transparent'
+                       }`}
+                     >
+                       <span>Entire Cellar</span>
+                       <span className="opacity-40">{bottles.length}</span>
+                     </button>
+                     
+                     <div className="h-4"></div>
+                     <p className="text-[8px] uppercase tracking-widest text-ink/20 font-bold px-4 mb-2">Classifications</p>
+                     
+                     {WINE_TYPES.map(type => {
+                       const typeConfig = WINE_TYPE_CONFIG[type];
+                       return (
+                         <button 
+                           key={type}
+                           onClick={() => setActiveFilter(type)}
+                           className={`w-full flex items-center justify-between px-4 py-2.5 rounded-sm transition-all text-[9px] uppercase tracking-[0.3em] group ${
+                             activeFilter === type 
+                               ? `${typeConfig.bg} ${typeConfig.text} ${typeConfig.border} border font-bold` 
+                               : 'text-ink/40 hover:text-ink hover:bg-white/5 border border-transparent'
+                           }`}
+                         >
+                           <div className="flex items-center gap-2">
+                             <div className={`w-1 h-1 rounded-full ${typeConfig.accent} ${activeFilter === type ? 'opacity-100' : 'opacity-40 group-hover:opacity-100'}`}></div>
+                             <span>{type}</span>
+                           </div>
+                           <span className="opacity-40">
+                             {bottles.filter(b => b.type === type).length}
+                           </span>
+                         </button>
+                       );
+                     })}
+                   </div>
 
                   {/* Price Range Filter */}
                   <div className="px-4 space-y-3">
@@ -1222,6 +1592,205 @@ export default function App() {
                  </div>
               </div>
             </motion.div>
+          ) : view === 'wine-of-the-day' ? (
+            <motion.div
+              key="wine-of-the-day"
+              initial={{ opacity: 0, scale: 0.98, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 1.02, y: -20 }}
+              transition={{ duration: 0.5, ease: "anticipate" }}
+              className="space-y-12"
+            >
+              <div className="space-y-4">
+                <p className="text-[10px] uppercase tracking-[0.5em] text-gold font-bold flex items-center gap-2">
+                  <span className="w-8 h-px bg-gold/30"></span>
+                  Daily Selection
+                </p>
+                <h2 className="text-5xl font-serif font-light text-ink leading-tight">Your Wine of the Day.</h2>
+                <p className="text-ink/40 max-w-xl font-light leading-relaxed">
+                  A special selection from your private reserve, chosen to inspire your palate today.
+                </p>
+              </div>
+
+              {!wineOfTheDay ? (
+                <div className="py-32 bg-white/5 border border-dashed border-white/10 rounded-sm flex flex-col items-center justify-center text-center p-12">
+                  <Wine size={48} className="text-ink/10 mb-6" />
+                  <h3 className="font-serif text-2xl text-ink/40 mb-2 italic">No Bottles Found</h3>
+                  <p className="text-[10px] uppercase tracking-widest text-ink/20 mb-8 max-w-md">
+                    Start adding bottles to your cellar to receive a daily selection.
+                  </p>
+                  <button 
+                    onClick={() => { setView('cellar'); setIsFormOpen(true); }}
+                    className="flex items-center gap-2 text-gold group"
+                  >
+                    <Plus size={14} />
+                    <span className="text-[10px] uppercase tracking-[0.3em] font-bold group-hover:underline">Add your first bottle</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="max-w-4xl mx-auto">
+                  <motion.div 
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="glass-panel overflow-hidden bg-white/5 border-gold/20"
+                  >
+                    <div className="flex flex-col lg:flex-row">
+                      {wineOfTheDay.imageUrl && (
+                        <div className="lg:w-1/2 h-96 lg:h-auto bg-black relative">
+                          <img 
+                            src={wineOfTheDay.imageUrl} 
+                            alt={wineOfTheDay.name}
+                            className="w-full h-full object-cover mix-blend-lighten opacity-80"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#141212] lg:block hidden"></div>
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#141212] to-transparent lg:hidden block"></div>
+                        </div>
+                      )}
+                      
+                      <div className={`p-10 flex flex-col justify-center ${wineOfTheDay.imageUrl ? 'lg:w-1/2' : 'w-full'}`}>
+                        <div className="flex items-center justify-between mb-8">
+                           <span className={`text-[10px] uppercase tracking-[0.2em] font-bold px-4 py-1.5 rounded-full border ${WINE_TYPE_CONFIG[wineOfTheDay.type]?.text} ${WINE_TYPE_CONFIG[wineOfTheDay.type]?.bg} ${WINE_TYPE_CONFIG[wineOfTheDay.type]?.border}`}>
+                            {wineOfTheDay.type}
+                          </span>
+                          <div className="flex gap-1">
+                            {[...Array(5)].map((_, i) => (
+                              <Star 
+                                key={i} 
+                                size={12} 
+                                className={i < wineOfTheDay.rating ? "text-gold fill-current" : "text-white/10"} 
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="space-y-4 mb-10">
+                          <h3 className="text-4xl font-serif font-light text-ink leading-tight">{wineOfTheDay.name}</h3>
+                          <div className="space-y-1">
+                            <p className="font-serif italic text-gold text-lg">{wineOfTheDay.producer}</p>
+                            <p className="text-[10px] uppercase tracking-[0.4em] text-ink/30">{wineOfTheDay.year}</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-8 mb-10 border-y border-white/5 py-8">
+                          <div className="space-y-1">
+                            <p className="text-[9px] uppercase tracking-widest text-ink/30 font-bold">Region</p>
+                            <p className="text-sm text-ink/80">{wineOfTheDay.region || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[9px] uppercase tracking-widest text-ink/30 font-bold">Country</p>
+                            <p className="text-sm text-ink/80">{wineOfTheDay.country || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[9px] uppercase tracking-widest text-ink/30 font-bold">Grapes</p>
+                            <p className="text-sm text-ink/80">{wineOfTheDay.grape?.join(', ') || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[9px] uppercase tracking-widest text-ink/30 font-bold">Price</p>
+                            <p className="text-sm text-ink/80">฿{wineOfTheDay.price?.toLocaleString() || '—'}</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <p className="text-[9px] uppercase tracking-widest text-gold font-bold flex items-center gap-2">
+                             <Sparkles size={12} />
+                             Sommelier's Flashback
+                          </p>
+                          <p className="text-sm italic text-ink/60 leading-relaxed font-serif">
+                            "{wineOfTheDay.tastingNotes || "A vintage waiting to be rediscovered..."}"
+                          </p>
+                        </div>
+                        
+                        <div className="mt-10">
+                          <button 
+                            onClick={() => {
+                              setEditingBottle(wineOfTheDay);
+                              setIsFormOpen(true);
+                            }}
+                            className="bg-gold/10 hover:bg-gold/20 text-gold border border-gold/20 px-8 py-4 text-[10px] uppercase tracking-[0.3em] font-bold transition-all"
+                          >
+                            Update Tasting Notes
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </motion.div>
+          ) : view === 'grapes' ? (
+            <motion.div
+              key="grapes"
+              initial={{ opacity: 0, scale: 0.98, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 1.02, y: -20 }}
+              transition={{ duration: 0.5, ease: "anticipate" }}
+              className="space-y-16"
+            >
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-4">
+                    <div className="w-8 h-px bg-gold/30"></div>
+                    <span className="text-[10px] uppercase tracking-[0.6em] text-gold font-bold">Encyclopedia</span>
+                  </div>
+                  <h1 className="text-6xl font-serif font-light text-ink">Grape Varieties</h1>
+                </div>
+
+                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 flex-1 max-w-3xl">
+                  <div className="relative group flex-1">
+                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-ink/20 group-focus-within:text-gold transition-colors" size={20} />
+                    <input
+                      type="text"
+                      placeholder="Search varieties..."
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      className="w-full bg-white/5 border border-white/5 px-16 py-5 text-lg font-serif font-light outline-none focus:bg-white/10 focus:border-gold/30 transition-all rounded-sm tracking-wide text-ink"
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setEditingGrape(undefined);
+                      setIsGrapeFormOpen(true);
+                    }}
+                    className="bg-gold text-wine-bg px-10 py-5 font-bold tracking-[0.4em] uppercase text-[10px] hover:bg-gold/90 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3 whitespace-nowrap"
+                  >
+                    <Plus size={18} />
+                    Register Variety
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
+                <AnimatePresence mode="popLayout">
+                  {grapes
+                    .filter(g => g.name.toLowerCase().includes(searchQuery.toLowerCase()) || g.region.toLowerCase().includes(searchQuery.toLowerCase()) || g.country.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map(grape => (
+                      <GrapeCard
+                        key={grape.id}
+                        grape={grape}
+                        onEdit={(g) => {
+                          setEditingGrape(g);
+                          setIsGrapeFormOpen(true);
+                        }}
+                        onDelete={handleDeleteGrape}
+                      />
+                    ))}
+                </AnimatePresence>
+                
+                {grapes.length === 0 && (
+                  <div className="col-span-full py-32 flex flex-col items-center text-center space-y-6">
+                    <div className="w-24 h-24 border border-white/5 rounded-full flex items-center justify-center text-ink/10">
+                      <FlaskConical size={48} strokeWidth={1} />
+                    </div>
+                    <div className="space-y-2">
+                       <p className="font-serif text-2xl text-ink/40 font-light italic">Your Encyclopedia is Empty</p>
+                       <p className="text-[10px] uppercase tracking-[0.3em] text-ink/20">Start cataloging grape varieties to build your knowledge base</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
           ) : view === 'cellar' ? (
             <motion.div
               key="cellar"
@@ -1275,7 +1844,7 @@ export default function App() {
                         setEditingBottle(b);
                         setIsFormOpen(true);
                       }}
-                      onDelete={handleDelete}
+                      onDelete={handleDeleteBottle}
                     />
                   ))}
                 </AnimatePresence>
@@ -1370,175 +1939,288 @@ export default function App() {
               transition={{ duration: 0.5, ease: "anticipate" }}
               className="space-y-16"
             >
-              <header className="space-y-4">
-                <p className="text-[10px] uppercase tracking-[0.5em] text-gold font-bold flex items-center gap-2">
-                  <span className="w-8 h-px bg-gold/30"></span>
-                  Cellar Analytics
-                </p>
-                <h2 className="text-5xl font-serif font-light text-ink leading-tight">Insights into your <br />private collection.</h2>
-              </header>
-
-              {bottles.length === 0 ? (
-                <div className="py-32 bg-white/5 border border-dashed border-white/10 rounded-sm flex flex-col items-center justify-center text-center p-12">
-                  <BarChart3 size={48} className="text-ink/10 mb-6" />
-                  <h3 className="font-serif text-2xl text-ink/40 mb-2 italic">No Data to Analyze</h3>
-                  <p className="text-[10px] uppercase tracking-widest text-ink/20 mb-8 max-w-md">
-                    Start documenting your cellar to unlock visual insights and trends.
+              <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
+                <header className="space-y-4">
+                  <p className="text-[10px] uppercase tracking-[0.5em] text-gold font-bold flex items-center gap-2">
+                    <span className="w-8 h-px bg-gold/30"></span>
+                    {statsSubTab === 'bottles' ? 'Cellar Analytics' : 'Variety Analytics'}
                   </p>
+                  <h2 className="text-5xl font-serif font-light text-ink leading-tight">
+                    {statsSubTab === 'bottles' ? (
+                      <>Insights into your <br />private collection.</>
+                    ) : (
+                      <>Knowledge base <br />demographics.</>
+                    )}
+                  </h2>
+                </header>
+
+                <div className="flex gap-1 bg-white/5 p-1 rounded-sm border border-white/5">
+                  <button
+                    onClick={() => setStatsSubTab('bottles')}
+                    className={`px-6 py-2 text-[10px] uppercase tracking-[0.2em] transition-all rounded-sm ${statsSubTab === 'bottles' ? 'bg-gold text-wine-bg font-bold shadow-lg' : 'text-ink/40 hover:text-ink/60'}`}
+                  >
+                    Cellar
+                  </button>
+                  <button
+                    onClick={() => setStatsSubTab('grapes')}
+                    className={`px-6 py-2 text-[10px] uppercase tracking-[0.2em] transition-all rounded-sm ${statsSubTab === 'grapes' ? 'bg-gold text-wine-bg font-bold shadow-lg' : 'text-ink/40 hover:text-ink/60'}`}
+                  >
+                    Grapes
+                  </button>
                 </div>
-              ) : (
-                <div className="space-y-12">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                    <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10">
-                      <div>
-                        <h3 className="text-lg font-serif text-ink mb-1">Distribution by Type</h3>
-                        <p className="text-[10px] uppercase tracking-widest text-ink/30">Categorized cellar breakdown</p>
+              </div>
+
+              {statsSubTab === 'bottles' ? (
+                bottles.length === 0 ? (
+                  <div className="py-32 bg-white/5 border border-dashed border-white/10 rounded-sm flex flex-col items-center justify-center text-center p-12">
+                    <BarChart3 size={48} className="text-ink/10 mb-6" />
+                    <h3 className="font-serif text-2xl text-ink/40 mb-2 italic">No Data to Analyze</h3>
+                    <p className="text-[10px] uppercase tracking-widest text-ink/20 mb-8 max-w-md">
+                      Start documenting your cellar to unlock visual insights and trends.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-12">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                      <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10">
+                        <div>
+                          <h3 className="text-lg font-serif text-ink mb-1">Distribution by Type</h3>
+                          <p className="text-[10px] uppercase tracking-widest text-ink/30">Categorized cellar breakdown</p>
+                        </div>
+                        <div className="h-[300px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={typeData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={60}
+                                outerRadius={100}
+                                paddingAngle={5}
+                                dataKey="value"
+                              >
+                                {typeData.map((entry, index) => (
+                                  <Cell 
+                                    key={`cell-${index}`} 
+                                    fill={WINE_TYPE_CONFIG[entry.name]?.hex || COLORS[index % COLORS.length]} 
+                                  />
+                                ))}
+                              </Pie>
+                              <Tooltip content={<CustomTooltip />} />
+                              <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '20px' }} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
                       </div>
-                      <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={typeData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={60}
-                              outerRadius={100}
-                              paddingAngle={5}
-                              dataKey="value"
-                            >
-                              {typeData.map((entry, index) => (
-                                <Cell 
-                                  key={`cell-${index}`} 
-                                  fill={WINE_TYPE_CONFIG[entry.name]?.hex || COLORS[index % COLORS.length]} 
-                                />
-                              ))}
-                            </Pie>
-                            <Tooltip content={<CustomTooltip />} />
-                            <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '20px' }} />
-                          </PieChart>
-                        </ResponsiveContainer>
+
+                      <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10">
+                        <div>
+                          <h3 className="text-lg font-serif text-ink mb-1">Top Regions</h3>
+                          <p className="text-[10px] uppercase tracking-widest text-ink/30">Most prevalent origins in your archive</p>
+                        </div>
+                        <div className="h-[300px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={regionData} layout="vertical" margin={{ left: 20, right: 30 }}>
+                              <XAxis type="number" hide />
+                              <YAxis 
+                                dataKey="name" 
+                                type="category" 
+                                stroke="#f8f4ed" 
+                                fontSize={10} 
+                                tickLine={false} 
+                                axisLine={false}
+                                width={100}
+                              />
+                              <Tooltip 
+                                content={<CustomTooltip />}
+                                cursor={{ fill: 'rgba(212,175,55,0.05)' }}
+                              />
+                              <Bar dataKey="value" name="Bottles" fill="#D4AF37" radius={[0, 4, 4, 0]} barSize={20} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10">
-                      <div>
-                        <h3 className="text-lg font-serif text-ink mb-1">Top Regions</h3>
-                        <p className="text-[10px] uppercase tracking-widest text-ink/30">Most prevalent origins in your archive</p>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                      <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10 lg:col-span-1">
+                        <div>
+                          <h3 className="text-lg font-serif text-ink mb-1">Most Favorite Varieties</h3>
+                          <p className="text-[10px] uppercase tracking-widest text-ink/30">Based on your tasting ratings</p>
+                        </div>
+                        <div className="space-y-6">
+                          {topVarietals.map((v, i) => (
+                            <div key={v.name} className="flex justify-between items-center group">
+                              <div className="flex items-center gap-4">
+                                <span className="text-[10px] text-gold/40 font-mono w-4 italic">{i+1}.</span>
+                                <div>
+                                  <p className="text-sm font-serif text-ink group-hover:text-gold transition-colors">{v.name}</p>
+                                  <p className="text-[9px] uppercase tracking-widest text-ink/30">{v.count} bottles documented</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-lg font-serif text-gold">{v.avgRating}</p>
+                                <div className="flex space-x-0.5 justify-end">
+                                  {[...Array(5)].map((_, starI) => (
+                                    <Star key={starI} size={6} className={starI < Math.round(v.avgRating) ? 'fill-gold text-gold' : 'text-white/10'} />
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={regionData} layout="vertical" margin={{ left: 20, right: 30 }}>
-                            <XAxis type="number" hide />
-                            <YAxis 
-                              dataKey="name" 
-                              type="category" 
-                              stroke="#f8f4ed" 
-                              fontSize={10} 
-                              tickLine={false} 
-                              axisLine={false}
-                              width={100}
-                            />
-                            <Tooltip 
-                              content={<CustomTooltip />}
-                              cursor={{ fill: 'rgba(212,175,55,0.05)' }}
-                            />
-                            <Bar dataKey="value" name="Bottles" fill="#D4AF37" radius={[0, 4, 4, 0]} barSize={20} />
-                          </BarChart>
-                        </ResponsiveContainer>
+
+                      <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10 lg:col-span-2 shadow-2xl">
+                        <div>
+                          <h3 className="text-lg font-serif text-ink mb-1">Palate Evolution</h3>
+                          <p className="text-[10px] uppercase tracking-widest text-ink/30">Average bottle rating over time</p>
+                        </div>
+                        <div className="h-[350px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={ratingTimeData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                              <XAxis 
+                                dataKey="name" 
+                                stroke="#f8f4ed" 
+                                fontSize={10} 
+                                tickLine={false} 
+                                axisLine={false}
+                                dy={10}
+                              />
+                              <YAxis 
+                                stroke="#f8f4ed" 
+                                fontSize={10} 
+                                tickLine={false} 
+                                axisLine={false} 
+                                domain={[0, 5]}
+                                dx={-10}
+                              />
+                              <Tooltip content={<CustomTooltip />} />
+                              <Line 
+                                type="monotone" 
+                                dataKey="rating" 
+                                name="Average Rating"
+                                stroke="#D4AF37" 
+                                strokeWidth={3} 
+                                dot={{ r: 4, fill: '#D4AF37', strokeWidth: 0 }}
+                                activeDot={{ r: 6, fill: '#D4AF37', strokeWidth: 2, stroke: '#1a1414' }}
+                              />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
                       </div>
+                    </div>
+
+                      <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10">
+                        <div>
+                          <h3 className="text-lg font-serif text-ink mb-1">Price vs Rating</h3>
+                          <p className="text-[10px] uppercase tracking-widest text-ink/30">Correlation between value and enjoyment</p>
+                        </div>
+                        <div className="h-[350px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <ScatterChart margin={{ top: 20, right: 30, bottom: 20, left: 20 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                              <XAxis 
+                                type="number" 
+                                dataKey="price" 
+                                name="Price" 
+                                unit="฿" 
+                                stroke="#f8f4ed" 
+                                fontSize={10}
+                                tickLine={false}
+                                axisLine={false}
+                              />
+                              <YAxis 
+                                type="number" 
+                                dataKey="rating" 
+                                name="Rating" 
+                                domain={[0, 5]} 
+                                stroke="#f8f4ed" 
+                                fontSize={10}
+                                tickLine={false}
+                                axisLine={false}
+                              />
+                              <ZAxis type="number" range={[60, 400]} />
+                              <Tooltip content={<CustomTooltip />} />
+                              <Scatter 
+                                name="Wines" 
+                                data={priceRatingData} 
+                                fill="#D4AF37"
+                                fillOpacity={0.6}
+                              >
+                                {priceRatingData.map((entry, index) => (
+                                  <Cell 
+                                    key={`cell-${index}`} 
+                                    fill={WINE_TYPE_CONFIG[entry.type]?.hex || '#D4AF37'} 
+                                  />
+                                ))}
+                              </Scatter>
+                            </ScatterChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div>
+                      <h3 className="text-lg font-serif text-ink mb-1">Grape Geography</h3>
+                      <p className="text-[10px] uppercase tracking-widest text-ink/30">Encyclopedia diversity by country</p>
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scroll-hide">
+                      {grapeGeographyData.map(country => (
+                        <button
+                          key={country.name}
+                          onClick={() => setSelectedAnalysisCountry(selectedAnalysisCountry === country.name ? null : country.name)}
+                          className={`px-4 py-2 text-[9px] uppercase tracking-widest border transition-all whitespace-nowrap rounded-sm ${selectedAnalysisCountry === country.name ? 'bg-gold text-wine-bg border-gold' : 'border-white/10 text-ink/40 hover:border-gold/30 hover:text-ink'}`}
+                        >
+                          {country.name} ({country.total})
+                        </button>
+                      ))}
+                      {grapeGeographyData.length === 0 && (
+                        <p className="text-[9px] uppercase tracking-widest text-ink/20">Add grapes to see geography insights</p>
+                      )}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                    <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10">
-                      <div>
-                        <h3 className="text-lg font-serif text-ink mb-1">Palate Evolution</h3>
-                        <p className="text-[10px] uppercase tracking-widest text-ink/30">Average bottle rating over time</p>
+                  <AnimatePresence mode="wait">
+                    {selectedAnalysisCountry ? (
+                      <motion.div
+                        key={selectedAnalysisCountry}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="grid grid-cols-1 md:grid-cols-2 gap-12 pt-6 border-t border-white/5"
+                      >
+                        <div className="space-y-4">
+                          <p className="text-[10px] uppercase tracking-[0.3em] text-gold font-bold">Regions in {selectedAnalysisCountry}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {grapeGeographyData.find(c => c.name === selectedAnalysisCountry)?.regions.map(region => (
+                              <span key={region} className="px-3 py-1 bg-white/5 border border-white/5 text-[11px] text-ink/60 rounded-sm">
+                                {region}
+                              </span>
+                            )) || <p className="text-xs text-ink/30 italic">No regions specified</p>}
+                          </div>
+                        </div>
+                        <div className="space-y-4">
+                          <p className="text-[10px] uppercase tracking-[0.3em] text-gold font-bold">Varieties from {selectedAnalysisCountry}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {grapeGeographyData.find(c => c.name === selectedAnalysisCountry)?.grapes.map(grape => (
+                              <span key={grape} className="px-3 py-1 border border-gold/10 text-gold/80 text-[11px] font-serif italic rounded-sm">
+                                {grape}
+                              </span>
+                            )) || <p className="text-xs text-ink/30 italic">No varieties specified</p>}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ) : (
+                      <div className="py-12 text-center border-t border-white/5">
+                        <p className="text-[10px] uppercase tracking-[0.3em] text-ink/20">Select a country above to see regional & variety insights</p>
                       </div>
-                      <div className="h-[350px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={ratingTimeData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                            <XAxis 
-                              dataKey="name" 
-                              stroke="#f8f4ed" 
-                              fontSize={10} 
-                              tickLine={false} 
-                              axisLine={false}
-                              dy={10}
-                            />
-                            <YAxis 
-                              stroke="#f8f4ed" 
-                              fontSize={10} 
-                              tickLine={false} 
-                              axisLine={false} 
-                              domain={[0, 5]}
-                              dx={-10}
-                            />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Line 
-                              type="monotone" 
-                              dataKey="rating" 
-                              name="Average Rating"
-                              stroke="#D4AF37" 
-                              strokeWidth={3} 
-                              dot={{ r: 4, fill: '#D4AF37', strokeWidth: 0 }}
-                              activeDot={{ r: 6, fill: '#D4AF37', strokeWidth: 2, stroke: '#1a1414' }}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-
-                    <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10">
-                      <div>
-                        <h3 className="text-lg font-serif text-ink mb-1">Price vs Rating</h3>
-                        <p className="text-[10px] uppercase tracking-widest text-ink/30">Correlation between value and enjoyment</p>
-                      </div>
-                      <div className="h-[350px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <ScatterChart margin={{ top: 20, right: 30, bottom: 20, left: 20 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                            <XAxis 
-                              type="number" 
-                              dataKey="price" 
-                              name="Price" 
-                              unit="฿" 
-                              stroke="#f8f4ed" 
-                              fontSize={10}
-                              tickLine={false}
-                              axisLine={false}
-                            />
-                            <YAxis 
-                              type="number" 
-                              dataKey="rating" 
-                              name="Rating" 
-                              domain={[0, 5]} 
-                              stroke="#f8f4ed" 
-                              fontSize={10}
-                              tickLine={false}
-                              axisLine={false}
-                            />
-                            <ZAxis type="number" range={[60, 400]} />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Scatter 
-                              name="Wines" 
-                              data={priceRatingData} 
-                              fill="#D4AF37"
-                              fillOpacity={0.6}
-                            >
-                              {priceRatingData.map((entry, index) => (
-                                <Cell 
-                                  key={`cell-${index}`} 
-                                  fill={WINE_TYPE_CONFIG[entry.type]?.hex || '#D4AF37'} 
-                                />
-                              ))}
-                            </Scatter>
-                          </ScatterChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  </div>
+                    )}
+                  </AnimatePresence>
                 </div>
               )}
             </motion.div>
@@ -1561,6 +2243,25 @@ export default function App() {
               bottle={editingBottle}
               onClose={() => setIsFormOpen(false)}
               onSave={handleCreateOrUpdate}
+            />
+          </>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isGrapeFormOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsGrapeFormOpen(false)}
+              className="fixed inset-0 bg-[#000]/80 backdrop-blur-md z-40"
+            />
+            <GrapeForm
+              grape={editingGrape}
+              onClose={() => setIsGrapeFormOpen(false)}
+              onSave={handleCreateOrUpdateGrape}
             />
           </>
         )}
