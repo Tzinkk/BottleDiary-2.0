@@ -1001,7 +1001,9 @@ export default function App() {
     } catch (error: any) {
       console.error("Login failed:", error);
       if (error.code === 'auth/unauthorized-domain') {
-        setAuthError("This domain is not authorized for Google Login. Please add your domain to the Firebase Console.");
+        setAuthError(`Domain "${window.location.hostname}" is not authorized. Please add it to "Authorized domains" in your Firebase Console Authentication settings.`);
+      } else if (error.code === 'auth/popup-blocked') {
+        setAuthError("Login popup was blocked by your browser. Please allow popups for this site and try again.");
       } else {
         setAuthError(error.message || "An unexpected error occurred during login.");
       }
