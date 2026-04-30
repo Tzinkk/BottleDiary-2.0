@@ -436,11 +436,12 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({ recommendation 
 
 interface WineFormProps {
   bottle?: WineBottle;
+  grapes: GrapeVariety[];
   onSave: (bottle: Omit<WineBottle, 'id' | 'dateAdded'>) => void;
   onClose: () => void;
 }
 
-const WineForm = ({ bottle, onSave, onClose }: WineFormProps) => {
+const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
   const [formData, setFormData] = useState({
     name: bottle?.name || '',
     producer: bottle?.producer || '',
@@ -981,16 +982,31 @@ export default function App() {
   const [view, setView] = useState<'cellar' | 'recommendations' | 'stats' | 'wine-of-the-day' | 'grapes'>('cellar');
   const [statsSubTab, setStatsSubTab] = useState<'bottles' | 'grapes'>('bottles');
   const [selectedAnalysisCountry, setSelectedAnalysisCountry] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [isRecLoading, setIsRecLoading] = useState(false);
 
   const filteredGrapes = grapes.filter(g => {
     const term = searchQuery.toLowerCase();
-    return g.name.toLowerCase().includes(term) ||
+    return (g.name || '').toLowerCase().includes(term) ||
            (g.region || '').toLowerCase().includes(term) ||
            (g.country || '').toLowerCase().includes(term) ||
            (g.aromaFlavor || '').toLowerCase().includes(term);
   });
+
+  const handleLogin = async () => {
+    setAuthError(null);
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
+      console.error("Login failed:", error);
+      if (error.code === 'auth/unauthorized-domain') {
+        setAuthError("This domain is not authorized for Google Login. Please add your domain to the Firebase Console.");
+      } else {
+        setAuthError(error.message || "An unexpected error occurred during login.");
+      }
+    }
+  };
 
   const wineOfTheDay = useMemo(() => {
     if (bottles.length === 0) return null;
@@ -1509,15 +1525,22 @@ export default function App() {
                 </button>
               </div>
             </div>
-          ) : (
-            <button
-              onClick={signInWithGoogle}
-              className="w-full flex items-center justify-center gap-3 px-4 py-4 bg-gold text-wine-bg text-[10px] uppercase font-bold tracking-[0.3em] hover:bg-gold/90 transition-all rounded-sm shadow-xl active:scale-95"
-            >
-              <LogIn size={18} />
-              Connect Devices
-            </button>
-          )}
+            ) : (
+              <div className="space-y-4">
+                <button
+                  onClick={handleLogin}
+                  className="w-full flex items-center justify-center gap-3 px-4 py-4 bg-gold text-wine-bg text-[10px] uppercase font-bold tracking-[0.3em] hover:bg-gold/90 transition-all rounded-sm shadow-xl active:scale-95"
+                >
+                  <LogIn size={18} />
+                  Connect Devices
+                </button>
+                {authError && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-[9px] uppercase tracking-widest leading-relaxed rounded-sm">
+                    {authError}
+                  </div>
+                )}
+              </div>
+            )}
 
           <div className="glass-panel p-6 rounded-sm border-gold/10 relative overflow-hidden">
              <div className="absolute top-0 right-0 p-2 opacity-10">
@@ -1569,13 +1592,21 @@ export default function App() {
                 </p>
               </div>
 
-              <button
-                onClick={signInWithGoogle}
-                className="bg-gold text-wine-bg px-12 py-5 font-bold tracking-[0.4em] uppercase text-xs hover:bg-gold/90 transition-all shadow-2xl active:scale-95 flex items-center gap-4"
-              >
-                <LogIn size={20} />
-                Sign in with Google
-              </button>
+              <div className="space-y-8 flex flex-col items-center">
+                <button
+                  onClick={handleLogin}
+                  className="bg-gold text-wine-bg px-12 py-5 font-bold tracking-[0.4em] uppercase text-xs hover:bg-gold/90 transition-all shadow-2xl active:scale-95 flex items-center gap-4"
+                >
+                  <LogIn size={20} />
+                  Sign in with Google
+                </button>
+
+                {authError && (
+                  <div className="max-w-md p-4 bg-red-500/5 border border-red-500/20 text-red-500 text-[10px] uppercase tracking-[0.2em] leading-relaxed rounded-sm animate-shake">
+                    {authError}
+                  </div>
+                )}
+              </div>
               
               <div className="pt-12 grid grid-cols-3 gap-12 w-full border-t border-white/5 opacity-40">
                  <div className="space-y-2">
@@ -1763,19 +1794,17 @@ export default function App() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
                 <AnimatePresence mode="popLayout">
-                  {grapes
-                    .filter(g => g.name.toLowerCase().includes(searchQuery.toLowerCase()) || g.region.toLowerCase().includes(searchQuery.toLowerCase()) || g.country.toLowerCase().includes(searchQuery.toLowerCase()))
-                    .map(grape => (
-                      <GrapeCard
-                        key={grape.id}
-                        grape={grape}
-                        onEdit={(g) => {
-                          setEditingGrape(g);
-                          setIsGrapeFormOpen(true);
-                        }}
-                        onDelete={handleDeleteGrape}
-                      />
-                    ))}
+                  {filteredGrapes.map(grape => (
+                    <GrapeCard
+                      key={grape.id}
+                      grape={grape}
+                      onEdit={(g) => {
+                        setEditingGrape(g);
+                        setIsGrapeFormOpen(true);
+                      }}
+                      onDelete={handleDeleteGrape}
+                    />
+                  ))}
                 </AnimatePresence>
                 
                 {grapes.length === 0 && (
@@ -2241,6 +2270,7 @@ export default function App() {
             />
             <WineForm
               bottle={editingBottle}
+              grapes={grapes}
               onClose={() => setIsFormOpen(false)}
               onSave={handleCreateOrUpdate}
             />
