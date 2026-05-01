@@ -1414,13 +1414,18 @@ export default function App() {
     const countries: Record<string, { regions: Set<string>; grapes: Set<string>; total: number }> = {};
     
     grapes.forEach(g => {
-      const country = g.country || 'Unknown';
-      if (!countries[country]) {
-        countries[country] = { regions: new Set(), grapes: new Set(), total: 0 };
-      }
-      countries[country].total += 1;
-      if (g.region) countries[country].regions.add(g.region);
-      if (g.name) countries[country].grapes.add(g.name);
+      const countriesList = Array.isArray(g.country) ? g.country : (g.country ? [g.country as any] : ['Unknown']);
+      const regionsList = Array.isArray(g.region) ? g.region : (g.region ? [g.region as any] : []);
+
+      countriesList.forEach(cty => {
+        const country = cty || 'Unknown';
+        if (!countries[country]) {
+          countries[country] = { regions: new Set(), grapes: new Set(), total: 0 };
+        }
+        countries[country].total += 1;
+        regionsList.forEach(r => countries[country].regions.add(r));
+        if (g.name) countries[country].grapes.add(g.name);
+      });
     });
 
     return Object.entries(countries).map(([name, data]) => ({
