@@ -166,7 +166,16 @@ const GrapeCard: React.FC<GrapeCardProps> = ({ grape, onEdit, onDelete }) => {
 
       <div className="mb-6">
         <h3 className="font-serif text-2xl font-light text-ink tracking-wide leading-tight">{grape.name}</h3>
-        <p className="text-[10px] text-gold/60 uppercase tracking-widest mt-1">{grape.region}, {grape.country}</p>
+        <div className="flex flex-wrap gap-x-2 gap-y-1 mt-1">
+          {Array.isArray(grape.country) ? grape.country.map((c, i) => (
+            <span key={i} className="text-[10px] text-gold/60 uppercase tracking-widest">{c}{i < grape.country.length - 1 ? ',' : ''}</span>
+          )) : <span className="text-[10px] text-gold/60 uppercase tracking-widest">{grape.country}</span>}
+        </div>
+        <div className="flex flex-wrap gap-x-2 gap-y-1 mt-0.5 opacity-60">
+          {Array.isArray(grape.region) ? grape.region.map((r, i) => (
+            <span key={i} className="text-[9px] text-ink uppercase tracking-[0.2em]">{r}{i < grape.region.length - 1 ? ',' : ''}</span>
+          )) : <span className="text-[9px] text-ink uppercase tracking-[0.2em]">{grape.region}</span>}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 mb-6 pt-4 border-t border-white/5">
@@ -192,6 +201,14 @@ const GrapeCard: React.FC<GrapeCardProps> = ({ grape, onEdit, onDelete }) => {
         <div>
           <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold mb-1">Aroma & Flavor</p>
           <p className="text-xs italic text-ink/60 line-clamp-2">{grape.aromaFlavor || '—'}</p>
+        </div>
+        <div>
+          <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold mb-1">Other Notes</p>
+          <p className="text-xs text-ink/60 line-clamp-2">{grape.otherNotes || '—'}</p>
+        </div>
+        <div>
+          <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold mb-1">Additional Notes</p>
+          <p className="text-xs text-ink/60 line-clamp-2">{grape.additionalNotes || '—'}</p>
         </div>
         <div>
           <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold mb-1">Food Pairing</p>
@@ -220,8 +237,8 @@ const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
     name: grape?.name || '',
     type: (grape?.type || 'Red') as 'Red' | 'White',
     skin: grape?.skin || '',
-    region: grape?.region || '',
-    country: grape?.country || '',
+    region: Array.isArray(grape?.region) ? grape.region : (grape?.region ? [grape.region] : []),
+    country: Array.isArray(grape?.country) ? grape.country : (grape?.country ? [grape.country] : []),
     body: grape?.body || '',
     acidity: grape?.acidity || '',
     tannin: grape?.tannin || '',
@@ -232,9 +249,47 @@ const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
     additionalNotes: grape?.additionalNotes || '',
   });
 
+  const [regionInput, setRegionInput] = useState('');
+  const [countryInput, setCountryInput] = useState('');
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    const finalRegions = regionInput.trim() ? [...formData.region, regionInput.trim()] : formData.region;
+    const finalCountries = countryInput.trim() ? [...formData.country, countryInput.trim()] : formData.country;
+    
+    onSave({
+      ...formData,
+      region: [...new Set(finalRegions)],
+      country: [...new Set(finalCountries)]
+    });
+  };
+
+  const addRegion = () => {
+    if (regionInput.trim() && !formData.region.includes(regionInput.trim())) {
+      setFormData({ ...formData, region: [...formData.region, regionInput.trim()] });
+      setRegionInput('');
+    }
+  };
+
+  const removeRegion = (index: number) => {
+    setFormData({
+      ...formData,
+      region: formData.region.filter((_, i) => i !== index)
+    });
+  };
+
+  const addCountry = () => {
+    if (countryInput.trim() && !formData.country.includes(countryInput.trim())) {
+      setFormData({ ...formData, country: [...formData.country, countryInput.trim()] });
+      setCountryInput('');
+    }
+  };
+
+  const removeCountry = (index: number) => {
+    setFormData({
+      ...formData,
+      country: formData.country.filter((_, i) => i !== index)
+    });
   };
 
   return (
@@ -286,14 +341,49 @@ const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-8">
+          <div className="space-y-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Region</label>
-              <input value={formData.region} onChange={e => setFormData({ ...formData, region: e.target.value })} className="w-full bg-transparent border-b border-white/10 py-2 text-ink" />
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Regions</label>
+              <div className="flex flex-wrap gap-2 mb-2 min-h-[32px]">
+                {formData.region.map((r, i) => (
+                  <span key={i} className="flex items-center gap-1 px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[10px] text-gold/80">
+                    {r}
+                    <button type="button" onClick={() => removeRegion(i)} className="hover:text-red-500"><X size={10} /></button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input 
+                  value={regionInput} 
+                  onChange={e => setRegionInput(e.target.value)} 
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addRegion())}
+                  className="flex-1 bg-transparent border-b border-white/10 py-2 text-ink text-sm" 
+                  placeholder="Add region..."
+                />
+                <button type="button" onClick={addRegion} className="p-2 border border-white/10 rounded hover:bg-white/5 transition-colors"><Plus size={14} /></button>
+              </div>
             </div>
+
             <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Country</label>
-              <input value={formData.country} onChange={e => setFormData({ ...formData, country: e.target.value })} className="w-full bg-transparent border-b border-white/10 py-2 text-ink" />
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Countries</label>
+              <div className="flex flex-wrap gap-2 mb-2 min-h-[32px]">
+                {formData.country.map((c, i) => (
+                  <span key={i} className="flex items-center gap-1 px-3 py-1 bg-gold/5 border border-gold/10 rounded-full text-[10px] text-gold">
+                    {c}
+                    <button type="button" onClick={() => removeCountry(i)} className="hover:text-red-500"><X size={10} /></button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input 
+                  value={countryInput} 
+                  onChange={e => setCountryInput(e.target.value)} 
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addCountry())}
+                  className="flex-1 bg-transparent border-b border-white/10 py-2 text-ink text-sm" 
+                  placeholder="Add country..."
+                />
+                <button type="button" onClick={addCountry} className="p-2 border border-white/10 rounded hover:bg-white/5 transition-colors"><Plus size={14} /></button>
+              </div>
             </div>
           </div>
 
@@ -318,16 +408,16 @@ const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
               <textarea rows={2} value={formData.aromaFlavor} onChange={e => setFormData({ ...formData, aromaFlavor: e.target.value })} className="w-full bg-white/5 border border-white/10 p-4 rounded text-sm text-ink italic" placeholder="Red fruits, spice, earthy..." />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Food Pairing</label>
-              <textarea rows={2} value={formData.foodPairing} onChange={e => setFormData({ ...formData, foodPairing: e.target.value })} className="w-full bg-white/5 border border-white/10 p-4 rounded text-sm text-ink" placeholder="Grilled salmon, duck..." />
-            </div>
-            <div className="space-y-2">
               <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Other Notes</label>
               <textarea rows={2} value={formData.otherNotes} onChange={e => setFormData({ ...formData, otherNotes: e.target.value })} className="w-full bg-white/5 border border-white/10 p-4 rounded text-sm text-ink" />
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Additional Notes</label>
               <textarea rows={2} value={formData.additionalNotes} onChange={e => setFormData({ ...formData, additionalNotes: e.target.value })} className="w-full bg-white/5 border border-white/10 p-4 rounded text-sm text-ink" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Food Pairing</label>
+              <textarea rows={2} value={formData.foodPairing} onChange={e => setFormData({ ...formData, foodPairing: e.target.value })} className="w-full bg-white/5 border border-white/10 p-4 rounded text-sm text-ink" placeholder="Grilled salmon, duck..." />
             </div>
           </div>
 
@@ -1080,10 +1170,16 @@ export default function App() {
 
   const filteredGrapes = grapes.filter(g => {
     const term = searchQuery.toLowerCase();
-    return (g.name || '').toLowerCase().includes(term) ||
-           (g.region || '').toLowerCase().includes(term) ||
-           (g.country || '').toLowerCase().includes(term) ||
-           (g.aromaFlavor || '').toLowerCase().includes(term);
+    const matchesName = (g.name || '').toLowerCase().includes(term);
+    const matchesRegions = Array.isArray(g.region) 
+      ? g.region.some(r => r.toLowerCase().includes(term))
+      : (g.region || '').toLowerCase().includes(term);
+    const matchesCountries = Array.isArray(g.country)
+      ? g.country.some(c => c.toLowerCase().includes(term))
+      : (g.country || '').toLowerCase().includes(term);
+    const matchesFlavor = (g.aromaFlavor || '').toLowerCase().includes(term);
+
+    return matchesName || matchesRegions || matchesCountries || matchesFlavor;
   });
 
   const handleLogin = async () => {

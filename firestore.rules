@@ -51,6 +51,8 @@ service cloud.firestore {
         && data.id is string && data.id.size() <= 128
         && data.name is string && data.name.size() > 0 && data.name.size() <= 200
         && data.type is string && (data.type == 'Red' || data.type == 'White')
+        && (!('region' in data) || (data.region is list && data.region.size() <= 20))
+        && (!('country' in data) || (data.country is list && data.country.size() <= 20))
         && data.userId == request.auth.uid;
     }
 
