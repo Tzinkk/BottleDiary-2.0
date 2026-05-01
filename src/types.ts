@@ -24,8 +24,7 @@ export interface GrapeVariety {
   name: string;
   type: 'Red' | 'White';
   skin: string;
-  region: string[];
-  country: string[];
+  locations: string[];
   body: string;
   acidity: string;
   tannin: string;

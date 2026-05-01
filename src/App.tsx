@@ -167,14 +167,11 @@ const GrapeCard: React.FC<GrapeCardProps> = ({ grape, onEdit, onDelete }) => {
       <div className="mb-6">
         <h3 className="font-serif text-2xl font-light text-ink tracking-wide leading-tight">{grape.name}</h3>
         <div className="flex flex-wrap gap-x-2 gap-y-1 mt-1">
-          {Array.isArray(grape.country) ? grape.country.map((c, i) => (
-            <span key={i} className="text-[10px] text-gold/60 uppercase tracking-widest">{c}{i < grape.country.length - 1 ? ',' : ''}</span>
-          )) : <span className="text-[10px] text-gold/60 uppercase tracking-widest">{grape.country}</span>}
-        </div>
-        <div className="flex flex-wrap gap-x-2 gap-y-1 mt-0.5 opacity-60">
-          {Array.isArray(grape.region) ? grape.region.map((r, i) => (
-            <span key={i} className="text-[9px] text-ink uppercase tracking-[0.2em]">{r}{i < grape.region.length - 1 ? ',' : ''}</span>
-          )) : <span className="text-[9px] text-ink uppercase tracking-[0.2em]">{grape.region}</span>}
+          {(grape.locations || []).map((loc, i) => (
+            <span key={i} className="text-[10px] text-gold/60 uppercase tracking-widest">
+              {loc}{i < (grape.locations || []).length - 1 ? ' • ' : ''}
+            </span>
+          ))}
         </div>
       </div>
 
@@ -237,8 +234,7 @@ const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
     name: grape?.name || '',
     type: (grape?.type || 'Red') as 'Red' | 'White',
     skin: grape?.skin || '',
-    region: Array.isArray(grape?.region) ? grape.region : (grape?.region ? [grape.region] : []),
-    country: Array.isArray(grape?.country) ? grape.country : (grape?.country ? [grape.country] : []),
+    locations: Array.isArray(grape?.locations) ? grape.locations : [],
     body: grape?.body || '',
     acidity: grape?.acidity || '',
     tannin: grape?.tannin || '',
@@ -249,46 +245,29 @@ const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
     additionalNotes: grape?.additionalNotes || '',
   });
 
-  const [regionInput, setRegionInput] = useState('');
-  const [countryInput, setCountryInput] = useState('');
+  const [locationInput, setLocationInput] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const finalRegions = regionInput.trim() ? [...formData.region, regionInput.trim()] : formData.region;
-    const finalCountries = countryInput.trim() ? [...formData.country, countryInput.trim()] : formData.country;
+    const finalLocations = locationInput.trim() ? [...formData.locations, locationInput.trim()] : formData.locations;
     
     onSave({
       ...formData,
-      region: [...new Set(finalRegions)],
-      country: [...new Set(finalCountries)]
+      locations: [...new Set(finalLocations)]
     });
   };
 
-  const addRegion = () => {
-    if (regionInput.trim() && !formData.region.includes(regionInput.trim())) {
-      setFormData({ ...formData, region: [...formData.region, regionInput.trim()] });
-      setRegionInput('');
+  const addLocation = () => {
+    if (locationInput.trim() && !formData.locations.includes(locationInput.trim())) {
+      setFormData({ ...formData, locations: [...formData.locations, locationInput.trim()] });
+      setLocationInput('');
     }
   };
 
-  const removeRegion = (index: number) => {
+  const removeLocation = (index: number) => {
     setFormData({
       ...formData,
-      region: formData.region.filter((_, i) => i !== index)
-    });
-  };
-
-  const addCountry = () => {
-    if (countryInput.trim() && !formData.country.includes(countryInput.trim())) {
-      setFormData({ ...formData, country: [...formData.country, countryInput.trim()] });
-      setCountryInput('');
-    }
-  };
-
-  const removeCountry = (index: number) => {
-    setFormData({
-      ...formData,
-      country: formData.country.filter((_, i) => i !== index)
+      locations: formData.locations.filter((_, i) => i !== index)
     });
   };
 
@@ -343,47 +322,30 @@ const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
 
           <div className="space-y-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Regions</label>
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Geography (Region / Country)</label>
               <div className="flex flex-wrap gap-2 mb-2 min-h-[32px]">
-                {formData.region.map((r, i) => (
-                  <span key={i} className="flex items-center gap-1 px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[10px] text-gold/80">
-                    {r}
-                    <button type="button" onClick={() => removeRegion(i)} className="hover:text-red-500"><X size={10} /></button>
-                  </span>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <input 
-                  value={regionInput} 
-                  onChange={e => setRegionInput(e.target.value)} 
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addRegion())}
-                  className="flex-1 bg-transparent border-b border-white/10 py-2 text-ink text-sm" 
-                  placeholder="Add region..."
-                />
-                <button type="button" onClick={addRegion} className="p-2 border border-white/10 rounded hover:bg-white/5 transition-colors"><Plus size={14} /></button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Countries</label>
-              <div className="flex flex-wrap gap-2 mb-2 min-h-[32px]">
-                {formData.country.map((c, i) => (
+                {formData.locations.map((loc, i) => (
                   <span key={i} className="flex items-center gap-1 px-3 py-1 bg-gold/5 border border-gold/10 rounded-full text-[10px] text-gold">
-                    {c}
-                    <button type="button" onClick={() => removeCountry(i)} className="hover:text-red-500"><X size={10} /></button>
+                    {loc}
+                    <button type="button" onClick={() => removeLocation(i)} className="hover:text-red-500 transition-colors">
+                      <X size={10} />
+                    </button>
                   </span>
                 ))}
               </div>
               <div className="flex gap-2">
                 <input 
-                  value={countryInput} 
-                  onChange={e => setCountryInput(e.target.value)} 
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addCountry())}
-                  className="flex-1 bg-transparent border-b border-white/10 py-2 text-ink text-sm" 
-                  placeholder="Add country..."
+                  value={locationInput} 
+                  onChange={e => setLocationInput(e.target.value)} 
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addLocation())}
+                  className="flex-1 bg-transparent border-b border-white/10 py-2 text-ink text-sm font-light italic" 
+                  placeholder="e.g. Piedmont / Italy"
                 />
-                <button type="button" onClick={addCountry} className="p-2 border border-white/10 rounded hover:bg-white/5 transition-colors"><Plus size={14} /></button>
+                <button type="button" onClick={addLocation} className="p-2 border border-white/10 rounded hover:bg-white/5 transition-colors text-gold">
+                  <Plus size={14} />
+                </button>
               </div>
+              <p className="text-[8px] text-white/20 italic">Format: Region / Country (e.g., Bordeaux / France)</p>
             </div>
           </div>
 
@@ -917,7 +879,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
                           }}
                           className="w-full text-left px-4 py-2 text-[10px] uppercase tracking-widest text-ink/60 hover:bg-gold/10 hover:text-gold transition-colors border-b border-white/5 last:border-0"
                         >
-                          {g.name} <span className="opacity-40 italic ml-2">({g.region})</span>
+                          {g.name} <span className="opacity-40 italic ml-2">({(g.locations || [])[0] || 'Unknown'})</span>
                         </button>
                       ))}
                   </div>
@@ -1171,15 +1133,10 @@ export default function App() {
   const filteredGrapes = grapes.filter(g => {
     const term = searchQuery.toLowerCase();
     const matchesName = (g.name || '').toLowerCase().includes(term);
-    const matchesRegions = Array.isArray(g.region) 
-      ? g.region.some(r => r.toLowerCase().includes(term))
-      : (g.region || '').toLowerCase().includes(term);
-    const matchesCountries = Array.isArray(g.country)
-      ? g.country.some(c => c.toLowerCase().includes(term))
-      : (g.country || '').toLowerCase().includes(term);
+    const matchesGeography = (g.locations || []).some(loc => loc.toLowerCase().includes(term));
     const matchesFlavor = (g.aromaFlavor || '').toLowerCase().includes(term);
 
-    return matchesName || matchesRegions || matchesCountries || matchesFlavor;
+    return matchesName || matchesGeography || matchesFlavor;
   });
 
   const handleLogin = async () => {
@@ -1414,16 +1371,29 @@ export default function App() {
     const countries: Record<string, { regions: Set<string>; grapes: Set<string>; total: number }> = {};
     
     grapes.forEach(g => {
-      const countriesList = Array.isArray(g.country) ? g.country : (g.country ? [g.country as any] : ['Unknown']);
-      const regionsList = Array.isArray(g.region) ? g.region : (g.region ? [g.region as any] : []);
+      const locations = Array.isArray(g.locations) ? g.locations : [];
+      
+      locations.forEach(loc => {
+        // String format expected: "Region / Country" or just "Country"
+        // We'll split by "/" and trim. If only one part, assume it's Country or Region.
+        // The user's example: Piedmont / Italy
+        const parts = loc.split('/').map(p => p.trim());
+        let country = 'Unknown';
+        let region = '';
 
-      countriesList.forEach(cty => {
-        const country = cty || 'Unknown';
+        if (parts.length >= 2) {
+          country = parts[1];
+          region = parts[0];
+        } else if (parts.length === 1) {
+          country = parts[0];
+        }
+
         if (!countries[country]) {
           countries[country] = { regions: new Set(), grapes: new Set(), total: 0 };
         }
+        
         countries[country].total += 1;
-        regionsList.forEach(r => countries[country].regions.add(r));
+        if (region) countries[country].regions.add(region);
         if (g.name) countries[country].grapes.add(g.name);
       });
     });
