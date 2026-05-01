@@ -1122,6 +1122,7 @@ export default function App() {
   const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 100000 });
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
   const [selectedGrapes, setSelectedGrapes] = useState<string[]>([]);
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [view, setView] = useState<'cellar' | 'recommendations' | 'stats' | 'wine-of-the-day' | 'grapes'>('cellar');
   const [statsSubTab, setStatsSubTab] = useState<'bottles' | 'grapes'>('bottles');
   const [selectedAnalysisCountry, setSelectedAnalysisCountry] = useState<string | null>(null);
@@ -1129,6 +1130,16 @@ export default function App() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [isRecLoading, setIsRecLoading] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'bottle' | 'grape' } | null>(null);
+
+  const availableGrapes = useMemo(() => {
+    const fromBottles = bottles.flatMap(b => b.grape || []);
+    const fromGrapes = grapes.map(g => g.name);
+    return Array.from(new Set([...fromBottles, ...fromGrapes])).filter(Boolean).sort();
+  }, [bottles, grapes]);
+
+  const availableCountries = useMemo(() => {
+    return Array.from(new Set(bottles.map(b => b.country).filter(Boolean))).sort();
+  }, [bottles]);
 
   const filteredGrapes = grapes.filter(g => {
     const term = searchQuery.toLowerCase();
@@ -1295,7 +1306,10 @@ export default function App() {
       const matchesGrapes = selectedGrapes.length === 0 || 
                             (b.grape || []).some(g => selectedGrapes.includes(g));
 
-      return matchesSearch && matchesType && matchesPrice && matchesDate && matchesGrapes;
+      const matchesCountries = selectedCountries.length === 0 || 
+                               selectedCountries.includes(b.country);
+
+      return matchesSearch && matchesType && matchesPrice && matchesDate && matchesGrapes && matchesCountries;
     })
     .sort((a, b) => {
       switch (sortBy) {
@@ -1609,10 +1623,20 @@ export default function App() {
                   </div>
 
                   {/* Grape Variety Filter */}
-                  <div className="px-4 space-y-3">
-                    <p className="text-[8px] uppercase tracking-widest text-ink/20 font-bold mb-2">Grape Varieties</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {Array.from(new Set(bottles.flatMap(b => b.grape || []))).sort().map(grape => (
+                  <div className="px-4 space-y-3 pt-4 border-t border-white/5">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[8px] uppercase tracking-widest text-ink/20 font-bold">Grape Varieties</p>
+                      {selectedGrapes.length > 0 && (
+                        <button 
+                          onClick={() => setSelectedGrapes([])}
+                          className="text-[7px] uppercase tracking-widest text-gold hover:text-gold/80 transition-colors underline"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pr-2 scrollbar-hide">
+                      {availableGrapes.map(grape => (
                         <button
                           key={grape}
                           onClick={() => {
@@ -1624,22 +1648,56 @@ export default function App() {
                           }}
                           className={`text-[8px] uppercase tracking-wider px-2 py-1 rounded-sm border transition-all ${
                             selectedGrapes.includes(grape)
-                              ? 'bg-gold/20 border-gold/40 text-gold'
+                              ? 'bg-gold/20 border-gold/40 text-gold shadow-[0_0_10px_rgba(212,175,55,0.1)]'
                               : 'bg-white/5 border-white/10 text-ink/40 hover:border-gold/20'
                           }`}
                         >
                           {grape}
                         </button>
                       ))}
+                      {availableGrapes.length === 0 && (
+                        <p className="text-[8px] text-ink/20 italic">No varieties found</p>
+                      )}
                     </div>
-                    {selectedGrapes.length > 0 && (
-                      <button 
-                        onClick={() => setSelectedGrapes([])}
-                        className="text-[7px] uppercase tracking-widest text-gold hover:text-gold/80 transition-colors underline"
-                      >
-                        Clear Selection
-                      </button>
-                    )}
+                  </div>
+
+                  {/* Country Filter */}
+                  <div className="px-4 space-y-3 pt-4 border-t border-white/5">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[8px] uppercase tracking-widest text-ink/20 font-bold">Countries</p>
+                      {selectedCountries.length > 0 && (
+                        <button 
+                          onClick={() => setSelectedCountries([])}
+                          className="text-[7px] uppercase tracking-widest text-gold hover:text-gold/80 transition-colors underline"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-2 scrollbar-hide">
+                      {availableCountries.map(country => (
+                        <button
+                          key={country}
+                          onClick={() => {
+                            if (selectedCountries.includes(country)) {
+                              setSelectedCountries(selectedCountries.filter(c => c !== country));
+                            } else {
+                              setSelectedCountries([...selectedCountries, country]);
+                            }
+                          }}
+                          className={`text-[8px] uppercase tracking-wider px-2 py-1 rounded-sm border transition-all ${
+                            selectedCountries.includes(country)
+                              ? 'bg-gold/20 border-gold/40 text-gold shadow-[0_0_10px_rgba(212,175,55,0.1)]'
+                              : 'bg-white/5 border-white/10 text-ink/40 hover:border-gold/20'
+                          }`}
+                        >
+                          {country}
+                        </button>
+                      ))}
+                      {availableCountries.length === 0 && (
+                        <p className="text-[8px] text-ink/20 italic">No countries found</p>
+                      )}
+                    </div>
                   </div>
 
                   {/* Reset All Filters */}
@@ -1650,6 +1708,7 @@ export default function App() {
                         setPriceRange({ min: 0, max: 100000 });
                         setDateRange({ start: '', end: '' });
                         setSelectedGrapes([]);
+                        setSelectedCountries([]);
                         setSearchQuery('');
                       }}
                       className="w-full py-3 bg-red-950/20 text-red-500/60 border border-red-950/40 text-[8px] uppercase tracking-[0.3em] font-bold hover:bg-red-950/40 transition-all rounded-sm"
