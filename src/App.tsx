@@ -1428,6 +1428,18 @@ export default function App() {
     })).sort((a, b) => b.total - a.total);
   }, [grapes]);
 
+  const grapeTypeData = useMemo(() => {
+    const counts: Record<string, number> = { Red: 0, White: 0 };
+    grapes.forEach(g => {
+      if (counts[g.type] !== undefined) {
+        counts[g.type]++;
+      }
+    });
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .filter(item => item.value > 0);
+  }, [grapes]);
+
   const COLORS = ['#D4AF37', '#800020', '#C0C0C0', '#FFD700', '#E5E4E2', '#B8860B', '#BC8F8F', '#8B4513'];
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -1994,6 +2006,22 @@ export default function App() {
                     <span className="text-[10px] uppercase tracking-[0.6em] text-gold font-bold">Encyclopedia</span>
                   </div>
                   <h1 className="text-6xl font-serif font-light text-ink">Grape Varieties</h1>
+                  <div className="flex items-center gap-6 mt-6">
+                    <div className="flex flex-col">
+                      <span className="text-[8px] uppercase tracking-widest text-ink/30 font-bold mb-1">Total Varieties</span>
+                      <span className="text-xl font-serif text-ink">{grapes.length}</span>
+                    </div>
+                    <div className="w-px h-6 bg-white/5"></div>
+                    <div className="flex flex-col">
+                      <span className="text-[8px] uppercase tracking-widest text-ink/30 font-bold mb-1">Red</span>
+                      <span className="text-xl font-serif text-[#800020]">{grapes.filter(g => g.type === 'Red').length}</span>
+                    </div>
+                    <div className="w-px h-6 bg-white/5"></div>
+                    <div className="flex flex-col">
+                      <span className="text-[8px] uppercase tracking-widest text-ink/30 font-bold mb-1">White</span>
+                      <span className="text-xl font-serif text-gold">{grapes.filter(g => g.type === 'White').length}</span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 flex-1 max-w-3xl">
@@ -2444,37 +2472,73 @@ export default function App() {
                     </div>
                   )
                 ) : (
-                  <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div>
-                      <h3 className="text-lg font-serif text-ink mb-1">Grape Geography</h3>
-                      <p className="text-[10px] uppercase tracking-widest text-ink/30">Encyclopedia diversity by country</p>
-                    </div>
-                    <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scroll-hide">
-                      {grapeGeographyData.map(country => (
-                        <button
-                          key={country.name}
-                          onClick={() => {
-                            if (selectedAnalysisCountry === country.name) {
-                              setSelectedAnalysisCountry(null);
-                              setSelectedAnalysisRegion(null);
-                            } else {
-                              setSelectedAnalysisCountry(country.name);
-                              setSelectedAnalysisRegion(null);
-                            }
-                          }}
-                          className={`px-4 py-2 text-[9px] uppercase tracking-widest border transition-all whitespace-nowrap rounded-sm ${selectedAnalysisCountry === country.name ? 'bg-gold text-wine-bg border-gold' : 'border-white/10 text-ink/40 hover:border-gold/30 hover:text-ink'}`}
-                        >
-                          {country.name} ({country.total})
-                        </button>
-                      ))}
-                      {grapeGeographyData.length === 0 && (
-                        <p className="text-[9px] uppercase tracking-widest text-ink/20">Add grapes to see geography insights</p>
-                      )}
-                    </div>
-                  </div>
+                  <div className="space-y-12">
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                      <div className="glass-panel p-8 bg-white/5 border-white/10 lg:col-span-1">
+                        <div className="mb-8">
+                          <h3 className="text-lg font-serif text-ink mb-1">Variety Composition</h3>
+                          <p className="text-[10px] uppercase tracking-widest text-ink/30">Red vs White Library</p>
+                        </div>
+                        <div className="space-y-6">
+                           {grapeTypeData.map((item) => (
+                             <div key={item.name} className="space-y-2">
+                               <div className="flex justify-between items-end">
+                                 <span className="text-[10px] uppercase tracking-[0.2em] text-ink font-bold">{item.name}</span>
+                                 <span className="text-xl font-serif text-gold">{item.value}</span>
+                               </div>
+                               <div className="h-1.5 w-full bg-white/5 overflow-hidden">
+                                 <motion.div 
+                                   initial={{ width: 0 }}
+                                   animate={{ width: `${(item.value / grapes.length) * 100}%` }}
+                                   transition={{ duration: 1, ease: "easeOut" }}
+                                   className="h-full" 
+                                   style={{ 
+                                     backgroundColor: item.name === 'Red' ? '#800020' : '#f8f4ed'
+                                   }}
+                                 />
+                               </div>
+                               <p className="text-[8px] text-right text-ink/20 italic">{Math.round((item.value / grapes.length) * 100)}% of library</p>
+                             </div>
+                           ))}
+                           {grapes.length === 0 && (
+                             <p className="text-xs text-ink/30 italic">Add grapes to see composition</p>
+                           )}
+                        </div>
+                        
+                        <div className="mt-12 pt-8 border-t border-white/5">
+                           <p className="text-[32px] font-serif text-ink leading-none">{grapes.length}</p>
+                           <p className="text-[9px] uppercase tracking-[0.4em] text-gold mt-2">Total Varieties</p>
+                        </div>
+                      </div>
 
-                  <AnimatePresence mode="wait">
+                      <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10 lg:col-span-3">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                          <div>
+                            <h3 className="text-lg font-serif text-ink mb-1">Grape Geography</h3>
+                            <p className="text-[10px] uppercase tracking-widest text-ink/30">Encyclopedia diversity by country</p>
+                          </div>
+                          <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scroll-hide">
+                            {grapeGeographyData.map(country => (
+                              <button
+                                key={country.name}
+                                onClick={() => {
+                                  if (selectedAnalysisCountry === country.name) {
+                                    setSelectedAnalysisCountry(null);
+                                    setSelectedAnalysisRegion(null);
+                                  } else {
+                                    setSelectedAnalysisCountry(country.name);
+                                    setSelectedAnalysisRegion(null);
+                                  }
+                                }}
+                                className={`px-4 py-2 text-[9px] uppercase tracking-widest border transition-all whitespace-nowrap rounded-sm ${selectedAnalysisCountry === country.name ? 'bg-gold text-wine-bg border-gold' : 'border-white/10 text-ink/40 hover:border-gold/30 hover:text-ink'}`}
+                              >
+                                {country.name} ({country.total})
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <AnimatePresence mode="wait">
                     {selectedAnalysisCountry ? (
                       <motion.div
                         key={selectedAnalysisCountry}
@@ -2552,9 +2616,11 @@ export default function App() {
                     )}
                   </AnimatePresence>
                 </div>
-              )}
-            </motion.div>
+              </div>
+            </div>
           )}
+        </motion.div>
+      )}
         </AnimatePresence>
       </main>
 
