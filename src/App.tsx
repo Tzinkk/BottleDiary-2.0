@@ -1388,9 +1388,6 @@ export default function App() {
       const locations = Array.isArray(g.locations) ? g.locations : [];
       
       locations.forEach(loc => {
-        // String format expected: "Region / Country" or just "Country"
-        // We'll split by "/" and trim. If only one part, assume it's Country or Region.
-        // The user's example: Piedmont / Italy
         const parts = loc.split('/').map(p => p.trim());
         let country = 'Unknown';
         let region = '';
@@ -1398,23 +1395,25 @@ export default function App() {
         if (parts.length >= 2) {
           country = parts[1];
           region = parts[0];
-        } else if (parts.length === 1) {
+        } else if (parts.length === 1 && parts[0]) {
           country = parts[0];
+          region = 'General';
         }
 
-        if (!countries[country]) {
-          countries[country] = { regions: new Set(), grapes: new Set(), total: 0 };
+        if (country) {
+          if (!countries[country]) {
+            countries[country] = { regions: new Set(), grapes: new Set(), total: 0 };
+          }
+          
+          if (region) countries[country].regions.add(region);
+          if (g.name) countries[country].grapes.add(g.name);
         }
-        
-        countries[country].total += 1;
-        if (region) countries[country].regions.add(region);
-        if (g.name) countries[country].grapes.add(g.name);
       });
     });
 
     return Object.entries(countries).map(([name, data]) => ({
       name,
-      total: data.total,
+      total: data.regions.size,
       regions: Array.from(data.regions),
       grapes: Array.from(data.grapes)
     })).sort((a, b) => b.total - a.total);
