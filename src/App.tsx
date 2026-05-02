@@ -1126,6 +1126,7 @@ export default function App() {
   const [view, setView] = useState<'cellar' | 'recommendations' | 'stats' | 'wine-of-the-day' | 'grapes'>('cellar');
   const [statsSubTab, setStatsSubTab] = useState<'bottles' | 'grapes'>('bottles');
   const [selectedAnalysisCountry, setSelectedAnalysisCountry] = useState<string | null>(null);
+  const [selectedAnalysisRegion, setSelectedAnalysisRegion] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [isRecLoading, setIsRecLoading] = useState(false);
@@ -1382,7 +1383,7 @@ export default function App() {
     }));
 
   const grapeGeographyData = useMemo(() => {
-    const countries: Record<string, { regions: Set<string>; grapes: Set<string>; total: number }> = {};
+    const countries: Record<string, { regionMap: Record<string, Set<string>>; grapes: Set<string> }> = {};
     
     grapes.forEach(g => {
       const locations = Array.isArray(g.locations) ? g.locations : [];
@@ -1402,10 +1403,15 @@ export default function App() {
 
         if (country) {
           if (!countries[country]) {
-            countries[country] = { regions: new Set(), grapes: new Set(), total: 0 };
+            countries[country] = { regionMap: {}, grapes: new Set() };
           }
           
-          if (region) countries[country].regions.add(region);
+          if (region) {
+            if (!countries[country].regionMap[region]) {
+              countries[country].regionMap[region] = new Set();
+            }
+            countries[country].regionMap[region].add(g.name);
+          }
           if (g.name) countries[country].grapes.add(g.name);
         }
       });
@@ -1413,9 +1419,12 @@ export default function App() {
 
     return Object.entries(countries).map(([name, data]) => ({
       name,
-      total: data.regions.size,
-      regions: Array.from(data.regions),
-      grapes: Array.from(data.grapes)
+      total: Object.keys(data.regionMap).length,
+      regionMap: Object.entries(data.regionMap).map(([regionName, grapeSet]) => ({
+        name: regionName,
+        grapes: Array.from(grapeSet)
+      })).sort((a, b) => a.name.localeCompare(b.name)),
+      grapes: Array.from(data.grapes).sort()
     })).sort((a, b) => b.total - a.total);
   }, [grapes]);
 
@@ -2445,7 +2454,15 @@ export default function App() {
                       {grapeGeographyData.map(country => (
                         <button
                           key={country.name}
-                          onClick={() => setSelectedAnalysisCountry(selectedAnalysisCountry === country.name ? null : country.name)}
+                          onClick={() => {
+                            if (selectedAnalysisCountry === country.name) {
+                              setSelectedAnalysisCountry(null);
+                              setSelectedAnalysisRegion(null);
+                            } else {
+                              setSelectedAnalysisCountry(country.name);
+                              setSelectedAnalysisRegion(null);
+                            }
+                          }}
                           className={`px-4 py-2 text-[9px] uppercase tracking-widest border transition-all whitespace-nowrap rounded-sm ${selectedAnalysisCountry === country.name ? 'bg-gold text-wine-bg border-gold' : 'border-white/10 text-ink/40 hover:border-gold/30 hover:text-ink'}`}
                         >
                           {country.name} ({country.total})
@@ -2469,22 +2486,63 @@ export default function App() {
                         <div className="space-y-4">
                           <p className="text-[10px] uppercase tracking-[0.3em] text-gold font-bold">Regions in {selectedAnalysisCountry}</p>
                           <div className="flex flex-wrap gap-2">
-                            {grapeGeographyData.find(c => c.name === selectedAnalysisCountry)?.regions.map(region => (
-                              <span key={region} className="px-3 py-1 bg-white/5 border border-white/5 text-[11px] text-ink/60 rounded-sm">
-                                {region}
-                              </span>
+                            {grapeGeographyData.find(c => c.name === selectedAnalysisCountry)?.regionMap.map(region => (
+                              <button 
+                                key={region.name} 
+                                onClick={() => setSelectedAnalysisRegion(selectedAnalysisRegion === region.name ? null : region.name)}
+                                className={`px-3 py-1 border text-[11px] rounded-sm transition-all flex items-center gap-2 ${
+                                  selectedAnalysisRegion === region.name 
+                                    ? 'bg-gold/20 border-gold/40 text-gold' 
+                                    : 'bg-white/5 border-white/5 text-ink/60 hover:border-gold/20'
+                                }`}
+                              >
+                                {region.name}
+                                <span className="text-[8px] opacity-40">({region.grapes.length})</span>
+                              </button>
                             )) || <p className="text-xs text-ink/30 italic">No regions specified</p>}
                           </div>
                         </div>
-                        <div className="space-y-4">
-                          <p className="text-[10px] uppercase tracking-[0.3em] text-gold font-bold">Varieties from {selectedAnalysisCountry}</p>
-                          <div className="flex flex-wrap gap-2">
-                            {grapeGeographyData.find(c => c.name === selectedAnalysisCountry)?.grapes.map(grape => (
-                              <span key={grape} className="px-3 py-1 border border-gold/10 text-gold/80 text-[11px] font-serif italic rounded-sm">
-                                {grape}
-                              </span>
-                            )) || <p className="text-xs text-ink/30 italic">No varieties specified</p>}
-                          </div>
+
+                        <div className="space-y-6">
+                          {selectedAnalysisRegion ? (
+                            <motion.div
+                              initial={{ opacity: 0, x: 5 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              className="space-y-4"
+                            >
+                              <p className="text-[10px] uppercase tracking-[0.3em] text-gold font-bold flex items-center justify-between">
+                                Varieties in {selectedAnalysisRegion}
+                                <button 
+                                  onClick={() => setSelectedAnalysisRegion(null)}
+                                  className="text-[8px] border border-gold/20 px-2 py-1 hover:bg-gold/10 transition-colors"
+                                >
+                                  Back to All Country Varieties
+                                </button>
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {grapeGeographyData
+                                  .find(c => c.name === selectedAnalysisCountry)
+                                  ?.regionMap.find(r => r.name === selectedAnalysisRegion)
+                                  ?.grapes.map(grape => (
+                                    <span key={grape} className="px-3 py-1 border border-gold/20 text-gold text-[11px] font-serif italic rounded-sm bg-gold/5">
+                                      {grape}
+                                    </span>
+                                  ))}
+                              </div>
+                            </motion.div>
+                          ) : (
+                            <div className="space-y-4">
+                              <p className="text-[10px] uppercase tracking-[0.3em] text-gold font-bold">All Varieties from {selectedAnalysisCountry}</p>
+                              <div className="flex flex-wrap gap-2">
+                                {grapeGeographyData.find(c => c.name === selectedAnalysisCountry)?.grapes.map(grape => (
+                                  <span key={grape} className="px-3 py-1 border border-gold/10 text-gold/80 text-[11px] font-serif italic rounded-sm">
+                                    {grape}
+                                  </span>
+                                )) || <p className="text-xs text-ink/30 italic">No varieties specified</p>}
+                              </div>
+                              <p className="text-[8px] text-ink/20 italic mt-2">Click a region to filter by area</p>
+                            </div>
+                          )}
                         </div>
                       </motion.div>
                     ) : (
