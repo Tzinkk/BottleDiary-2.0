@@ -17,7 +17,7 @@ export async function getWineRecommendations(bottles: WineBottle[]): Promise<Rec
   if (bottles.length === 0) return [];
 
   // Prepare a compact representation for the AI
-  const collectionSummary = bottles.slice(0, 20).map(b => ({
+  const collectionSummary = bottles.slice(0, 30).map(b => ({
     name: b.name,
     type: b.type,
     rating: b.rating,
@@ -29,14 +29,14 @@ export async function getWineRecommendations(bottles: WineBottle[]): Promise<Rec
   try {
     const systemInstruction = `You are a world-class sommelier and AI wine recommendation engine. 
     Based on the user's current wine diary (provided in JSON), suggest 3 unique wines they would likely enjoy.
-    Focus on: Diversity, Specificity, Personalization, and Scale.`;
+    Focus on: Diversity, Specificity, Personalization, and Scale. 
+    Respond with JSON array of recommendations.`;
 
-    const result = await genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      systemInstruction,
-    }).generateContent({
+    const result = await genAI.models.generateContent({
+      model: "gemini-3-flash-preview",
       contents: [{ role: "user", parts: [{ text: `User Diary Data: ${JSON.stringify(collectionSummary)}` }] }],
-      generationConfig: {
+      config: {
+        systemInstruction,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -57,10 +57,11 @@ export async function getWineRecommendations(bottles: WineBottle[]): Promise<Rec
       }
     });
 
-    const text = result.response.text();
-    return JSON.parse(text || "[]");
+    const text = result.text;
+    if (!text) throw new Error("Empty response from AI");
+    return JSON.parse(text);
   } catch (error) {
-    console.error("AI recommendation error:", error);
+    console.error("AI recommendation error details:", error);
     return [];
   }
 }
@@ -74,36 +75,39 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
     // 1. Fetch image and convert to base64
     const imgResponse = await fetch(imageUri);
     if (!imgResponse.ok) {
-        throw new Error(`Failed to fetch image from URI: ${imgResponse.statusText}`);
+        throw new Error(`Failed to fetch image: ${imgResponse.status} ${imgResponse.statusText}`);
     }
     const blob = await imgResponse.blob();
     
     const base64 = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        if (typeof reader.result === 'string' && reader.result.includes(',')) {
-          const base64String = (reader.result as string).split(',')[1];
-          resolve(base64String);
+        const res = reader.result;
+        if (typeof res === 'string') {
+          const split = res.split(',');
+          if (split.length > 1) {
+            resolve(split[1]);
+          } else {
+            reject(new Error("Invalid data URL format from FileReader"));
+          }
         } else {
-          reject(new Error("Failed to convert image to base64 pattern"));
+          reject(new Error("FileReader result is not a string"));
         }
       };
-      reader.onerror = () => reject(new Error("FileReader error"));
+      reader.onerror = () => reject(new Error("FileReader encounterted an error"));
       reader.readAsDataURL(blob);
     });
 
-    const systemInstruction = `You are a professional sommelier. Analyze the wine label in the image and extract as much information as possible into a structured JSON format. 
-    If you cannot find a piece of information, omit it from the JSON.
-    Be precise with the classification (Red, White, Rosé, Sparkling, Natural Red, Natural White, Pet Nat, Orange, Sato, Sake).`;
+    const systemInstruction = `You are a professional sommelier. Analyze the wine label in the image and extract information into structured JSON. 
+    If information is missing, omit the field.
+    Precision is key for wine type classification.`;
 
-    const result = await genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      systemInstruction,
-    }).generateContent({
+    const result = await genAI.models.generateContent({
+      model: "gemini-3-flash-preview",
       contents: [{
         role: "user",
         parts: [
-          { text: "Analyze this wine label and return JSON matching the schema." },
+          { text: "Identify this wine label details." },
           {
             inlineData: {
               data: base64,
@@ -112,28 +116,30 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
           }
         ]
       }],
-      generationConfig: {
+      config: {
+        systemInstruction,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
             name: { type: Type.STRING },
             producer: { type: Type.STRING },
-            year: { type: Type.STRING, description: "YYYY or NV" },
+            year: { type: Type.STRING },
             type: { type: Type.STRING, description: "Red, White, Rosé, Sparkling, Natural Red, Natural White, Pet Nat, Orange, Sato, Sake" },
             region: { type: Type.STRING },
             country: { type: Type.STRING },
             grape: { type: Type.ARRAY, items: { type: Type.STRING } },
-            tastingNotes: { type: Type.STRING, description: "Brief predicted tasting notes based on the wine's identity." }
+            tastingNotes: { type: Type.STRING }
           }
         }
       }
     });
 
-    const text = result.response.text();
-    return JSON.parse(text || "{}");
+    const text = result.text;
+    if (!text) return {};
+    return JSON.parse(text);
   } catch (error) {
-    console.error("AI label analysis error:", error);
-    return {};
+    console.error("AI label analysis error details:", error);
+    throw error; // Rethrow to let App.tsx handle the message
   }
 }

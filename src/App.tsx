@@ -695,7 +695,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({ recommendation 
 
       <div className="mt-auto space-y-4">
         <div className="flex flex-wrap gap-1.5 min-h-[1.5rem]">
-          {recommendation.grape.map((g, i) => (
+          {(Array.isArray(recommendation.grape) ? recommendation.grape : []).map((g, i) => (
             <span key={i} className="text-[9px] uppercase tracking-wider text-gold/40 border border-gold/10 px-2 py-0.5 rounded-sm">
               {g}
             </span>
@@ -772,24 +772,25 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     const sanitizedUrl = imageUrl.trim();
     if (sanitizedUrl.startsWith('data:') || sanitizedUrl.startsWith('http')) {
       setIsAnalyzing(true);
+      setUploadError(null);
       try {
         const analysis = await analyzeWineLabel(sanitizedUrl);
         setFormData(prev => ({
           ...prev,
           ...analysis,
-          name: analysis.name || prev.name,
-          producer: analysis.producer || prev.producer,
-          year: (analysis.year as string) || prev.year,
+          name: typeof analysis.name === 'string' ? analysis.name : prev.name,
+          producer: typeof analysis.producer === 'string' ? analysis.producer : prev.producer,
+          year: typeof analysis.year !== 'undefined' ? String(analysis.year) : prev.year,
           type: (analysis.type as WineType) || prev.type,
-          region: analysis.region || prev.region,
-          country: analysis.country || prev.country,
-          grape: Array.isArray(analysis.grape) ? [...new Set([...(Array.isArray(prev.grape) ? prev.grape : []), ...analysis.grape])] : prev.grape,
-          tastingNotes: analysis.tastingNotes ? `${analysis.tastingNotes}${prev.tastingNotes ? '\n\n' + prev.tastingNotes : ''}` : prev.tastingNotes,
+          region: typeof analysis.region === 'string' ? analysis.region : prev.region,
+          country: typeof analysis.country === 'string' ? analysis.country : prev.country,
+          grape: Array.isArray(analysis.grape) ? [...new Set([...(Array.isArray(prev.grape) ? prev.grape : []), ...analysis.grape])] : (Array.isArray(prev.grape) ? prev.grape : []),
+          tastingNotes: typeof analysis.tastingNotes === 'string' ? `${analysis.tastingNotes}${prev.tastingNotes ? '\n\n' + prev.tastingNotes : ''}` : prev.tastingNotes,
         }));
         setAnalysisSuccess(true);
       } catch (err: any) {
         console.error("AI Analysis failed:", err);
-        setUploadError(`Analysis failed: ${err?.message || "Check your photo format"}`);
+        setUploadError(`Analysis failed: ${err?.message || "Check your photo format. Ensure it's clear and the label is visible."}`);
       } finally {
         setIsAnalyzing(false);
       }
@@ -2417,6 +2418,21 @@ export default function App() {
                   >
                     <Plus size={14} />
                     <span className="text-[10px] uppercase tracking-[0.3em] font-bold group-hover:underline">Add your first bottle</span>
+                  </button>
+                </div>
+              ) : recommendations.length === 0 && !isRecLoading ? (
+                <div className="py-32 bg-white/5 border border-dashed border-white/10 rounded-sm flex flex-col items-center justify-center text-center p-12">
+                  <Sparkles size={48} className="text-ink/10 mb-6" />
+                  <h3 className="font-serif text-2xl text-ink/40 mb-2 italic">Refining Suggestions</h3>
+                  <p className="text-[10px] uppercase tracking-widest text-ink/20 mb-8 max-w-md">
+                    Our AI is still processing your palate. Try refreshing or add more bottles to your record.
+                  </p>
+                  <button 
+                    onClick={fetchRecommendations}
+                    className="flex items-center gap-2 text-gold group"
+                  >
+                    <Sparkles size={14} />
+                    <span className="text-[10px] uppercase tracking-[0.3em] font-bold group-hover:underline">Generate Recommendations</span>
                   </button>
                 </div>
               ) : (
