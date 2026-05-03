@@ -23,7 +23,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, updateDoc, limit } from 'firebase/firestore';
 import { auth, db, signInWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
 import { WineBottle, WineType, SortOption, GrapeVariety } from './types';
-import { getWineRecommendations, Recommendation, analyzeWineLabel } from './services/aiService';
+import { analyzeWineLabel } from './services/aiService';
 
 // --- Configuration ---
 
@@ -663,67 +663,6 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
   );
 };
 
-interface RecommendationCardProps {
-  recommendation: Recommendation;
-}
-
-const RecommendationCard: React.FC<RecommendationCardProps> = ({ recommendation }) => {
-  return (
-    <motion.div
-      variants={cardVariants}
-      initial="hidden"
-      animate="visible"
-      whileHover={{ y: -8, transition: { duration: 0.2 } }}
-      className="glass-panel p-6 flex flex-col h-full bg-gold/5 border-gold/10 relative overflow-hidden"
-    >
-      <div className="absolute -top-4 -right-4 w-24 h-24 bg-gold/5 blur-3xl rounded-full"></div>
-      
-      <div className="flex justify-between items-start mb-6">
-        <span className="text-[9px] uppercase tracking-[0.2em] font-bold px-3 py-1 rounded-full border text-gold bg-gold/10 border-gold/20 flex items-center gap-2">
-          <Sparkles size={10} />
-          AI Suggestion
-        </span>
-        <span className="text-[9px] uppercase tracking-[0.2em] font-bold text-ink/30">
-          {recommendation.type}
-        </span>
-      </div>
-
-      <div className="mb-4">
-        <h3 className="font-serif text-2xl font-light text-ink tracking-wide line-clamp-2 leading-tight">{recommendation.name}</h3>
-        <p className="font-serif italic text-gold/80 text-sm mt-1">{recommendation.producer}</p>
-      </div>
-
-      <div className="mt-auto space-y-4">
-        <div className="flex flex-wrap gap-1.5 min-h-[1.5rem]">
-          {(Array.isArray(recommendation.grape) ? recommendation.grape : []).map((g, i) => (
-            <span key={i} className="text-[9px] uppercase tracking-wider text-gold/40 border border-gold/10 px-2 py-0.5 rounded-sm">
-              {g}
-            </span>
-          ))}
-        </div>
-        
-        <div className="space-y-1">
-          <p className="text-[9px] text-ink/30 uppercase tracking-widest font-bold">Region & Country</p>
-          <p className="text-[11px] font-medium text-ink/80 flex items-center gap-1">
-            <Globe size={10} className="text-gold/60" />
-            {recommendation.region}, {recommendation.country}
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-6 pt-5 border-t border-gold/10">
-        <p className="text-[10px] text-gold/60 uppercase tracking-widest font-bold mb-2 flex items-center gap-1.5">
-          <Info size={10} />
-          Why you'll love it
-        </p>
-        <p className="text-xs italic text-ink/80 leading-relaxed">
-          {recommendation.reason}
-        </p>
-      </div>
-    </motion.div>
-  );
-};
-
 interface WineFormProps {
   bottle?: WineBottle;
   grapes: GrapeVariety[];
@@ -1285,13 +1224,11 @@ export default function App() {
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
   const [selectedGrapes, setSelectedGrapes] = useState<string[]>([]);
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
-  const [view, setView] = useState<'cellar' | 'recommendations' | 'stats' | 'wine-of-the-day' | 'grapes'>('cellar');
+  const [view, setView] = useState<'cellar' | 'stats' | 'wine-of-the-day' | 'grapes'>('cellar');
   const [statsSubTab, setStatsSubTab] = useState<'bottles' | 'grapes'>('bottles');
   const [selectedAnalysisCountry, setSelectedAnalysisCountry] = useState<string | null>(null);
   const [selectedAnalysisRegion, setSelectedAnalysisRegion] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
-  const [isRecLoading, setIsRecLoading] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'bottle' | 'grape' } | null>(null);
 
   const availableGrapes = useMemo(() => {
@@ -1391,18 +1328,7 @@ export default function App() {
       .slice(0, 5);
   }, [bottles]);
 
-  const fetchRecommendations = async () => {
-    if (bottles.length === 0) return;
-    setIsRecLoading(true);
-    try {
-      const recs = await getWineRecommendations(bottles);
-      setRecommendations(recs);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsRecLoading(false);
-    }
-  };
+
 
   const handleCreateOrUpdate = async (data: Omit<WineBottle, 'id' | 'dateAdded'>) => {
     if (!user) return;
@@ -1697,18 +1623,7 @@ export default function App() {
               <FlaskConical size={16} />
               Grape Varieties
             </button>
-            <button
-              onClick={() => {
-                setView('recommendations');
-                if (recommendations.length === 0) fetchRecommendations();
-              }}
-              className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
-                view === 'recommendations' ? 'bg-gold text-wine-bg font-bold shadow-[0_0_20px_rgba(212,175,55,0.3)]' : 'text-ink/40 hover:text-ink hover:bg-gold/10'
-              }`}
-            >
-              <Sparkles size={16} />
-              AI Sommelier
-            </button>
+
             <button
                onClick={() => setView('stats')}
                className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
@@ -2372,94 +2287,6 @@ export default function App() {
                   </motion.div>
                 )}
               </motion.div>
-            </motion.div>
-          ) : view === 'recommendations' ? (
-            <motion.div
-              key="recommendations"
-              initial={{ opacity: 0, scale: 0.98, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 1.02, y: -20 }}
-              transition={{ duration: 0.5, ease: "anticipate" }}
-              className="space-y-12"
-            >
-              <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
-                <div className="space-y-4">
-                  <p className="text-[10px] uppercase tracking-[0.5em] text-gold font-bold flex items-center gap-2">
-                    <span className="w-8 h-px bg-gold/30"></span>
-                    AI Sommelier Guide
-                  </p>
-                  <h2 className="text-5xl font-serif font-light text-ink leading-tight">Handpicked for your <br />unique palate.</h2>
-                  <p className="text-ink/40 max-w-xl font-light leading-relaxed">
-                    Our AI Sommelier analyzes your ratings, tasting history, and preferences 
-                    to suggest bottles that align with your evolution as a collector.
-                  </p>
-                </div>
-                
-                <button
-                  onClick={fetchRecommendations}
-                  disabled={isRecLoading || bottles.length === 0}
-                  className={`flex items-center gap-3 px-8 py-4 border border-gold/30 text-gold rounded-sm text-[10px] uppercase tracking-[0.3em] font-bold transition-all hover:bg-gold/10 ${isRecLoading ? 'opacity-50 cursor-wait' : ''}`}
-                >
-                  {isRecLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                  Refresh Suggestions
-                </button>
-              </div>
-
-              {bottles.length === 0 ? (
-                <div className="py-32 bg-white/5 border border-dashed border-white/10 rounded-sm flex flex-col items-center justify-center text-center p-12">
-                  <Wine size={48} className="text-ink/10 mb-6" />
-                  <h3 className="font-serif text-2xl text-ink/40 mb-2 italic">Your Cellar is Empty</h3>
-                  <p className="text-[10px] uppercase tracking-widest text-ink/20 mb-8 max-w-md">
-                    We need to know your tastes before we can make personalized recommendations. Log a few bottles to start.
-                  </p>
-                  <button 
-                    onClick={() => { setView('cellar'); setIsFormOpen(true); }}
-                    className="flex items-center gap-2 text-gold group"
-                  >
-                    <Plus size={14} />
-                    <span className="text-[10px] uppercase tracking-[0.3em] font-bold group-hover:underline">Add your first bottle</span>
-                  </button>
-                </div>
-              ) : recommendations.length === 0 && !isRecLoading ? (
-                <div className="py-32 bg-white/5 border border-dashed border-white/10 rounded-sm flex flex-col items-center justify-center text-center p-12">
-                  <Sparkles size={48} className="text-ink/10 mb-6" />
-                  <h3 className="font-serif text-2xl text-ink/40 mb-2 italic">Refining Suggestions</h3>
-                  <p className="text-[10px] uppercase tracking-widest text-ink/20 mb-8 max-w-md">
-                    Our AI is still processing your palate. Try refreshing or add more bottles to your record.
-                  </p>
-                  <button 
-                    onClick={fetchRecommendations}
-                    className="flex items-center gap-2 text-gold group"
-                  >
-                    <Sparkles size={14} />
-                    <span className="text-[10px] uppercase tracking-[0.3em] font-bold group-hover:underline">Generate Recommendations</span>
-                  </button>
-                </div>
-              ) : (
-                <motion.div 
-                  variants={containerVariants}
-                  initial="hidden"
-                  animate="visible"
-                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-                >
-                  {isRecLoading ? (
-                    [1, 2, 3].map(i => (
-                      <div key={i} className="glass-panel p-6 h-[400px] animate-pulse bg-white/5 border-white/5 flex flex-col justify-between">
-                        <div className="space-y-4 shadow-xl">
-                          <div className="h-4 bg-white/5 rounded w-1/3"></div>
-                          <div className="h-8 bg-white/5 rounded w-3/4"></div>
-                          <div className="h-4 bg-white/5 rounded w-1/2"></div>
-                        </div>
-                        <div className="h-20 bg-white/5 rounded"></div>
-                      </div>
-                    ))
-                  ) : (
-                    recommendations.map((rec, i) => (
-                      <RecommendationCard key={i} recommendation={rec} />
-                    ))
-                  )}
-                </motion.div>
-              )}
             </motion.div>
           ) : (
             <motion.div
