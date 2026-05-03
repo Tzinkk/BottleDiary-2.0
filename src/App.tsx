@@ -431,64 +431,75 @@ const GrapeComparisonView = ({ grapes, onClose }: { grapes: GrapeVariety[], onCl
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
+      initial={{ opacity: 0, scale: 1 }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-10 pointer-events-none"
+      exit={{ opacity: 0, scale: 1 }}
+      className="fixed inset-0 z-[60] flex flex-col pointer-events-auto bg-[#0a0808]"
     >
-      <div 
-        onClick={onClose}
-        className="absolute inset-0 bg-[#0a0808]/95 backdrop-blur-xl pointer-events-auto"
-      />
-      
-      <div className="glass-panel w-full max-w-7xl h-full flex flex-col bg-[#141212]/80 border-white/5 relative z-10 pointer-events-auto overflow-hidden">
-        <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/2">
+      <div className="flex flex-col h-full overflow-hidden">
+        <div className="px-6 py-6 md:px-10 md:py-8 border-b border-white/5 flex justify-between items-center bg-white/2 backdrop-blur-md">
           <div className="space-y-1">
-            <h2 className="text-3xl font-serif text-ink">Variety Comparison</h2>
-            <p className="text-[10px] uppercase tracking-[0.4em] text-ink/30">Side-by-side analytical contrast</p>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-sm bg-gold/10 border border-gold/30 flex items-center justify-center text-gold">
+                <BarChart3 size={16} />
+              </div>
+              <h2 className="text-2xl md:text-3xl font-serif text-ink">Variety Comparison</h2>
+            </div>
+            <p className="text-[10px] uppercase tracking-[0.4em] text-ink/30">Side-by-side analytical contrast ({grapes.length} varieties)</p>
           </div>
           <button 
             onClick={onClose}
-            className="w-12 h-12 flex items-center justify-center border border-white/10 text-ink/40 hover:text-ink hover:border-gold/40 transition-all rounded-full"
+            className="group flex items-center gap-3 px-4 py-2 border border-white/10 text-ink/40 hover:text-ink hover:border-gold/40 transition-all rounded-sm uppercase tracking-widest text-[10px]"
           >
-            <X size={24} />
+            <span>Close Comparison</span>
+            <div className="w-8 h-8 flex items-center justify-center bg-white/5 rounded-sm group-hover:bg-gold/10 transition-colors">
+              <X size={18} />
+            </div>
           </button>
         </div>
 
-        <div className="flex-1 overflow-auto scrollbar-hide">
-          <div className="min-w-max p-10">
-            <table className="w-full border-collapse">
+        <div className="flex-1 overflow-auto">
+          <div className="min-w-full inline-block align-middle">
+            <table className="w-full border-separate border-spacing-0">
               <thead>
-                <tr>
-                  <th className="w-48 p-6 text-left border-b border-white/5 bg-white/2 sticky left-0 z-20">
+                <tr className="sticky top-0 z-40">
+                  <th className="p-6 text-left border-b border-r border-white/10 bg-[#0a0808] sticky left-0 z-50">
                     <span className="text-[10px] uppercase tracking-[0.3em] text-gold font-bold">Attribute</span>
                   </th>
                   {grapes.map(grape => (
-                    <th key={grape.id} className="p-6 text-center border-b border-white/5 min-w-[300px]">
-                      <div className="space-y-2">
-                        <span className={`text-[8px] uppercase tracking-widest px-2 py-0.5 rounded-full border ${grape.type === 'Red' ? 'text-red-400 border-red-900/30' : 'text-gold border-gold/30'}`}>
+                    <th key={grape.id} className="p-8 text-center border-b border-r border-white/5 bg-[#0a0808] min-w-[320px]">
+                      <div className="space-y-3 pb-2">
+                        <span className={`text-[8px] uppercase tracking-widest px-3 py-1 rounded-full border ${grape.type === 'Red' ? 'text-red-400 border-red-900/50 bg-red-950/20' : 'text-gold border-gold/50 bg-gold/5'}`}>
                           {grape.type}
                         </span>
-                        <h3 className="text-2xl font-serif text-ink">{grape.name}</h3>
+                        <h3 className="text-3xl font-serif text-ink tracking-tight">{grape.name}</h3>
+                        <p className="text-[10px] italic text-ink/20 font-serif lowercase">{grape.locations?.[0]?.country || 'Unknown origin'}</p>
                       </div>
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {attributes.map(attr => (
-                  <tr key={attr.key} className="group hover:bg-white/[0.02] transition-colors">
-                    <td className="p-6 border-b border-white/5 bg-white/2 sticky left-0 z-20">
-                      <span className="text-[9px] uppercase tracking-[0.2em] text-ink/40 font-bold group-hover:text-gold transition-colors">{attr.label}</span>
+                {attributes.map((attr, idx) => (
+                  <tr key={attr.key} className="group transition-colors">
+                    <td className="p-6 border-b border-r border-white/10 bg-[#0a0808] sticky left-0 z-30 transition-colors group-hover:bg-white/[0.02]">
+                      <span className="text-[9px] uppercase tracking-[0.2em] text-ink/30 font-bold group-hover:text-gold transition-colors">{attr.label}</span>
                     </td>
                     {grapes.map(grape => {
                       const rawValue = (grape as any)[attr.key];
                       const displayValue = Array.isArray(rawValue) ? rawValue.join(', ') : (rawValue || '—');
+                      const isHighlighted = getWeightClass(attr.key, displayValue).includes('gold');
+                      
                       return (
-                        <td key={grape.id} className="p-6 border-b border-white/5 text-center">
-                          <p className={`text-sm tracking-wide leading-relaxed ${getWeightClass(attr.key, displayValue)}`}>
-                            {displayValue}
-                          </p>
+                        <td 
+                          key={grape.id} 
+                          className={`p-8 border-b border-r border-white/5 text-center transition-colors group-hover:bg-white/[0.01] ${idx % 2 === 0 ? 'bg-white/[0.01]' : 'bg-transparent'}`}
+                        >
+                          <div className={`text-sm md:text-base tracking-wide leading-relaxed px-4 py-2 rounded-sm transition-all ${isHighlighted ? 'bg-gold/5 border border-gold/20' : ''}`}>
+                            <p className={getWeightClass(attr.key, displayValue)}>
+                              {displayValue}
+                            </p>
+                          </div>
                         </td>
                       );
                     })}
@@ -499,10 +510,14 @@ const GrapeComparisonView = ({ grapes, onClose }: { grapes: GrapeVariety[], onCl
           </div>
         </div>
 
-        <div className="p-8 border-t border-white/5 bg-white/2 flex justify-center">
-          <p className="text-[9px] uppercase tracking-[0.2em] text-ink/20">
-            Highlighted text indicates a <span className="text-gold font-bold">distinctive trait</span> unique to that variety in this selection.
-          </p>
+        <div className="px-10 py-6 border-t border-white/5 bg-white/2 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-2 h-2 rounded-full bg-gold animate-pulse"></div>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-ink/40">
+              <span className="text-gold font-bold">Gold Text/Border</span> highlights traits unique to that variety in this specific comparison.
+            </p>
+          </div>
+          <p className="text-[8px] uppercase tracking-widest text-ink/20">Analytical tools for master sommeliers</p>
         </div>
       </div>
     </motion.div>
