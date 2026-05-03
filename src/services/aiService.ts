@@ -31,11 +31,12 @@ export async function getWineRecommendations(bottles: WineBottle[]): Promise<Rec
     Based on the user's current wine diary (provided in JSON), suggest 3 unique wines they would likely enjoy.
     Focus on: Diversity, Specificity, Personalization, and Scale.`;
 
-    const result = await genAI.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [{ text: `User Diary Data: ${JSON.stringify(collectionSummary)}` }],
-      config: {
-        systemInstruction,
+    const result = await genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      systemInstruction,
+    }).generateContent({
+      contents: [{ role: "user", parts: [{ text: `User Diary Data: ${JSON.stringify(collectionSummary)}` }] }],
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -56,7 +57,7 @@ export async function getWineRecommendations(bottles: WineBottle[]): Promise<Rec
       }
     });
 
-    const text = result.text;
+    const text = result.response.text();
     return JSON.parse(text || "[]");
   } catch (error) {
     console.error("AI recommendation error:", error);
@@ -66,16 +67,28 @@ export async function getWineRecommendations(bottles: WineBottle[]): Promise<Rec
 
 export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBottle>> {
   try {
+    if (!imageUri || typeof imageUri !== 'string') {
+      throw new Error("Invalid image URI provided");
+    }
+
     // 1. Fetch image and convert to base64
     const imgResponse = await fetch(imageUri);
+    if (!imgResponse.ok) {
+        throw new Error(`Failed to fetch image from URI: ${imgResponse.statusText}`);
+    }
     const blob = await imgResponse.blob();
     
-    const base64 = await new Promise<string>((resolve) => {
+    const base64 = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        const base64String = (reader.result as string).split(',')[1];
-        resolve(base64String);
+        if (typeof reader.result === 'string' && reader.result.includes(',')) {
+          const base64String = (reader.result as string).split(',')[1];
+          resolve(base64String);
+        } else {
+          reject(new Error("Failed to convert image to base64 pattern"));
+        }
       };
+      reader.onerror = () => reject(new Error("FileReader error"));
       reader.readAsDataURL(blob);
     });
 
@@ -83,21 +96,23 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
     If you cannot find a piece of information, omit it from the JSON.
     Be precise with the classification (Red, White, Rosé, Sparkling, Natural Red, Natural White, Pet Nat, Orange, Sato, Sake).`;
 
-    const result = await genAI.models.generateContent({
-      model: "gemini-3-flash-preview",
+    const result = await genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      systemInstruction,
+    }).generateContent({
       contents: [{
+        role: "user",
         parts: [
           { text: "Analyze this wine label and return JSON matching the schema." },
           {
             inlineData: {
               data: base64,
-              mimeType: blob.type
+              mimeType: blob.type || "image/jpeg"
             }
           }
         ]
       }],
-      config: {
-        systemInstruction,
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -115,7 +130,7 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
       }
     });
 
-    const text = result.text;
+    const text = result.response.text();
     return JSON.parse(text || "{}");
   } catch (error) {
     console.error("AI label analysis error:", error);

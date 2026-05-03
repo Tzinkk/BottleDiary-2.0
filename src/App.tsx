@@ -431,59 +431,65 @@ const GrapeComparisonView = ({ grapes, onClose }: { grapes: GrapeVariety[], onCl
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 1 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 1 }}
-      className="fixed inset-0 z-[60] flex flex-col pointer-events-auto bg-[#0a0808]"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] flex flex-col bg-[#0a0808]"
     >
-      <div className="flex flex-col h-full overflow-hidden">
-        <div className="px-6 py-6 md:px-10 md:py-8 border-b border-white/5 flex justify-between items-center bg-white/2 backdrop-blur-md">
+      <div className="flex flex-col h-full w-full overflow-hidden">
+        {/* Header */}
+        <div className="px-6 py-6 md:px-12 md:py-10 border-b border-white/5 flex justify-between items-center bg-black/40 backdrop-blur-xl shrink-0">
           <div className="space-y-1">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-sm bg-gold/10 border border-gold/30 flex items-center justify-center text-gold">
-                <BarChart3 size={16} />
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-sm bg-gold/10 border border-gold/30 flex items-center justify-center text-gold">
+                <BarChart3 size={20} />
               </div>
-              <h2 className="text-2xl md:text-3xl font-serif text-ink">Variety Comparison</h2>
+              <h2 className="text-3xl md:text-4xl font-serif text-ink tracking-tight">Varietal Comparison</h2>
             </div>
-            <p className="text-[10px] uppercase tracking-[0.4em] text-ink/30">Side-by-side analytical contrast ({grapes.length} varieties)</p>
+            <p className="text-[10px] uppercase tracking-[0.5em] text-ink/30 pl-14">Side-by-side analytical contrast ({grapes.length} varieties)</p>
           </div>
           <button 
             onClick={onClose}
-            className="group flex items-center gap-3 px-4 py-2 border border-white/10 text-ink/40 hover:text-ink hover:border-gold/40 transition-all rounded-sm uppercase tracking-widest text-[10px]"
+            className="group flex items-center gap-4 px-6 py-3 border border-white/10 text-ink/60 hover:text-ink hover:border-gold/40 transition-all rounded-sm uppercase tracking-[0.3em] text-[10px] bg-white/5"
           >
             <span>Close Comparison</span>
-            <div className="w-8 h-8 flex items-center justify-center bg-white/5 rounded-sm group-hover:bg-gold/10 transition-colors">
-              <X size={18} />
-            </div>
+            <X size={18} className="group-hover:text-gold transition-colors" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-auto">
-          <div className="min-w-full inline-block align-middle">
-            <table className="w-full border-separate border-spacing-0">
+        {/* Comparison Table Container */}
+        <div className="flex-1 overflow-auto bg-[#0a0808] custom-scrollbar">
+          <div className="min-w-max p-6 md:p-12">
+            <table className="w-full border-separate border-spacing-0 table-fixed">
               <thead>
-                <tr className="sticky top-0 z-40">
-                  <th className="p-6 text-left border-b border-r border-white/10 bg-[#0a0808] sticky left-0 z-50">
+                <tr>
+                  <th className="w-48 md:w-64 p-6 text-left border-b border-r border-white/10 bg-[#0a0808] sticky top-0 left-0 z-50">
                     <span className="text-[10px] uppercase tracking-[0.3em] text-gold font-bold">Attribute</span>
                   </th>
                   {grapes.map(grape => (
-                    <th key={grape.id} className="p-8 text-center border-b border-r border-white/5 bg-[#0a0808] min-w-[320px]">
-                      <div className="space-y-3 pb-2">
-                        <span className={`text-[8px] uppercase tracking-widest px-3 py-1 rounded-full border ${grape.type === 'Red' ? 'text-red-400 border-red-900/50 bg-red-950/20' : 'text-gold border-gold/50 bg-gold/5'}`}>
+                    <th key={grape.id} className="p-10 text-center border-b border-r border-white/10 bg-[#0a0808] sticky top-0 z-40 min-w-[350px]">
+                      <div className="space-y-4 pb-4">
+                        <span className={`text-[9px] uppercase tracking-[0.3em] px-4 py-1.5 rounded-full border transition-all ${
+                          grape.type === 'Red' 
+                            ? 'text-red-400 border-red-950/50 bg-red-950/20 shadow-[0_0_15px_rgba(153,27,27,0.1)]' 
+                            : 'text-gold border-gold/40 bg-gold/5 shadow-[0_0_15px_rgba(212,175,55,0.05)]'
+                        }`}>
                           {grape.type}
                         </span>
-                        <h3 className="text-3xl font-serif text-ink tracking-tight">{grape.name}</h3>
-                        <p className="text-[10px] italic text-ink/20 font-serif lowercase">{grape.locations?.[0]?.country || 'Unknown origin'}</p>
+                        <h3 className="text-3xl md:text-4xl font-serif text-ink tracking-tight leading-none">{grape.name}</h3>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-ink/30 font-medium">
+                          {typeof grape.locations === 'string' ? grape.locations : (Array.isArray(grape.locations) && grape.locations.length > 0 ? (typeof grape.locations[0] === 'string' ? grape.locations[0] : (grape.locations[0] as any).country) : 'Global varietal')}
+                        </p>
                       </div>
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-white/5">
                 {attributes.map((attr, idx) => (
-                  <tr key={attr.key} className="group transition-colors">
-                    <td className="p-6 border-b border-r border-white/10 bg-[#0a0808] sticky left-0 z-30 transition-colors group-hover:bg-white/[0.02]">
-                      <span className="text-[9px] uppercase tracking-[0.2em] text-ink/30 font-bold group-hover:text-gold transition-colors">{attr.label}</span>
+                  <tr key={attr.key} className="group hover:bg-white/[0.02] transition-colors">
+                    <td className="p-8 border-r border-white/10 bg-[#0a0808] sticky left-0 z-30 transition-colors group-hover:bg-[#111]">
+                      <span className="text-[10px] uppercase tracking-[0.3em] text-ink/30 font-bold group-hover:text-gold transition-colors">{attr.label}</span>
                     </td>
                     {grapes.map(grape => {
                       const rawValue = (grape as any)[attr.key];
@@ -493,10 +499,14 @@ const GrapeComparisonView = ({ grapes, onClose }: { grapes: GrapeVariety[], onCl
                       return (
                         <td 
                           key={grape.id} 
-                          className={`p-8 border-b border-r border-white/5 text-center transition-colors group-hover:bg-white/[0.01] ${idx % 2 === 0 ? 'bg-white/[0.01]' : 'bg-transparent'}`}
+                          className={`p-10 border-r border-white/5 text-center transition-colors ${idx % 2 === 0 ? 'bg-white/[0.01]' : 'bg-transparent'}`}
                         >
-                          <div className={`text-sm md:text-base tracking-wide leading-relaxed px-4 py-2 rounded-sm transition-all ${isHighlighted ? 'bg-gold/5 border border-gold/20' : ''}`}>
-                            <p className={getWeightClass(attr.key, displayValue)}>
+                          <div className={`text-base md:text-lg tracking-wide leading-relaxed px-6 py-6 rounded-sm transition-all duration-500 ${
+                            isHighlighted 
+                              ? 'bg-gold/[0.07] border border-gold/30 shadow-[0_0_30px_rgba(212,175,55,0.05)] scale-[1.02] z-10' 
+                              : 'border border-transparent'
+                          }`}>
+                            <p className={`${getWeightClass(attr.key, displayValue)} leading-relaxed`}>
                               {displayValue}
                             </p>
                           </div>
@@ -510,14 +520,19 @@ const GrapeComparisonView = ({ grapes, onClose }: { grapes: GrapeVariety[], onCl
           </div>
         </div>
 
-        <div className="px-10 py-6 border-t border-white/5 bg-white/2 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-2 h-2 rounded-full bg-gold animate-pulse"></div>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-ink/40">
-              <span className="text-gold font-bold">Gold Text/Border</span> highlights traits unique to that variety in this specific comparison.
+        {/* Footer */}
+        <div className="px-12 py-8 border-t border-white/5 bg-black/40 backdrop-blur-xl flex flex-col md:flex-row justify-between items-center gap-6 shrink-0">
+          <div className="flex items-center gap-5">
+            <div className="w-2.5 h-2.5 rounded-full bg-gold shadow-[0_0_10px_rgba(212,175,55,0.5)] animate-pulse"></div>
+            <p className="text-[11px] uppercase tracking-[0.3em] text-ink/40 max-w-xl leading-relaxed">
+              <span className="text-gold font-bold">Gold Highlight</span> indicates a distinct varietal characteristic that sets it apart in this comparative set.
             </p>
           </div>
-          <p className="text-[8px] uppercase tracking-widest text-ink/20">Analytical tools for master sommeliers</p>
+          <div className="flex items-center gap-8 text-[9px] uppercase tracking-[0.4em] text-ink/20">
+            <span>Analytical Sommelier Suite</span>
+            <div className="w-1 h-1 bg-white/10 rounded-full"></div>
+            <span>V 2.0.4</span>
+          </div>
         </div>
       </div>
     </motion.div>
@@ -748,27 +763,38 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
   }, [analysisSuccess]);
 
   const handleAIScan = async (imageUrl: string) => {
-    if (!imageUrl) return;
-    setIsAnalyzing(true);
-    try {
-      const analysis = await analyzeWineLabel(imageUrl);
-      setFormData(prev => ({
-        ...prev,
-        ...analysis,
-        name: analysis.name || prev.name,
-        producer: analysis.producer || prev.producer,
-        year: analysis.year || prev.year,
-        type: (analysis.type as WineType) || prev.type,
-        region: analysis.region || prev.region,
-        country: analysis.country || prev.country,
-        grape: Array.isArray(analysis.grape) ? [...new Set([...(Array.isArray(prev.grape) ? prev.grape : []), ...analysis.grape])] : prev.grape,
-        tastingNotes: analysis.tastingNotes ? `${analysis.tastingNotes}${prev.tastingNotes ? '\n\n' + prev.tastingNotes : ''}` : prev.tastingNotes,
-      }));
-      setAnalysisSuccess(true);
-    } catch (err) {
-      console.error("AI Analysis failed:", err);
-    } finally {
-      setIsAnalyzing(false);
+    if (!imageUrl || typeof imageUrl !== 'string') {
+      console.warn("AI Scan attempted with invalid URL");
+      return;
+    }
+    
+    // Sanitize URL for potential issues
+    const sanitizedUrl = imageUrl.trim();
+    if (sanitizedUrl.startsWith('data:') || sanitizedUrl.startsWith('http')) {
+      setIsAnalyzing(true);
+      try {
+        const analysis = await analyzeWineLabel(sanitizedUrl);
+        setFormData(prev => ({
+          ...prev,
+          ...analysis,
+          name: analysis.name || prev.name,
+          producer: analysis.producer || prev.producer,
+          year: (analysis.year as string) || prev.year,
+          type: (analysis.type as WineType) || prev.type,
+          region: analysis.region || prev.region,
+          country: analysis.country || prev.country,
+          grape: Array.isArray(analysis.grape) ? [...new Set([...(Array.isArray(prev.grape) ? prev.grape : []), ...analysis.grape])] : prev.grape,
+          tastingNotes: analysis.tastingNotes ? `${analysis.tastingNotes}${prev.tastingNotes ? '\n\n' + prev.tastingNotes : ''}` : prev.tastingNotes,
+        }));
+        setAnalysisSuccess(true);
+      } catch (err: any) {
+        console.error("AI Analysis failed:", err);
+        setUploadError(`Analysis failed: ${err?.message || "Check your photo format"}`);
+      } finally {
+        setIsAnalyzing(false);
+      }
+    } else {
+      setUploadError("The provided image path is not recognized as a valid URL pattern.");
     }
   };
 
