@@ -137,9 +137,11 @@ interface GrapeCardProps {
   grape: GrapeVariety;
   onEdit: (grape: GrapeVariety) => void;
   onDelete: (id: string) => void;
+  isComparing: boolean;
+  onToggleCompare: (id: string) => void;
 }
 
-const GrapeCard: React.FC<GrapeCardProps> = ({ grape, onEdit, onDelete }) => {
+const GrapeCard: React.FC<GrapeCardProps> = ({ grape, onEdit, onDelete, isComparing, onToggleCompare }) => {
   return (
     <motion.div
       layout
@@ -151,9 +153,21 @@ const GrapeCard: React.FC<GrapeCardProps> = ({ grape, onEdit, onDelete }) => {
       className={`glass-panel p-6 flex flex-col h-full group relative transition-all duration-300 rounded-sm overflow-hidden border-l-2 ${grape.type === 'Red' ? 'border-red-900/50' : 'border-yellow-800/30'}`}
     >
       <div className="flex justify-between items-start mb-6">
-        <span className={`text-[9px] uppercase tracking-[0.2em] font-bold px-3 py-1 rounded-full border ${grape.type === 'Red' ? 'text-red-400 bg-red-950/40 border-red-900/50' : 'text-yellow-100 bg-yellow-950/30 border-yellow-800/30'}`}>
-          {grape.type}
-        </span>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => onToggleCompare(grape.id)}
+            className={`w-5 h-5 rounded-sm border flex items-center justify-center transition-all ${
+              isComparing 
+                ? 'bg-gold border-gold text-wine-bg shadow-[0_0_10px_rgba(212,175,55,0.4)]' 
+                : 'bg-white/5 border-white/10 text-transparent hover:border-gold/40'
+            }`}
+          >
+            <Plus size={12} strokeWidth={3} className={isComparing ? 'transform rotate-45' : ''} />
+          </button>
+          <span className={`text-[9px] uppercase tracking-[0.2em] font-bold px-3 py-1 rounded-full border ${grape.type === 'Red' ? 'text-red-400 bg-red-950/40 border-red-900/50' : 'text-yellow-100 bg-yellow-950/30 border-yellow-800/30'}`}>
+            {grape.type}
+          </span>
+        </div>
         <div className="flex space-x-1">
           <button onClick={() => onEdit(grape)} className="p-1.5 text-ink/40 hover:text-gold transition-colors">
             <Edit2 size={14} />
@@ -387,6 +401,109 @@ const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
             Register Variety
           </button>
         </form>
+      </div>
+    </motion.div>
+  );
+};
+
+const GrapeComparisonView = ({ grapes, onClose }: { grapes: GrapeVariety[], onClose: () => void }) => {
+  const attributes = [
+    { key: 'type', label: 'Type' },
+    { key: 'skin', label: 'Skin Color' },
+    { key: 'body', label: 'Body' },
+    { key: 'acidity', label: 'Acidity' },
+    { key: 'tannin', label: 'Tannins' },
+    { key: 'sweetness', label: 'Sweetness' },
+    { key: 'aromaFlavor', label: 'Aroma & Flavor' },
+    { key: 'foodPairing', label: 'Food Pairing' },
+    { key: 'locations', label: 'Major Regions' },
+  ];
+
+  const getWeightClass = (attr: string, value: string) => {
+    // Simple logic to check if this value is unique among the compared set
+    const values = grapes.map(g => {
+      const val = (g as any)[attr];
+      return Array.isArray(val) ? val.join(', ') : val;
+    });
+    const occurrences = values.filter(v => v === value).length;
+    return occurrences === 1 ? 'text-gold font-bold italic' : 'text-ink/60';
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-10 pointer-events-none"
+    >
+      <div 
+        onClick={onClose}
+        className="absolute inset-0 bg-[#0a0808]/95 backdrop-blur-xl pointer-events-auto"
+      />
+      
+      <div className="glass-panel w-full max-w-7xl h-full flex flex-col bg-[#141212]/80 border-white/5 relative z-10 pointer-events-auto overflow-hidden">
+        <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/2">
+          <div className="space-y-1">
+            <h2 className="text-3xl font-serif text-ink">Variety Comparison</h2>
+            <p className="text-[10px] uppercase tracking-[0.4em] text-ink/30">Side-by-side analytical contrast</p>
+          </div>
+          <button 
+            onClick={onClose}
+            className="w-12 h-12 flex items-center justify-center border border-white/10 text-ink/40 hover:text-ink hover:border-gold/40 transition-all rounded-full"
+          >
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto scrollbar-hide">
+          <div className="min-w-max p-10">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <th className="w-48 p-6 text-left border-b border-white/5 bg-white/2 sticky left-0 z-20">
+                    <span className="text-[10px] uppercase tracking-[0.3em] text-gold font-bold">Attribute</span>
+                  </th>
+                  {grapes.map(grape => (
+                    <th key={grape.id} className="p-6 text-center border-b border-white/5 min-w-[300px]">
+                      <div className="space-y-2">
+                        <span className={`text-[8px] uppercase tracking-widest px-2 py-0.5 rounded-full border ${grape.type === 'Red' ? 'text-red-400 border-red-900/30' : 'text-gold border-gold/30'}`}>
+                          {grape.type}
+                        </span>
+                        <h3 className="text-2xl font-serif text-ink">{grape.name}</h3>
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {attributes.map(attr => (
+                  <tr key={attr.key} className="group hover:bg-white/[0.02] transition-colors">
+                    <td className="p-6 border-b border-white/5 bg-white/2 sticky left-0 z-20">
+                      <span className="text-[9px] uppercase tracking-[0.2em] text-ink/40 font-bold group-hover:text-gold transition-colors">{attr.label}</span>
+                    </td>
+                    {grapes.map(grape => {
+                      const rawValue = (grape as any)[attr.key];
+                      const displayValue = Array.isArray(rawValue) ? rawValue.join(', ') : (rawValue || '—');
+                      return (
+                        <td key={grape.id} className="p-6 border-b border-white/5 text-center">
+                          <p className={`text-sm tracking-wide leading-relaxed ${getWeightClass(attr.key, displayValue)}`}>
+                            {displayValue}
+                          </p>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="p-8 border-t border-white/5 bg-white/2 flex justify-center">
+          <p className="text-[9px] uppercase tracking-[0.2em] text-ink/20">
+            Highlighted text indicates a <span className="text-gold font-bold">distinctive trait</span> unique to that variety in this selection.
+          </p>
+        </div>
       </div>
     </motion.div>
   );
@@ -1117,6 +1234,9 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<WineType | 'All'>('All');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [sortByGrapes, setSortByGrapes] = useState<'name' | 'type' | 'newest'>('newest');
+  const [selectedGrapesForComparison, setSelectedGrapesForComparison] = useState<string[]>([]);
+  const [isComparingGrapes, setIsComparingGrapes] = useState(false);
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 
   const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 100000 });
@@ -1149,7 +1269,34 @@ export default function App() {
     const matchesFlavor = (g.aromaFlavor || '').toLowerCase().includes(term);
 
     return matchesName || matchesGeography || matchesFlavor;
+  }).sort((a, b) => {
+    switch (sortByGrapes) {
+      case 'newest':
+        return (b.dateAdded || 0) - (a.dateAdded || 0);
+      case 'name':
+        return (a.name || '').localeCompare(b.name || '');
+      case 'type':
+        return (a.type || '').localeCompare(b.type || '');
+      default:
+        return 0;
+    }
   });
+
+  const handleToggleCompare = (id: string) => {
+    setSelectedGrapesForComparison(prev => 
+      prev.includes(id) ? prev.filter(gid => gid !== id) : [...prev, id]
+    );
+  };
+
+  const comparedGrapes = useMemo(() => {
+    return selectedGrapesForComparison.map(id => grapes.find(g => g.id === id)).filter(Boolean) as GrapeVariety[];
+  }, [selectedGrapesForComparison, grapes]);
+
+  useEffect(() => {
+    if (view !== 'grapes') {
+      setSelectedGrapesForComparison([]);
+    }
+  }, [view]);
 
   const handleLogin = async () => {
     setAuthError(null);
@@ -2025,6 +2172,22 @@ export default function App() {
                 </div>
 
                 <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 flex-1 max-w-3xl">
+                  <div className="flex gap-2 p-1 bg-white/5 border border-white/5 rounded-sm">
+                    {(['newest', 'name', 'type'] as const).map((option) => (
+                      <button
+                        key={option}
+                        onClick={() => setSortByGrapes(option)}
+                        className={`px-4 py-3 text-[8px] tracking-[0.2em] font-bold uppercase transition-all rounded-sm ${
+                          sortByGrapes === option 
+                            ? 'bg-gold text-wine-bg shadow-lg' 
+                            : 'text-ink/40 hover:text-ink hover:bg-white/5'
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+
                   <div className="relative group flex-1">
                     <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-ink/20 group-focus-within:text-gold transition-colors" size={20} />
                     <input
@@ -2065,6 +2228,8 @@ export default function App() {
                         setIsGrapeFormOpen(true);
                       }}
                       onDelete={handleDeleteGrape}
+                      isComparing={selectedGrapesForComparison.includes(grape.id)}
+                      onToggleCompare={handleToggleCompare}
                     />
                   ))}
                 </AnimatePresence>
@@ -2623,6 +2788,61 @@ export default function App() {
       )}
         </AnimatePresence>
       </main>
+
+      {/* Comparison Bar */}
+      <AnimatePresence>
+        {selectedGrapesForComparison.length > 0 && view === 'grapes' && (
+          <motion.div
+            initial={{ y: 100 }}
+            animate={{ y: 0 }}
+            exit={{ y: 100 }}
+            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-2xl"
+          >
+            <div className="glass-panel p-4 bg-gold/10 border-gold/30 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 border border-gold/30 rounded-full flex items-center justify-center text-gold">
+                  <BarChart3 size={20} />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-gold font-bold">{selectedGrapesForComparison.length} Varieties Selected</p>
+                  <div className="flex gap-1 mt-1">
+                    {comparedGrapes.map(g => (
+                      <span key={g.id} className="text-[8px] text-ink/60 uppercase">{g.name}</span>
+                    )).reduce((prev: any, curr: any) => [prev, <span key={`sep-${curr.key}`} className="text-[8px] text-ink/20 mx-1">•</span>, curr])}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setSelectedGrapesForComparison([])}
+                  className="text-[9px] uppercase tracking-widest text-ink/40 hover:text-ink transition-colors px-4"
+                >
+                  Clear
+                </button>
+                <button 
+                  onClick={() => setIsComparingGrapes(true)}
+                  disabled={selectedGrapesForComparison.length < 2}
+                  className={`bg-gold text-wine-bg px-8 py-3 text-[10px] uppercase tracking-[0.2em] font-bold shadow-lg transition-all ${selectedGrapesForComparison.length < 2 ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
+                >
+                  {selectedGrapesForComparison.length < 2 
+                    ? `Add ${2 - selectedGrapesForComparison.length} more` 
+                    : 'Compare Side-by-Side'}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Comparison Modal */}
+      <AnimatePresence>
+        {isComparingGrapes && (
+          <GrapeComparisonView 
+            grapes={comparedGrapes} 
+            onClose={() => setIsComparingGrapes(false)} 
+          />
+        )}
+      </AnimatePresence>
 
       {/* Side Sheet Form */}
       <AnimatePresence>
