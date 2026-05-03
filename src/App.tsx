@@ -2957,7 +2957,7 @@ export default function App() {
         <div className="flex flex-col items-center gap-4">
           <div className="w-8 h-[1px] bg-gold/20"></div>
           <p className="text-[9px] uppercase tracking-[0.5em] text-ink/20 font-bold">
-            Bottle Diary Archive • Version 2.0.0
+            Bottle Diary Archive • Version 2.1.2 • Digital Sommelier v3
           </p>
         </div>
       </footer>

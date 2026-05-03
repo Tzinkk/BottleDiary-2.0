@@ -17,7 +17,11 @@ export async function getWineRecommendations(bottles: WineBottle[]): Promise<Rec
   if (bottles.length === 0) return [];
 
   // Prepare a compact representation for the AI
-  const collectionSummary = bottles.slice(0, 30).map(b => ({
+  // Use a mix of top rated and recent wines for better diversity
+  const sortedByRating = [...bottles].sort((a, b) => b.rating - a.rating);
+  const sample = sortedByRating.slice(0, 30);
+  
+  const collectionSummary = sample.map(b => ({
     name: b.name,
     type: b.type,
     rating: b.rating,
@@ -33,7 +37,7 @@ export async function getWineRecommendations(bottles: WineBottle[]): Promise<Rec
     Respond with JSON array of recommendations.`;
 
     const result = await genAI.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: [{ role: "user", parts: [{ text: `User Diary Data: ${JSON.stringify(collectionSummary)}` }] }],
       config: {
         systemInstruction,
@@ -58,10 +62,11 @@ export async function getWineRecommendations(bottles: WineBottle[]): Promise<Rec
     });
 
     const text = result.text;
-    if (!text) throw new Error("Empty response from AI");
+    if (!text) throw new Error("No response from AI Sommelier");
     return JSON.parse(text);
-  } catch (error) {
+  } catch (error: any) {
     console.error("AI recommendation error details:", error);
+    // Return empty if it's a quota or pattern error
     return [];
   }
 }
@@ -75,7 +80,7 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
     // 1. Fetch image and convert to base64
     const imgResponse = await fetch(imageUri);
     if (!imgResponse.ok) {
-        throw new Error(`Failed to fetch image: ${imgResponse.status} ${imgResponse.statusText}`);
+        throw new Error(`Failed to fetch image: ${imgResponse.status} ${imgResponse.statusText}. Ensure the image is accessible.`);
     }
     const blob = await imgResponse.blob();
     
@@ -88,22 +93,21 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
           if (split.length > 1) {
             resolve(split[1]);
           } else {
-            reject(new Error("Invalid data URL format from FileReader"));
+            reject(new Error("Invalid image format encountered. Please try another photo."));
           }
         } else {
-          reject(new Error("FileReader result is not a string"));
+          reject(new Error("Failed to read image data."));
         }
       };
-      reader.onerror = () => reject(new Error("FileReader encounterted an error"));
+      reader.onerror = () => reject(new Error("Image processing failed."));
       reader.readAsDataURL(blob);
     });
 
     const systemInstruction = `You are a professional sommelier. Analyze the wine label in the image and extract information into structured JSON. 
-    If information is missing, omit the field.
-    Precision is key for wine type classification.`;
+    Omit missing fields. Be precise with classifications like (Red, White, Rosé, Sparkling, Orange).`;
 
     const result = await genAI.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: [{
         role: "user",
         parts: [
@@ -125,7 +129,7 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
             name: { type: Type.STRING },
             producer: { type: Type.STRING },
             year: { type: Type.STRING },
-            type: { type: Type.STRING, description: "Red, White, Rosé, Sparkling, Natural Red, Natural White, Pet Nat, Orange, Sato, Sake" },
+            type: { type: Type.STRING },
             region: { type: Type.STRING },
             country: { type: Type.STRING },
             grape: { type: Type.ARRAY, items: { type: Type.STRING } },
@@ -138,8 +142,12 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
     const text = result.text;
     if (!text) return {};
     return JSON.parse(text);
-  } catch (error) {
+  } catch (error: any) {
     console.error("AI label analysis error details:", error);
-    throw error; // Rethrow to let App.tsx handle the message
+    // Better user-facing error messages
+    if (error?.message?.includes("string did not match")) {
+        throw new Error("The image data format is unexpected. Please try capturing the photo again.");
+    }
+    throw error; 
   }
 }
