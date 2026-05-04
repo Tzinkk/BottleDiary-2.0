@@ -17,14 +17,12 @@ export async function getWineRecommendations(bottles: WineBottle[]): Promise<Rec
   if (bottles.length === 0) return [];
 
   // Prepare a compact representation for the AI
-  // Use a mix of top rated and recent wines for better diversity
-  const sortedByRating = [...bottles].sort((a, b) => b.rating - a.rating);
-  const sample = sortedByRating.slice(0, 30);
+  // Use recent wines for diversity
+  const sample = bottles.slice(0, 30);
   
   const collectionSummary = sample.map(b => ({
     name: b.name,
     type: b.type,
-    rating: b.rating,
     grapes: b.grape,
     region: b.region,
     notes: b.tastingNotes

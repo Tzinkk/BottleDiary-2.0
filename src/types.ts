@@ -9,7 +9,6 @@ export interface WineBottle {
   region: string;
   country: string;
   grape: string[];
-  rating: number; // 1-5
   tastingNotes: string;
   additionalNote?: string;
   locationPurchased?: string;
@@ -37,4 +36,4 @@ export interface GrapeVariety {
   dateAdded: number;
 }
 
-export type SortOption = 'newest' | 'rating' | 'year' | 'name';
+export type SortOption = 'newest' | 'year' | 'name';

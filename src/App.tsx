@@ -547,6 +547,8 @@ interface WineCardProps {
 
 const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
   const typeConfig = WINE_TYPE_CONFIG[bottle.type] || { text: 'text-gray-400', bg: 'bg-gray-900/40', border: 'border-gray-800/50', accent: 'bg-gray-500' };
+  const [showEditTooltip, setShowEditTooltip] = useState(false);
+  const [showDeleteTooltip, setShowDeleteTooltip] = useState(false);
 
   return (
     <motion.div
@@ -563,20 +565,55 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
           {bottle.type}
         </span>
         <div className="flex space-x-1">
-          <button
-            onClick={() => onEdit(bottle)}
-            className="p-1.5 text-ink/40 hover:text-gold transition-colors"
-            title="Edit Diary"
-          >
-            <Edit2 size={14} />
-          </button>
-          <button
-            onClick={() => onDelete(bottle.id)}
-            className="p-1.5 text-ink/40 hover:text-red-500 transition-colors"
-            title="Delete Entry"
-          >
-            <Trash2 size={14} />
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => onEdit(bottle)}
+              onMouseEnter={() => setShowEditTooltip(true)}
+              onMouseLeave={() => setShowEditTooltip(false)}
+              className="p-1.5 text-ink/40 hover:text-gold transition-colors"
+              aria-label="Edit Diary"
+            >
+              <Edit2 size={14} />
+            </button>
+            <AnimatePresence>
+              {showEditTooltip && (
+                <motion.div
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 5 }}
+                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-ink text-gold text-[8px] uppercase tracking-widest whitespace-nowrap rounded font-bold shadow-xl pointer-events-none z-10"
+                >
+                  Edit Diary
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-x-4 border-x-transparent border-t-4 border-t-ink"></div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          
+          <div className="relative">
+            <button
+              onClick={() => onDelete(bottle.id)}
+              onMouseEnter={() => setShowDeleteTooltip(true)}
+              onMouseLeave={() => setShowDeleteTooltip(false)}
+              className="p-1.5 text-ink/40 hover:text-red-500 transition-colors"
+              aria-label="Delete Entry"
+            >
+              <Trash2 size={14} />
+            </button>
+            <AnimatePresence>
+              {showDeleteTooltip && (
+                <motion.div
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 5 }}
+                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-red-900 text-white text-[8px] uppercase tracking-widest whitespace-nowrap rounded font-bold shadow-xl pointer-events-none z-10"
+                >
+                  Delete Entry
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-x-4 border-x-transparent border-t-4 border-t-red-900"></div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
@@ -604,16 +641,6 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
               <span className="w-1 h-1 bg-gold/40 rounded-full"></span>
               {g}
             </span>
-          ))}
-        </div>
-        
-        <div className="flex items-center space-x-0.5">
-          {[...Array(5)].map((_, i) => (
-            <Star
-              key={i}
-              size={12}
-              className={i < bottle.rating ? 'fill-gold text-gold' : 'text-white/10'}
-            />
           ))}
         </div>
         
@@ -679,7 +706,6 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     region: bottle?.region || '',
     country: bottle?.country || '',
     grape: Array.isArray(bottle?.grape) ? bottle.grape : (typeof bottle?.grape === 'string' ? [bottle.grape] : []),
-    rating: bottle?.rating || 3,
     tastingNotes: bottle?.tastingNotes || '',
     additionalNote: bottle?.additionalNote || '',
     price: bottle?.price || 0,
@@ -1008,25 +1034,6 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Personal Rating</label>
-            <div className="flex space-x-3 pt-2">
-              {[1, 2, 3, 4, 5].map(r => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, rating: r })}
-                  className="transition-transform hover:scale-110"
-                >
-                  <Star
-                    size={28}
-                    className={r <= formData.rating ? 'fill-gold text-gold' : 'text-white/10'}
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
-
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Bottle Photo</label>
@@ -1313,29 +1320,23 @@ export default function App() {
     const today = new Date();
     const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
     
-    // Prefer higher rated bottles
-    const potentialWines = bottles.filter(b => b.rating >= 4);
-    const sourcePool = potentialWines.length > 0 ? potentialWines : bottles;
-    
     // Pseudo-random index based on seed
-    const index = seed % sourcePool.length;
-    return sourcePool[index];
+    const index = seed % bottles.length;
+    return bottles[index];
   }, [bottles]);
 
   const topVarietals = useMemo(() => {
-    const counts: Record<string, { count: number; totalRating: number }> = {};
+    const counts: Record<string, { count: number }> = {};
     bottles.forEach(b => {
       (b.grape || []).forEach(g => {
-        if (!counts[g]) counts[g] = { count: 0, totalRating: 0 };
+        if (!counts[g]) counts[g] = { count: 0 };
         counts[g].count += 1;
-        counts[g].totalRating += b.rating;
       });
     });
     return Object.entries(counts)
       .map(([name, data]) => ({
         name,
         count: data.count,
-        avgRating: parseFloat((data.totalRating / data.count).toFixed(1))
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
@@ -1443,7 +1444,6 @@ export default function App() {
     .sort((a, b) => {
       switch (sortBy) {
         case 'newest': return b.dateAdded - a.dateAdded;
-        case 'rating': return b.rating - a.rating;
         case 'year': 
           if (a.year === 'NV' && b.year === 'NV') return 0;
           if (a.year === 'NV') return 1;
@@ -1456,7 +1456,6 @@ export default function App() {
 
   const stats = {
     total: bottles.length,
-    averageRating: bottles.length > 0 ? (bottles.reduce((acc: number, b) => acc + b.rating, 0) / bottles.length).toFixed(1) : '—',
     topCountry: bottles.length > 0 ? Object.entries(
       bottles.reduce((acc: Record<string, number>, b) => {
         if (!b.country) return acc;
@@ -1484,31 +1483,44 @@ export default function App() {
     .slice(0, 10)
     .map(([name, value]) => ({ name, value }));
 
-  const ratingTimeData = bottles
-    .slice()
-    .sort((a, b) => (a.dateAdded as number) - (b.dateAdded as number))
-    .reduce((acc: any[], b) => {
+  const cellarGrowthData = useMemo(() => {
+    const sortedBottles = [...bottles].sort((a, b) => a.dateAdded - b.dateAdded);
+    const growth: any[] = [];
+    let cumulative = 0;
+
+    sortedBottles.forEach(b => {
       const date = new Date(b.dateAdded);
       const monthYear = `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`;
-      const existing = acc.find(item => item.name === monthYear);
+      cumulative += 1;
+      
+      const existing = growth.find(item => item.name === monthYear);
       if (existing) {
-        existing.totalRating += b.rating;
-        existing.count += 1;
-        existing.rating = parseFloat((existing.totalRating / existing.count).toFixed(1));
+        existing.count = cumulative;
       } else {
-        acc.push({ name: monthYear, rating: b.rating, totalRating: b.rating, count: 1 });
+        growth.push({ name: monthYear, count: cumulative });
       }
-      return acc;
-    }, []);
+    });
 
-  const priceRatingData = bottles
-    .filter(b => b.price && b.price > 0)
-    .map(b => ({
-      name: b.name,
-      price: b.price,
-      rating: b.rating,
-      type: b.type
-    }));
+    return growth;
+  }, [bottles]);
+
+  const priceDistributionData = useMemo(() => {
+    const ranges = [
+      { name: '< ฿500', min: 0, max: 499, value: 0 },
+      { name: '฿500-1k', min: 500, max: 999, value: 0 },
+      { name: '฿1k-2k', min: 1000, max: 1999, value: 0 },
+      { name: '฿2k-5k', min: 2000, max: 4999, value: 0 },
+      { name: '฿5k+', min: 5000, max: Infinity, value: 0 },
+    ];
+
+    bottles.forEach(b => {
+      const price = b.price || 0;
+      const range = ranges.find(r => price >= r.min && price <= r.max);
+      if (range) range.value += 1;
+    });
+
+    return ranges;
+  }, [bottles]);
 
   const grapeGeographyData = useMemo(() => {
     const countries: Record<string, { regionMap: Record<string, Set<string>>; grapes: Set<string> }> = {};
@@ -1580,7 +1592,6 @@ export default function App() {
               <span className="opacity-60">{entry.name}:</span>
               <span className="font-bold">
                 {entry.name === 'price' ? `฿${entry.value.toLocaleString()}` : entry.value}
-                {entry.name === 'rating' ? ' / 5' : ''}
               </span>
             </p>
           ))}
@@ -1946,7 +1957,7 @@ export default function App() {
                 <h2 className="text-6xl font-serif font-light text-ink leading-tight">Sync your cellar across <br />all your devices.</h2>
                 <p className="text-ink/40 font-light leading-relaxed max-w-lg mx-auto">
                   Sign in with your Google account to securely store your wine collection in our private reserve. 
-                  Access your tasting notes, ratings, and cellar analytics from your Android, iOS, or Desktop.
+                  Access your tasting notes, and cellar analytics from your Android, iOS, or Desktop.
                 </p>
               </div>
 
@@ -2042,15 +2053,6 @@ export default function App() {
                            <span className={`text-[10px] uppercase tracking-[0.2em] font-bold px-4 py-1.5 rounded-full border ${WINE_TYPE_CONFIG[wineOfTheDay.type]?.text} ${WINE_TYPE_CONFIG[wineOfTheDay.type]?.bg} ${WINE_TYPE_CONFIG[wineOfTheDay.type]?.border}`}>
                             {wineOfTheDay.type}
                           </span>
-                          <div className="flex gap-1">
-                            {[...Array(5)].map((_, i) => (
-                              <Star 
-                                key={i} 
-                                size={12} 
-                                className={i < wineOfTheDay.rating ? "text-gold fill-current" : "text-white/10"} 
-                              />
-                            ))}
-                          </div>
                         </div>
 
                         <div className="space-y-4 mb-10">
@@ -2416,8 +2418,8 @@ export default function App() {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                       <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10 lg:col-span-1">
                         <div>
-                          <h3 className="text-lg font-serif text-ink mb-1">Most Favorite Varieties</h3>
-                          <p className="text-[10px] uppercase tracking-widest text-ink/30">Based on your tasting ratings</p>
+                          <h3 className="text-lg font-serif text-ink mb-1">Most Popular Varieties</h3>
+                          <p className="text-[10px] uppercase tracking-widest text-ink/30">Highest frequency in your collection</p>
                         </div>
                         <div className="space-y-6">
                           {topVarietals.map((v, i) => (
@@ -2429,14 +2431,6 @@ export default function App() {
                                   <p className="text-[9px] uppercase tracking-widest text-ink/30">{v.count} bottles documented</p>
                                 </div>
                               </div>
-                              <div className="text-right">
-                                <p className="text-lg font-serif text-gold">{v.avgRating}</p>
-                                <div className="flex space-x-0.5 justify-end">
-                                  {[...Array(5)].map((_, starI) => (
-                                    <Star key={starI} size={6} className={starI < Math.round(v.avgRating) ? 'fill-gold text-gold' : 'text-white/10'} />
-                                  ))}
-                                </div>
-                              </div>
                             </div>
                           ))}
                         </div>
@@ -2444,12 +2438,12 @@ export default function App() {
 
                       <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10 lg:col-span-2 shadow-2xl">
                         <div>
-                          <h3 className="text-lg font-serif text-ink mb-1">Palate Evolution</h3>
-                          <p className="text-[10px] uppercase tracking-widest text-ink/30">Average bottle rating over time</p>
+                          <h3 className="text-lg font-serif text-ink mb-1">Cellar Growth</h3>
+                          <p className="text-[10px] uppercase tracking-widest text-ink/30">Cumulative bottle count over time</p>
                         </div>
                         <div className="h-[350px] w-full">
                           <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={ratingTimeData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                            <LineChart data={cellarGrowthData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                               <XAxis 
                                 dataKey="name" 
@@ -2464,14 +2458,13 @@ export default function App() {
                                 fontSize={10} 
                                 tickLine={false} 
                                 axisLine={false} 
-                                domain={[0, 5]}
                                 dx={-10}
                               />
                               <Tooltip content={<CustomTooltip />} />
                               <Line 
                                 type="monotone" 
-                                dataKey="rating" 
-                                name="Average Rating"
+                                dataKey="count" 
+                                name="Total Bottles"
                                 stroke="#D4AF37" 
                                 strokeWidth={3} 
                                 dot={{ r: 4, fill: '#D4AF37', strokeWidth: 0 }}
@@ -2485,49 +2478,34 @@ export default function App() {
 
                       <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10">
                         <div>
-                          <h3 className="text-lg font-serif text-ink mb-1">Price vs Rating</h3>
-                          <p className="text-[10px] uppercase tracking-widest text-ink/30">Correlation between value and enjoyment</p>
+                          <h3 className="text-lg font-serif text-ink mb-1">Value Distribution</h3>
+                          <p className="text-[10px] uppercase tracking-widest text-ink/30">Breakdown of reserve value tiers</p>
                         </div>
                         <div className="h-[350px] w-full">
                           <ResponsiveContainer width="100%" height="100%">
-                            <ScatterChart margin={{ top: 20, right: 30, bottom: 20, left: 20 }}>
+                            <BarChart data={priceDistributionData} margin={{ top: 20, right: 30, bottom: 20, left: 20 }}>
                               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                               <XAxis 
-                                type="number" 
-                                dataKey="price" 
-                                name="Price" 
-                                unit="฿" 
+                                dataKey="name" 
                                 stroke="#f8f4ed" 
                                 fontSize={10}
                                 tickLine={false}
                                 axisLine={false}
                               />
                               <YAxis 
-                                type="number" 
-                                dataKey="rating" 
-                                name="Rating" 
-                                domain={[0, 5]} 
                                 stroke="#f8f4ed" 
                                 fontSize={10}
                                 tickLine={false}
                                 axisLine={false}
                               />
-                              <ZAxis type="number" range={[60, 400]} />
                               <Tooltip content={<CustomTooltip />} />
-                              <Scatter 
-                                name="Wines" 
-                                data={priceRatingData} 
+                              <Bar 
+                                dataKey="value" 
+                                name="Bottles" 
                                 fill="#D4AF37"
-                                fillOpacity={0.6}
-                              >
-                                {priceRatingData.map((entry, index) => (
-                                  <Cell 
-                                    key={`cell-${index}`} 
-                                    fill={WINE_TYPE_CONFIG[entry.type]?.hex || '#D4AF37'} 
-                                  />
-                                ))}
-                              </Scatter>
-                            </ScatterChart>
+                                radius={[4, 4, 0, 0]}
+                              />
+                            </BarChart>
                           </ResponsiveContainer>
                         </div>
                       </div>
