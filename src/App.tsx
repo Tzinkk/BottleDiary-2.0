@@ -709,7 +709,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     
     // Sanitize URL for potential issues
     const sanitizedUrl = imageUrl.trim();
-    if (sanitizedUrl.startsWith('data:') || sanitizedUrl.startsWith('http')) {
+    if (sanitizedUrl.startsWith('data:') || sanitizedUrl.startsWith('http') || sanitizedUrl.startsWith('blob:')) {
       setIsAnalyzing(true);
       setUploadError(null);
       try {
@@ -766,14 +766,14 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
         throw new Error(result.error || 'Failed to upload image');
       }
 
+      // Wait for AI scan to finish if it hasn't already
+      await aiScanPromise;
+
       // Once uploaded, replace the local blob URL with the permanent Cloudinary URL
       setFormData(prev => ({ ...prev, imageUrl: result.url }));
       
       // We don't need the local URL anymore
       URL.revokeObjectURL(localUrl);
-
-      // Wait for AI scan to finish if it hasn't already
-      await aiScanPromise;
     } catch (err) {
       console.error('Upload failed:', err);
       // If upload failed, we still have the local preview, but users should know it's not saved permanently

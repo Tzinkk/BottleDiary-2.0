@@ -160,8 +160,10 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
   } catch (error: any) {
     console.error("AI label analysis error details:", error);
     // Better user-facing error messages
-    if (error?.message?.toLowerCase().includes("string did not match") || error?.name === "SyntaxError") {
-        throw new Error("The image data format is unexpected or too large for analysis. Please try a smaller or different photo format.");
+    if (error?.message?.toLowerCase().includes("string did not match") || 
+        error?.message?.toLowerCase().includes("failed to execute 'atob'") ||
+        error?.name === "SyntaxError") {
+        throw new Error("The image format is incompatible or the file is too large. Please try another photo.");
     }
     throw error; 
   }
