@@ -37,7 +37,7 @@ export async function getWineRecommendations(bottles: WineBottle[]): Promise<Rec
     Respond with JSON array of recommendations.`;
 
     const result = await genAI.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: [{ role: "user", parts: [{ text: `User Diary Data: ${JSON.stringify(collectionSummary)}` }] }],
       config: {
         systemInstruction,
@@ -107,7 +107,7 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
     Omit missing fields. Be precise with classifications like (Red, White, Rosé, Sparkling, Orange).`;
 
     const result = await genAI.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: [{
         role: "user",
         parts: [
