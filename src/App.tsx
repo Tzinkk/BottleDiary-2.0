@@ -742,6 +742,15 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     setIsUploading(true);
     setUploadError(null);
 
+    // 1. Create a local preview URL and trigger AI Scan immediately from the local file
+    const localUrl = URL.createObjectURL(file);
+    
+    // We want to show the preview right away if possible
+    setFormData(prev => ({ ...prev, imageUrl: localUrl }));
+    
+    // Trigger AI Scan in parallel with the upload
+    const aiScanPromise = handleAIScan(localUrl);
+
     const formDataUpload = new FormData();
     formDataUpload.append('image', file);
 
@@ -757,13 +766,17 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
         throw new Error(result.error || 'Failed to upload image');
       }
 
+      // Once uploaded, replace the local blob URL with the permanent Cloudinary URL
       setFormData(prev => ({ ...prev, imageUrl: result.url }));
-      setIsUploading(false);
       
-      // Automatically trigger AI scan for new uploads
-      await handleAIScan(result.url);
+      // We don't need the local URL anymore
+      URL.revokeObjectURL(localUrl);
+
+      // Wait for AI scan to finish if it hasn't already
+      await aiScanPromise;
     } catch (err) {
       console.error('Upload failed:', err);
+      // If upload failed, we still have the local preview, but users should know it's not saved permanently
       setUploadError(err instanceof Error ? err.message : 'An unexpected error occurred during upload');
     } finally {
       setIsUploading(false);

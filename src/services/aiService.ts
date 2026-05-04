@@ -78,30 +78,45 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
     }
 
     // 1. Fetch image and convert to base64
-    const imgResponse = await fetch(imageUri);
-    if (!imgResponse.ok) {
-        throw new Error(`Failed to fetch image: ${imgResponse.status} ${imgResponse.statusText}. Ensure the image is accessible.`);
-    }
-    const blob = await imgResponse.blob();
-    
-    const base64 = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const res = reader.result;
-        if (typeof res === 'string') {
-          const split = res.split(',');
-          if (split.length > 1) {
-            resolve(split[1]);
+    let base64 = "";
+    let mimeType = "image/jpeg";
+
+    if (imageUri.startsWith('data:')) {
+      const split = imageUri.split(',');
+      if (split.length > 1) {
+        base64 = split[1];
+        const match = imageUri.match(/^data:([^;]+);/);
+        if (match) mimeType = match[1];
+      } else {
+        throw new Error("Malformed data URL provided. Please try another photo.");
+      }
+    } else {
+      const imgResponse = await fetch(imageUri);
+      if (!imgResponse.ok) {
+          throw new Error(`Failed to fetch image: ${imgResponse.status} ${imgResponse.statusText}. Ensure the image is accessible.`);
+      }
+      const blob = await imgResponse.blob();
+      mimeType = blob.type || "image/jpeg";
+      
+      base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const res = reader.result;
+          if (typeof res === 'string') {
+            const split = res.split(',');
+            if (split.length > 1) {
+              resolve(split[1]);
+            } else {
+              reject(new Error("Invalid image format encountered after fetch. Please try another photo."));
+            }
           } else {
-            reject(new Error("Invalid image format encountered. Please try another photo."));
+            reject(new Error("Failed to read image data from blob."));
           }
-        } else {
-          reject(new Error("Failed to read image data."));
-        }
-      };
-      reader.onerror = () => reject(new Error("Image processing failed."));
-      reader.readAsDataURL(blob);
-    });
+        };
+        reader.onerror = () => reject(new Error("Image processing failed during reading."));
+        reader.readAsDataURL(blob);
+      });
+    }
 
     const systemInstruction = `You are a professional sommelier. Analyze the wine label in the image and extract information into structured JSON. 
     Omit missing fields. Be precise with classifications like (Red, White, Rosé, Sparkling, Orange).`;
@@ -115,7 +130,7 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
           {
             inlineData: {
               data: base64,
-              mimeType: blob.type || "image/jpeg"
+              mimeType: mimeType
             }
           }
         ]
@@ -145,8 +160,8 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
   } catch (error: any) {
     console.error("AI label analysis error details:", error);
     // Better user-facing error messages
-    if (error?.message?.includes("string did not match")) {
-        throw new Error("The image data format is unexpected. Please try capturing the photo again.");
+    if (error?.message?.toLowerCase().includes("string did not match") || error?.name === "SyntaxError") {
+        throw new Error("The image data format is unexpected or too large for analysis. Please try a smaller or different photo format.");
     }
     throw error; 
   }
