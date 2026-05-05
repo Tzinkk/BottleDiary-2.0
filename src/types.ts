@@ -14,7 +14,7 @@ export interface WineBottle {
   locationPurchased?: string;
   price?: number;
   imageUrl?: string;
-  foodPairing?: string;
+  foodPairing?: string[];
   dateAdded: number;
   userId: string;
 }
@@ -31,7 +31,7 @@ export interface GrapeVariety {
   sweetness: string;
   aromaFlavor: string;
   otherNotes: string;
-  foodPairing: string;
+  foodPairing: string[];
   additionalNotes: string;
   userId: string;
   dateAdded: number;

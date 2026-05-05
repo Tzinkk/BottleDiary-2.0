@@ -38,7 +38,8 @@ service cloud.firestore {
         && data.type is string && data.type.size() > 0 && data.type.size() <= 50
         && data.region is string && data.region.size() <= 200
         && data.country is string && data.country.size() <= 100
-        && data.grape is list && data.grape.size() <= 20
+        && (!('grape' in data) || (data.grape is list && data.grape.size() <= 20))
+        && (!('foodPairing' in data) || (data.foodPairing is list && data.foodPairing.size() <= 20))
         && data.tastingNotes is string && data.tastingNotes.size() <= 2000
         && data.dateAdded is number
         && data.userId == request.auth.uid;
@@ -51,6 +52,7 @@ service cloud.firestore {
         && data.name is string && data.name.size() > 0 && data.name.size() <= 200
         && data.type is string && (data.type == 'Red' || data.type == 'White')
         && (!('locations' in data) || (data.locations is list && data.locations.size() <= 40))
+        && (!('foodPairing' in data) || (data.foodPairing is list && data.foodPairing.size() <= 20))
         && data.userId == request.auth.uid;
     }
 

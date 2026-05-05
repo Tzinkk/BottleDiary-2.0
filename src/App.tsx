@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Plus, Search, Filter, Wine, Trash2, Edit2, Star, X, Info, Globe, Banknote, ChevronDown, Upload, Camera, Loader2, Sparkles, Sparkle, BarChart3, LogIn, LogOut, User as UserIcon, Droplets, FlaskConical, Leaf } from 'lucide-react';
+import { Plus, Search, Filter, Wine, Trash2, Edit2, Star, X, Info, Globe, Banknote, ChevronDown, Upload, Camera, Loader2, Sparkles, Sparkle, BarChart3, LogIn, LogOut, User as UserIcon, Droplets, FlaskConical, Leaf, Utensils } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   PieChart, 
@@ -223,7 +223,17 @@ const GrapeCard: React.FC<GrapeCardProps> = ({ grape, onEdit, onDelete, isCompar
         </div>
         <div>
           <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold mb-1">Food Pairing</p>
-          <p className="text-xs text-gold/60 line-clamp-2 font-serif italic">{grape.foodPairing || '—'}</p>
+        {Array.isArray(grape.foodPairing) && grape.foodPairing.length > 0 ? (
+          <p className="text-[10px] text-gold/60 font-serif italic flex flex-wrap gap-x-2">
+            {grape.foodPairing.map((fp, i) => (
+              <span key={i}>
+                {fp}{i < grape.foodPairing.length - 1 ? ' • ' : ''}
+              </span>
+            ))}
+          </p>
+        ) : (
+          <p className="text-xs text-gold/60 line-clamp-2 font-serif italic">—</p>
+        )}
         </div>
       </div>
 
@@ -255,19 +265,22 @@ const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
     sweetness: grape?.sweetness || '',
     aromaFlavor: grape?.aromaFlavor || '',
     otherNotes: grape?.otherNotes || '',
-    foodPairing: grape?.foodPairing || '',
+    foodPairing: Array.isArray(grape?.foodPairing) ? grape.foodPairing : [],
     additionalNotes: grape?.additionalNotes || '',
   });
 
   const [locationInput, setLocationInput] = useState('');
+  const [pairingInput, setPairingInput] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const finalLocations = locationInput.trim() ? [...formData.locations, locationInput.trim()] : formData.locations;
+    const finalPairings = pairingInput.trim() ? [...formData.foodPairing, pairingInput.trim()] : formData.foodPairing;
     
     onSave({
       ...formData,
-      locations: [...new Set(finalLocations)]
+      locations: [...new Set(finalLocations)],
+      foodPairing: [...new Set(finalPairings)]
     });
   };
 
@@ -393,7 +406,45 @@ const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Food Pairing</label>
-              <textarea rows={2} value={formData.foodPairing} onChange={e => setFormData({ ...formData, foodPairing: e.target.value })} className="w-full bg-white/5 border border-white/10 p-4 rounded text-sm text-ink" placeholder="Grilled salmon, duck..." />
+              <div className="flex flex-wrap gap-2 mb-2 min-h-[32px]">
+                {formData.foodPairing.map((p, i) => (
+                  <span key={i} className="flex items-center gap-1.5 px-3 py-1 bg-gold/10 border border-gold/20 rounded-full text-[10px] text-gold/80 italic">
+                    {p}
+                    <button type="button" onClick={() => setFormData({ ...formData, foodPairing: formData.foodPairing.filter((_, idx) => idx !== i) })} className="hover:text-red-400 transition-colors">
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="relative">
+                <input
+                  value={pairingInput}
+                  onChange={e => setPairingInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ',') {
+                      e.preventDefault();
+                      if (pairingInput.trim() && !formData.foodPairing.includes(pairingInput.trim())) {
+                        setFormData({ ...formData, foodPairing: [...formData.foodPairing, pairingInput.trim()] });
+                        setPairingInput('');
+                      }
+                    }
+                  }}
+                  className="w-full bg-transparent border-b border-white/10 py-2 transition-all text-ink font-light pr-10 text-xs italic"
+                  placeholder="e.g. Grilled Salmon (Enter to add)"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (pairingInput.trim() && !formData.foodPairing.includes(pairingInput.trim())) {
+                      setFormData({ ...formData, foodPairing: [...formData.foodPairing, pairingInput.trim()] });
+                      setPairingInput('');
+                    }
+                  }}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-gold/50 hover:text-gold transition-colors"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -670,12 +721,17 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
           {bottle.tastingNotes || "No tasting notes recorded..."}
         </p>
         
-        {bottle.foodPairing && (
+        {Array.isArray(bottle.foodPairing) && bottle.foodPairing.length > 0 && (
           <div className="mt-3 pt-3 border-t border-white/5">
-            <p className="text-[9px] text-ink/30 uppercase tracking-widest font-bold mb-1">Recommended Pairings</p>
-            <p className="text-[11px] text-gold/70 italic leading-relaxed line-clamp-1">
-              {bottle.foodPairing}
-            </p>
+            <p className="text-[9px] text-ink/30 uppercase tracking-widest font-bold mb-2">Recommended Pairings</p>
+            <ul className="space-y-1">
+              {bottle.foodPairing.map((pairing, i) => (
+                <li key={i} className="text-[11px] text-gold/70 italic leading-tight flex items-start gap-2">
+                  <span className="mt-1.5 w-1 h-1 rounded-full bg-gold/40 shrink-0" />
+                  {pairing}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
         
@@ -716,7 +772,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     country: bottle?.country || '',
     grape: Array.isArray(bottle?.grape) ? bottle.grape : (typeof bottle?.grape === 'string' ? [bottle.grape] : []),
     tastingNotes: bottle?.tastingNotes || '',
-    foodPairing: bottle?.foodPairing || '',
+    foodPairing: Array.isArray(bottle?.foodPairing) ? bottle.foodPairing : [],
     additionalNote: bottle?.additionalNote || '',
     price: bottle?.price || 0,
     imageUrl: bottle?.imageUrl || '',
@@ -724,6 +780,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
   });
 
   const [grapeInput, setGrapeInput] = useState('');
+  const [pairingInput, setPairingInput] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -761,7 +818,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
           country: typeof analysis.country === 'string' ? analysis.country : prev.country,
           grape: Array.isArray(analysis.grape) ? [...new Set([...(Array.isArray(prev.grape) ? prev.grape : []), ...analysis.grape])] : (Array.isArray(prev.grape) ? prev.grape : []),
           tastingNotes: typeof analysis.tastingNotes === 'string' ? `${analysis.tastingNotes}${prev.tastingNotes ? '\n\n' + prev.tastingNotes : ''}` : prev.tastingNotes,
-          foodPairing: typeof analysis.foodPairing === 'string' ? analysis.foodPairing : prev.foodPairing,
+          foodPairing: Array.isArray(analysis.foodPairing) ? analysis.foodPairing : (typeof analysis.foodPairing === 'string' ? [analysis.foodPairing] : prev.foodPairing),
         }));
         setAnalysisSuccess(true);
       } catch (err: any) {
@@ -848,9 +905,13 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     const currentGrapes = Array.isArray(formData.grape) ? formData.grape : [];
     const finalGrapes = grapeInput.trim() ? [...currentGrapes, grapeInput.trim()] : currentGrapes;
     
+    const currentPairings = Array.isArray(formData.foodPairing) ? formData.foodPairing : [];
+    const finalPairings = pairingInput.trim() ? [...currentPairings, pairingInput.trim()] : currentPairings;
+    
     onSave({ 
       ...formData, 
       grape: finalGrapes,
+      foodPairing: finalPairings,
       region: formData.region || '',
       country: formData.country || '',
       producer: formData.producer || '',
@@ -872,6 +933,22 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     setFormData({
       ...formData,
       grape: currentGrapes.filter((_, i) => i !== index)
+    });
+  };
+
+  const addPairing = () => {
+    const currentPairings = Array.isArray(formData.foodPairing) ? formData.foodPairing : [];
+    if (pairingInput.trim() && !currentPairings.includes(pairingInput.trim())) {
+      setFormData({ ...formData, foodPairing: [...currentPairings, pairingInput.trim()] });
+      setPairingInput('');
+    }
+  };
+
+  const removePairing = (index: number) => {
+    const currentPairings = Array.isArray(formData.foodPairing) ? formData.foodPairing : [];
+    setFormData({
+      ...formData,
+      foodPairing: currentPairings.filter((_, i) => i !== index)
     });
   };
 
@@ -1166,13 +1243,41 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
             
             <div className="space-y-2">
               <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Suggested Food Pairings</label>
-              <textarea
-                rows={2}
-                value={formData.foodPairing}
-                onChange={e => setFormData({ ...formData, foodPairing: e.target.value })}
-                className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink font-light italic"
-                placeholder="Specific dishes, cheese, or cuisine pairings..."
-              />
+              <div className="flex flex-wrap gap-2 mb-2 min-h-[32px]">
+                {Array.isArray(formData.foodPairing) && formData.foodPairing.map((p, i) => (
+                  <span key={i} className="flex items-center gap-1.5 px-3 py-1 bg-gold/10 border border-gold/20 rounded-full text-[10px] text-gold/80 italic">
+                    {p}
+                    <button 
+                      type="button" 
+                      onClick={() => removePairing(i)}
+                      className="hover:text-red-400 transition-colors"
+                    >
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="relative">
+                <input
+                  value={pairingInput}
+                  onChange={e => setPairingInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ',') {
+                      e.preventDefault();
+                      addPairing();
+                    }
+                  }}
+                  className="w-full bg-transparent border-b border-white/10 focus:border-gold outline-none py-2 transition-all text-ink font-light pr-10 italic"
+                  placeholder="e.g. Grilled Scallops (Enter to add)"
+                />
+                <button
+                  type="button"
+                  onClick={addPairing}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-gold/50 hover:text-gold transition-colors"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
             </div>
             
             <div className="space-y-2">
@@ -2112,10 +2217,20 @@ export default function App() {
                           <p className="text-sm italic text-ink/60 leading-relaxed font-serif">
                             "{wineOfTheDay.tastingNotes || "A vintage waiting to be rediscovered..."}"
                           </p>
-                          {wineOfTheDay.foodPairing && (
-                            <div className="mt-6 p-4 border border-gold/10 bg-gold/5 rounded-sm">
-                              <p className="text-[10px] uppercase tracking-widest text-gold font-bold mb-1">Sommelier's Pairing Suggestion</p>
-                              <p className="text-xs italic text-ink/80">{wineOfTheDay.foodPairing}</p>
+                          {Array.isArray(wineOfTheDay.foodPairing) && wineOfTheDay.foodPairing.length > 0 && (
+                            <div className="mt-6 p-6 border border-gold/10 bg-gold/5 rounded-sm">
+                              <p className="text-[10px] uppercase tracking-widest text-gold font-bold mb-3 flex items-center gap-2">
+                                <Utensils size={10} />
+                                Sommelier's Pairing Suggestions
+                              </p>
+                              <ul className="space-y-2">
+                                {wineOfTheDay.foodPairing.map((pairing, i) => (
+                                  <li key={i} className="text-xs italic text-ink/80 flex items-start gap-3">
+                                    <span className="mt-1.5 w-1 h-1 rounded-full bg-gold/40 shrink-0" />
+                                    {pairing}
+                                  </li>
+                                ))}
+                              </ul>
                             </div>
                           )}
                         </div>

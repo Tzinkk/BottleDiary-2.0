@@ -149,7 +149,7 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
             country: { type: Type.STRING },
             grape: { type: Type.ARRAY, items: { type: Type.STRING } },
             tastingNotes: { type: Type.STRING },
-            foodPairing: { type: Type.STRING }
+            foodPairing: { type: Type.ARRAY, items: { type: Type.STRING } }
           }
         }
       }
