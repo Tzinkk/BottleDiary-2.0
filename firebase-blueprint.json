@@ -13,7 +13,6 @@
         "region": { "type": "string" },
         "country": { "type": "string" },
         "grape": { "type": "array", "items": { "type": "string" } },
-        "rating": { "type": "number" },
         "tastingNotes": { "type": "string" },
         "additionalNote": { "type": "string" },
         "locationPurchased": { "type": "string" },

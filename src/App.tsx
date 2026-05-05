@@ -670,6 +670,15 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
           {bottle.tastingNotes || "No tasting notes recorded..."}
         </p>
         
+        {bottle.foodPairing && (
+          <div className="mt-3 pt-3 border-t border-white/5">
+            <p className="text-[9px] text-ink/30 uppercase tracking-widest font-bold mb-1">Recommended Pairings</p>
+            <p className="text-[11px] text-gold/70 italic leading-relaxed line-clamp-1">
+              {bottle.foodPairing}
+            </p>
+          </div>
+        )}
+        
         {bottle.additionalNote && (
           <div className="mt-3 pt-3 border-t border-white/5">
             <p className="text-[9px] text-ink/30 uppercase tracking-widest font-bold mb-1">Additional Notes</p>
@@ -707,6 +716,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     country: bottle?.country || '',
     grape: Array.isArray(bottle?.grape) ? bottle.grape : (typeof bottle?.grape === 'string' ? [bottle.grape] : []),
     tastingNotes: bottle?.tastingNotes || '',
+    foodPairing: bottle?.foodPairing || '',
     additionalNote: bottle?.additionalNote || '',
     price: bottle?.price || 0,
     imageUrl: bottle?.imageUrl || '',
@@ -751,6 +761,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
           country: typeof analysis.country === 'string' ? analysis.country : prev.country,
           grape: Array.isArray(analysis.grape) ? [...new Set([...(Array.isArray(prev.grape) ? prev.grape : []), ...analysis.grape])] : (Array.isArray(prev.grape) ? prev.grape : []),
           tastingNotes: typeof analysis.tastingNotes === 'string' ? `${analysis.tastingNotes}${prev.tastingNotes ? '\n\n' + prev.tastingNotes : ''}` : prev.tastingNotes,
+          foodPairing: typeof analysis.foodPairing === 'string' ? analysis.foodPairing : prev.foodPairing,
         }));
         setAnalysisSuccess(true);
       } catch (err: any) {
@@ -1145,11 +1156,22 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
             <div className="space-y-2 pt-4">
               <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Tasting Notes</label>
               <textarea
-                rows={3}
+                rows={4}
                 value={formData.tastingNotes}
                 onChange={e => setFormData({ ...formData, tastingNotes: e.target.value })}
                 className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
-                placeholder="Aroma, palate, and finish..."
+                placeholder="Appearance, Nose, Palate, Finish..."
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Suggested Food Pairings</label>
+              <textarea
+                rows={2}
+                value={formData.foodPairing}
+                onChange={e => setFormData({ ...formData, foodPairing: e.target.value })}
+                className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink font-light italic"
+                placeholder="Specific dishes, cheese, or cuisine pairings..."
               />
             </div>
             
@@ -1160,7 +1182,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
                 value={formData.additionalNote}
                 onChange={e => setFormData({ ...formData, additionalNote: e.target.value })}
                 className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink font-light"
-                placeholder="Storing location, food pairings, etc..."
+                placeholder="Storing location, personal memories, etc..."
               />
             </div>
           </div>
@@ -2090,6 +2112,12 @@ export default function App() {
                           <p className="text-sm italic text-ink/60 leading-relaxed font-serif">
                             "{wineOfTheDay.tastingNotes || "A vintage waiting to be rediscovered..."}"
                           </p>
+                          {wineOfTheDay.foodPairing && (
+                            <div className="mt-6 p-4 border border-gold/10 bg-gold/5 rounded-sm">
+                              <p className="text-[10px] uppercase tracking-widest text-gold font-bold mb-1">Sommelier's Pairing Suggestion</p>
+                              <p className="text-xs italic text-ink/80">{wineOfTheDay.foodPairing}</p>
+                            </div>
+                          )}
                         </div>
                         
                         <div className="mt-10">
@@ -2144,7 +2172,8 @@ export default function App() {
                 </div>
 
                 <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 flex-1 max-w-3xl">
-                  <div className="flex gap-2 p-1 bg-white/5 border border-white/5 rounded-sm">
+                  <div className="flex items-center gap-2 p-1 bg-white/5 border border-white/5 rounded-sm">
+                    <span className="text-[7px] uppercase tracking-widest text-ink/30 font-bold px-3 hidden sm:block">Sort by</span>
                     {(['newest', 'name', 'type'] as const).map((option) => (
                       <button
                         key={option}
@@ -2155,7 +2184,7 @@ export default function App() {
                             : 'text-ink/40 hover:text-ink hover:bg-white/5'
                         }`}
                       >
-                        {option}
+                        {option === 'newest' ? 'Added Date' : option === 'type' ? 'Variety Type' : 'Alphabetical'}
                       </button>
                     ))}
                   </div>

@@ -14,6 +14,7 @@ export interface WineBottle {
   locationPurchased?: string;
   price?: number;
   imageUrl?: string;
+  foodPairing?: string;
   dateAdded: number;
   userId: string;
 }

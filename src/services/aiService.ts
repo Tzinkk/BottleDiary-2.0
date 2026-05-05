@@ -117,14 +117,16 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
     }
 
     const systemInstruction = `You are a professional sommelier. Analyze the wine label in the image and extract information into structured JSON. 
-    Omit missing fields. Be precise with classifications like (Red, White, Rosé, Sparkling, Orange).`;
+    Be extremely descriptive with 'tastingNotes', covering appearance, nose, and palate. 
+    Suggest 3 specific 'foodPairing' ideas that would complement this specific wine.
+    Be precise with classifications like (Red, White, Rosé, Sparkling, Orange).`;
 
     const result = await genAI.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: [{
         role: "user",
         parts: [
-          { text: "Identify this wine label details." },
+          { text: "Identify this wine label details. Provide rich tasting notes and food pairings." },
           {
             inlineData: {
               data: base64,
@@ -146,7 +148,8 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
             region: { type: Type.STRING },
             country: { type: Type.STRING },
             grape: { type: Type.ARRAY, items: { type: Type.STRING } },
-            tastingNotes: { type: Type.STRING }
+            tastingNotes: { type: Type.STRING },
+            foodPairing: { type: Type.STRING }
           }
         }
       }
