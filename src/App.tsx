@@ -600,6 +600,7 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
   const typeConfig = WINE_TYPE_CONFIG[bottle.type] || { text: 'text-gray-400', bg: 'bg-gray-900/40', border: 'border-gray-800/50', accent: 'bg-gray-500' };
   const [showEditTooltip, setShowEditTooltip] = useState(false);
   const [showDeleteTooltip, setShowDeleteTooltip] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   return (
     <motion.div
@@ -685,6 +686,7 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
         <p className="font-serif italic text-gold/80 text-sm mt-1">{bottle.producer} • <span className="font-sans not-italic text-xs tracking-widest uppercase opacity-60">{bottle.year}</span></p>
       </div>
 
+      {/* Details Section */}
       <div className="mt-auto space-y-4">
         <div className="flex flex-wrap gap-1.5 min-h-[1.5rem]">
           {Array.isArray(bottle.grape) && bottle.grape.map((g, i) => (
@@ -713,79 +715,98 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
             </div>
           )}
         </div>
-      </div>
 
-      <div className="mt-6 pt-5 border-t border-white/5 space-y-4">
-        <p className="text-[11px] text-ink/30 uppercase tracking-widest font-bold">Analytical Tasting</p>
-        
-        <div className="grid grid-cols-1 gap-3">
-          {bottle.appearance && (
-            <div className="space-y-1">
-              <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">01 Appearance</p>
-              <p className="text-xs text-ink/80 italic font-serif leading-relaxed line-clamp-2">{bottle.appearance}</p>
-            </div>
-          )}
-          {bottle.nose && (
-            <div className="space-y-1">
-              <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">02 Nose</p>
-              <p className="text-xs text-ink/80 italic font-serif leading-relaxed line-clamp-3">{bottle.nose}</p>
-            </div>
-          )}
-          {bottle.palate && (
-            <div className="space-y-1">
-              <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">03 Palate</p>
-              <p className="text-xs text-ink/80 italic font-serif leading-relaxed line-clamp-3">{bottle.palate}</p>
-            </div>
-          )}
-          {bottle.finish && (
-            <div className="space-y-1">
-              <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">04 Finish</p>
-              <p className="text-xs text-ink/80 italic font-serif leading-relaxed line-clamp-2">{bottle.finish}</p>
-            </div>
-          )}
-        </div>
-
-        {!bottle.appearance && !bottle.nose && !bottle.palate && !bottle.finish && bottle.tastingNotes && (
-          <p className="text-xs italic text-ink/60 line-clamp-3 leading-relaxed">
-            {bottle.tastingNotes}
-          </p>
-        )}
-
-        {!(bottle.appearance || bottle.nose || bottle.palate || bottle.finish || bottle.tastingNotes) && (
-          <p className="text-xs italic text-ink/20 leading-relaxed italic">
-            No tasting diary recorded...
-          </p>
-        )}
-        
-        {Array.isArray(bottle.foodPairing) && bottle.foodPairing.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-white/5">
-            <p className="text-[9px] text-ink/30 uppercase tracking-widest font-bold mb-2">Recommended Pairings</p>
-            <ul className="space-y-1">
-              {bottle.foodPairing.map((pairing, i) => (
-                <li key={i} className="text-[11px] text-gold/70 italic leading-tight flex items-start gap-2">
-                  <span className="mt-1.5 w-1 h-1 rounded-full bg-gold/40 shrink-0" />
-                  {pairing}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        
         {bottle.additionalNote && (
-          <div className="mt-3 pt-3 border-t border-white/5">
+          <div className="pt-3 border-t border-white/5">
             <p className="text-[9px] text-ink/30 uppercase tracking-widest font-bold mb-1">Additional Notes</p>
-            <p className="text-[11px] text-ink/50 leading-relaxed line-clamp-2">
+            <p className="text-[11px] text-ink/50 leading-relaxed line-clamp-2 italic font-serif">
               {bottle.additionalNote}
             </p>
           </div>
         )}
+
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="pt-5 border-t border-white/5 space-y-5">
+                <div className="space-y-4">
+                  <p className="text-[10px] text-gold uppercase tracking-[0.2em] font-bold">Analytical Tasting</p>
+                  
+                  <div className="grid grid-cols-1 gap-4">
+                    {bottle.appearance && (
+                      <div className="space-y-1">
+                        <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">01 Appearance</p>
+                        <p className="text-xs text-ink/80 italic font-serif leading-relaxed">{bottle.appearance}</p>
+                      </div>
+                    )}
+                    {bottle.nose && (
+                      <div className="space-y-1">
+                        <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">02 Nose</p>
+                        <p className="text-xs text-ink/80 italic font-serif leading-relaxed">{bottle.nose}</p>
+                      </div>
+                    )}
+                    {bottle.palate && (
+                      <div className="space-y-1">
+                        <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">03 Palate</p>
+                        <p className="text-xs text-ink/80 italic font-serif leading-relaxed">{bottle.palate}</p>
+                      </div>
+                    )}
+                    {bottle.finish && (
+                      <div className="space-y-1">
+                        <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">04 Finish</p>
+                        <p className="text-xs text-ink/80 italic font-serif leading-relaxed">{bottle.finish}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {!bottle.appearance && !bottle.nose && !bottle.palate && !bottle.finish && bottle.tastingNotes && (
+                    <div className="space-y-1">
+                      <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">Tasting Notes</p>
+                      <p className="text-xs italic text-ink/60 leading-relaxed">
+                        {bottle.tastingNotes}
+                      </p>
+                    </div>
+                  )}
+
+                  {Array.isArray(bottle.foodPairing) && bottle.foodPairing.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-white/5">
+                      <p className="text-[9px] text-ink/30 uppercase tracking-widest font-bold mb-2 flex items-center gap-2">
+                        <Utensils size={10} className="text-gold/60" />
+                        Sommelier Pairings
+                      </p>
+                      <ul className="space-y-1.5">
+                        {bottle.foodPairing.map((pairing, i) => (
+                          <li key={i} className="text-[10px] text-gold/70 italic leading-tight flex items-start gap-2">
+                            <span className="mt-1.5 w-1 h-1 rounded-full bg-gold/40 shrink-0" />
+                            {pairing}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
       
       <button 
-        onClick={() => onEdit(bottle)}
-        className="mt-4 w-full py-2 border border-gold/20 text-gold hover:bg-gold/5 text-[9px] uppercase tracking-[0.3em] transition-all rounded-sm"
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="mt-6 w-full py-2.5 bg-white/[0.03] border border-white/10 text-ink/50 hover:text-gold hover:border-gold/30 hover:bg-gold/5 text-[9px] uppercase tracking-[0.3em] transition-all rounded-sm flex items-center justify-center gap-2 font-bold"
       >
-        Reveal Detail
+        {isExpanded ? 'Hide Details' : 'View More Details'}
+        <motion.div
+          animate={{ rotate: isExpanded ? 180 : 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <ChevronDown size={12} />
+        </motion.div>
       </button>
     </motion.div>
   );
