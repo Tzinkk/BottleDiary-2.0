@@ -670,14 +670,14 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
       </div>
 
       {bottle.imageUrl && (
-        <div className="mb-6 -mx-6 -mt-6 h-48 overflow-hidden rounded-t-sm border-b border-white/5 relative bg-black/40">
+        <div className="mb-6 -mx-6 -mt-6 aspect-[3/4] overflow-hidden rounded-t-sm border-b border-white/5 relative bg-black/40">
           <img 
             src={bottle.imageUrl} 
             alt={bottle.name} 
-            className="w-full h-full object-cover mix-blend-lighten opacity-80 group-hover:scale-105 transition-transform duration-700"
+            className="w-full h-full object-contain opacity-90 group-hover:scale-105 transition-transform duration-700 p-4"
             referrerPolicy="no-referrer"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#141212] to-transparent opacity-60"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-[#141212]/80 via-transparent to-transparent opacity-40"></div>
         </div>
       )}
 
