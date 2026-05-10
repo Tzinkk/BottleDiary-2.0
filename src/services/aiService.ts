@@ -149,6 +149,10 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
             country: { type: Type.STRING },
             grape: { type: Type.ARRAY, items: { type: Type.STRING } },
             tastingNotes: { type: Type.STRING },
+            appearance: { type: Type.STRING },
+            nose: { type: Type.STRING },
+            palate: { type: Type.STRING },
+            finish: { type: Type.STRING },
             foodPairing: { type: Type.ARRAY, items: { type: Type.STRING } }
           }
         }

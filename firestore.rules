@@ -40,6 +40,10 @@ service cloud.firestore {
         && data.country is string && data.country.size() <= 100
         && (!('grape' in data) || (data.grape is list && data.grape.size() <= 20))
         && (!('foodPairing' in data) || (data.foodPairing is list && data.foodPairing.size() <= 20))
+        && (!('appearance' in data) || (data.appearance is string && data.appearance.size() <= 1000))
+        && (!('nose' in data) || (data.nose is string && data.nose.size() <= 1000))
+        && (!('palate' in data) || (data.palate is string && data.palate.size() <= 2000))
+        && (!('finish' in data) || (data.finish is string && data.finish.size() <= 1000))
         && data.tastingNotes is string && data.tastingNotes.size() <= 2000
         && data.dateAdded is number
         && data.userId == request.auth.uid;

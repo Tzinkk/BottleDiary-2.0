@@ -10,6 +10,10 @@ export interface WineBottle {
   country: string;
   grape: string[];
   tastingNotes: string;
+  appearance?: string;
+  nose?: string;
+  palate?: string;
+  finish?: string;
   additionalNote?: string;
   locationPurchased?: string;
   price?: number;

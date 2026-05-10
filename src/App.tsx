@@ -715,11 +715,47 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
         </div>
       </div>
 
-      <div className="mt-6 pt-5 border-t border-white/5">
-        <p className="text-[11px] text-ink/30 uppercase tracking-widest font-bold mb-2">Tasting Notes</p>
-        <p className="text-xs italic text-ink/60 line-clamp-2 leading-relaxed mb-3">
-          {bottle.tastingNotes || "No tasting notes recorded..."}
-        </p>
+      <div className="mt-6 pt-5 border-t border-white/5 space-y-4">
+        <p className="text-[11px] text-ink/30 uppercase tracking-widest font-bold">Analytical Tasting</p>
+        
+        <div className="grid grid-cols-1 gap-3">
+          {bottle.appearance && (
+            <div className="space-y-1">
+              <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">01 Appearance</p>
+              <p className="text-xs text-ink/80 italic font-serif leading-relaxed line-clamp-2">{bottle.appearance}</p>
+            </div>
+          )}
+          {bottle.nose && (
+            <div className="space-y-1">
+              <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">02 Nose</p>
+              <p className="text-xs text-ink/80 italic font-serif leading-relaxed line-clamp-3">{bottle.nose}</p>
+            </div>
+          )}
+          {bottle.palate && (
+            <div className="space-y-1">
+              <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">03 Palate</p>
+              <p className="text-xs text-ink/80 italic font-serif leading-relaxed line-clamp-3">{bottle.palate}</p>
+            </div>
+          )}
+          {bottle.finish && (
+            <div className="space-y-1">
+              <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">04 Finish</p>
+              <p className="text-xs text-ink/80 italic font-serif leading-relaxed line-clamp-2">{bottle.finish}</p>
+            </div>
+          )}
+        </div>
+
+        {!bottle.appearance && !bottle.nose && !bottle.palate && !bottle.finish && bottle.tastingNotes && (
+          <p className="text-xs italic text-ink/60 line-clamp-3 leading-relaxed">
+            {bottle.tastingNotes}
+          </p>
+        )}
+
+        {!(bottle.appearance || bottle.nose || bottle.palate || bottle.finish || bottle.tastingNotes) && (
+          <p className="text-xs italic text-ink/20 leading-relaxed italic">
+            No tasting diary recorded...
+          </p>
+        )}
         
         {Array.isArray(bottle.foodPairing) && bottle.foodPairing.length > 0 && (
           <div className="mt-3 pt-3 border-t border-white/5">
@@ -772,6 +808,10 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     country: bottle?.country || '',
     grape: Array.isArray(bottle?.grape) ? bottle.grape : (typeof bottle?.grape === 'string' ? [bottle.grape] : []),
     tastingNotes: bottle?.tastingNotes || '',
+    appearance: bottle?.appearance || '',
+    nose: bottle?.nose || '',
+    palate: bottle?.palate || '',
+    finish: bottle?.finish || '',
     foodPairing: Array.isArray(bottle?.foodPairing) ? bottle.foodPairing : [],
     additionalNote: bottle?.additionalNote || '',
     price: bottle?.price || 0,
@@ -818,6 +858,10 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
           country: typeof analysis.country === 'string' ? analysis.country : prev.country,
           grape: Array.isArray(analysis.grape) ? [...new Set([...(Array.isArray(prev.grape) ? prev.grape : []), ...analysis.grape])] : (Array.isArray(prev.grape) ? prev.grape : []),
           tastingNotes: typeof analysis.tastingNotes === 'string' ? `${analysis.tastingNotes}${prev.tastingNotes ? '\n\n' + prev.tastingNotes : ''}` : prev.tastingNotes,
+          appearance: typeof analysis.appearance === 'string' ? analysis.appearance : prev.appearance,
+          nose: typeof analysis.nose === 'string' ? analysis.nose : prev.nose,
+          palate: typeof analysis.palate === 'string' ? analysis.palate : prev.palate,
+          finish: typeof analysis.finish === 'string' ? analysis.finish : prev.finish,
           foodPairing: Array.isArray(analysis.foodPairing) ? analysis.foodPairing : (typeof analysis.foodPairing === 'string' ? [analysis.foodPairing] : prev.foodPairing),
         }));
         setAnalysisSuccess(true);
@@ -1230,15 +1274,63 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
               />
             </div>
             
-            <div className="space-y-2 pt-4">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Tasting Notes</label>
-              <textarea
-                rows={4}
-                value={formData.tastingNotes}
-                onChange={e => setFormData({ ...formData, tastingNotes: e.target.value })}
-                className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
-                placeholder="Appearance, Nose, Palate, Finish..."
-              />
+            <div className="space-y-4 pt-4">
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Detailed Tasting Diary</label>
+              
+              <div className="space-y-2">
+                <label className="text-[9px] uppercase tracking-widest text-ink/40 font-medium ml-1">Appearance</label>
+                <textarea
+                  rows={2}
+                  value={formData.appearance}
+                  onChange={e => setFormData({ ...formData, appearance: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
+                  placeholder="Clarity, color intensity, hue..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[9px] uppercase tracking-widest text-ink/40 font-medium ml-1">Nose</label>
+                <textarea
+                  rows={2}
+                  value={formData.nose}
+                  onChange={e => setFormData({ ...formData, nose: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
+                  placeholder="Aroma, intensity, primary/secondary notes..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[9px] uppercase tracking-widest text-ink/40 font-medium ml-1">Palate</label>
+                <textarea
+                  rows={2}
+                  value={formData.palate}
+                  onChange={e => setFormData({ ...formData, palate: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
+                  placeholder="Body, acidity, tannins, alcohol, flavor profile..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[9px] uppercase tracking-widest text-ink/40 font-medium ml-1">Finish</label>
+                <textarea
+                  rows={2}
+                  value={formData.finish}
+                  onChange={e => setFormData({ ...formData, finish: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
+                  placeholder="Length, complexity, aftertaste..."
+                />
+              </div>
+
+              <div className="space-y-2 opacity-40">
+                <label className="text-[9px] uppercase tracking-widest font-medium ml-1">Summary / Overall Notes</label>
+                <textarea
+                  rows={2}
+                  value={formData.tastingNotes}
+                  onChange={e => setFormData({ ...formData, tastingNotes: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
+                  placeholder="General impressions..."
+                />
+              </div>
             </div>
             
             <div className="space-y-2">
@@ -2209,14 +2301,44 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="space-y-6">
                           <p className="text-[9px] uppercase tracking-widest text-gold font-bold flex items-center gap-2">
                              <Sparkles size={12} />
-                             Sommelier's Flashback
+                             Sommelier's Analytical Review
                           </p>
-                          <p className="text-sm italic text-ink/60 leading-relaxed font-serif">
-                            "{wineOfTheDay.tastingNotes || "A vintage waiting to be rediscovered..."}"
-                          </p>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {wineOfTheDay.appearance && (
+                              <div className="space-y-2">
+                                <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold">I. Appearance</p>
+                                <p className="text-sm italic text-ink/70 leading-relaxed font-serif">{wineOfTheDay.appearance}</p>
+                              </div>
+                            )}
+                            {wineOfTheDay.nose && (
+                              <div className="space-y-2">
+                                <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold">II. Nose</p>
+                                <p className="text-sm italic text-ink/70 leading-relaxed font-serif">{wineOfTheDay.nose}</p>
+                              </div>
+                            )}
+                            {wineOfTheDay.palate && (
+                              <div className="space-y-2">
+                                <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold">III. Palate</p>
+                                <p className="text-sm italic text-ink/70 leading-relaxed font-serif">{wineOfTheDay.palate}</p>
+                              </div>
+                            )}
+                            {wineOfTheDay.finish && (
+                              <div className="space-y-2">
+                                <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold">IV. Finish</p>
+                                <p className="text-sm italic text-ink/70 leading-relaxed font-serif">{wineOfTheDay.finish}</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {wineOfTheDay.tastingNotes && !wineOfTheDay.appearance && !wineOfTheDay.nose && !wineOfTheDay.palate && !wineOfTheDay.finish && (
+                            <p className="text-sm italic text-ink/60 leading-relaxed font-serif">
+                              "{wineOfTheDay.tastingNotes}"
+                            </p>
+                          )}
                           {Array.isArray(wineOfTheDay.foodPairing) && wineOfTheDay.foodPairing.length > 0 && (
                             <div className="mt-6 p-6 border border-gold/10 bg-gold/5 rounded-sm">
                               <p className="text-[10px] uppercase tracking-widest text-gold font-bold mb-3 flex items-center gap-2">
