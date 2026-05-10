@@ -719,7 +719,7 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
         {bottle.additionalNote && (
           <div className="pt-3 border-t border-white/5">
             <p className="text-[9px] text-ink/30 uppercase tracking-widest font-bold mb-1">Additional Notes</p>
-            <p className="text-[11px] text-ink/50 leading-relaxed line-clamp-2 italic font-serif">
+            <p className="text-sm text-ink/60 leading-relaxed italic font-serif">
               {bottle.additionalNote}
             </p>
           </div>
@@ -734,40 +734,40 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
               className="overflow-hidden"
             >
               <div className="pt-5 border-t border-white/5 space-y-5">
-                <div className="space-y-4">
+                <div className="space-y-5">
                   <p className="text-[10px] text-gold uppercase tracking-[0.2em] font-bold">Analytical Tasting</p>
                   
-                  <div className="grid grid-cols-1 gap-4">
+                  <div className="grid grid-cols-1 gap-5">
                     {bottle.appearance && (
-                      <div className="space-y-1">
+                      <div className="space-y-1.5">
                         <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">01 Appearance</p>
-                        <p className="text-xs text-ink/80 italic font-serif leading-relaxed">{bottle.appearance}</p>
+                        <p className="text-sm text-ink/80 italic font-serif leading-relaxed">{bottle.appearance}</p>
                       </div>
                     )}
                     {bottle.nose && (
-                      <div className="space-y-1">
+                      <div className="space-y-1.5">
                         <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">02 Nose</p>
-                        <p className="text-xs text-ink/80 italic font-serif leading-relaxed">{bottle.nose}</p>
+                        <p className="text-sm text-ink/80 italic font-serif leading-relaxed">{bottle.nose}</p>
                       </div>
                     )}
                     {bottle.palate && (
-                      <div className="space-y-1">
+                      <div className="space-y-1.5">
                         <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">03 Palate</p>
-                        <p className="text-xs text-ink/80 italic font-serif leading-relaxed">{bottle.palate}</p>
+                        <p className="text-sm text-ink/80 italic font-serif leading-relaxed">{bottle.palate}</p>
                       </div>
                     )}
                     {bottle.finish && (
-                      <div className="space-y-1">
+                      <div className="space-y-1.5">
                         <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">04 Finish</p>
-                        <p className="text-xs text-ink/80 italic font-serif leading-relaxed">{bottle.finish}</p>
+                        <p className="text-sm text-ink/80 italic font-serif leading-relaxed">{bottle.finish}</p>
                       </div>
                     )}
                   </div>
 
                   {!bottle.appearance && !bottle.nose && !bottle.palate && !bottle.finish && bottle.tastingNotes && (
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                       <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">Tasting Notes</p>
-                      <p className="text-xs italic text-ink/60 leading-relaxed">
+                      <p className="text-sm italic text-ink/60 leading-relaxed font-serif">
                         {bottle.tastingNotes}
                       </p>
                     </div>
