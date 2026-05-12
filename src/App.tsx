@@ -646,8 +646,8 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
           
           {bottle.price && (
             <div className="flex flex-col items-end gap-0.5">
-              <span className="text-[8px] uppercase tracking-[0.2em] text-ink/30 font-black">Valuation</span>
-              <span className="font-serif text-xl text-gold font-bold tabular-nums">
+              <span className="text-[8px] uppercase tracking-[0.2em] text-ink/30 font-black">Price</span>
+              <span className="font-sans text-lg text-gold font-bold tabular-nums tracking-wide">
                 ฿{bottle.price.toLocaleString()}
               </span>
             </div>
