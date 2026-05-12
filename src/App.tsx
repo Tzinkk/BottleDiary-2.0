@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Plus, Search, Filter, Wine, Trash2, Edit2, Star, X, Info, Globe, Banknote, ChevronDown, Upload, Camera, Loader2, Sparkles, Sparkle, BarChart3, LogIn, LogOut, User as UserIcon, Droplets, FlaskConical, Leaf, Utensils } from 'lucide-react';
+import { Plus, Search, Filter, Wine, Trash2, Edit2, Star, X, Info, Globe, Banknote, ChevronDown, Upload, Camera, Loader2, Sparkles, Sparkle, BarChart3, LogIn, LogOut, User as UserIcon, Droplets, FlaskConical, Leaf, Utensils, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   PieChart, 
@@ -801,6 +801,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
   const [grapeInput, setGrapeInput] = useState('');
   const [pairingInput, setPairingInput] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -888,12 +889,8 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
 
       // Once uploaded, replace the local blob URL with the permanent Cloudinary URL
       setFormData(prev => ({ ...prev, imageUrl: result.url }));
-      
-      // We don't need the local URL anymore
-      URL.revokeObjectURL(localUrl);
     } catch (err) {
       console.error('Upload failed:', err);
-      // If upload failed, we still have the local preview, but users should know it's not saved permanently
       setUploadError(err instanceof Error ? err.message : 'An unexpected error occurred during upload');
     } finally {
       setIsUploading(false);
@@ -923,24 +920,41 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const currentGrapes = Array.isArray(formData.grape) ? formData.grape : [];
-    const finalGrapes = grapeInput.trim() ? [...currentGrapes, grapeInput.trim()] : currentGrapes;
     
-    const currentPairings = Array.isArray(formData.foodPairing) ? formData.foodPairing : [];
-    const finalPairings = pairingInput.trim() ? [...currentPairings, pairingInput.trim()] : currentPairings;
+    if (isUploading) return;
     
-    onSave({ 
-      ...formData, 
-      grape: finalGrapes,
-      foodPairing: finalPairings,
-      region: formData.region || '',
-      country: formData.country || '',
-      producer: formData.producer || '',
-      year: formData.year || 'NV',
-      type: formData.type || 'Red'
-    });
+    // Prevent saving blob URLs which will break upon refresh
+    if (formData.imageUrl && formData.imageUrl.startsWith('blob:')) {
+      setUploadError("Image is still being processed or failed to upload to the cloud. Please wait or try again.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const currentGrapes = Array.isArray(formData.grape) ? formData.grape : [];
+      const finalGrapes = grapeInput.trim() ? [...currentGrapes, grapeInput.trim()] : currentGrapes;
+      
+      const currentPairings = Array.isArray(formData.foodPairing) ? formData.foodPairing : [];
+      const finalPairings = pairingInput.trim() ? [...currentPairings, pairingInput.trim()] : currentPairings;
+      
+      await onSave({ 
+        ...formData, 
+        grape: finalGrapes,
+        foodPairing: finalPairings,
+        region: formData.region || '',
+        country: formData.country || '',
+        producer: formData.producer || '',
+        year: formData.year || 'NV',
+        type: formData.type || 'Red'
+      });
+    } catch (error) {
+      console.error("Form submission failed:", error);
+      setUploadError("Failed to save record. Please check your connection and try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const addGrape = () => {
@@ -1366,10 +1380,11 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
           <div className="pt-8">
             <button
               type="submit"
-              disabled={isUploading}
-              className={`w-full bg-gold text-wine-bg py-5 font-bold tracking-[0.3em] uppercase text-xs hover:bg-gold/90 transition-all shadow-2xl active:scale-95 ${isUploading ? 'opacity-50 cursor-wait' : ''}`}
+              disabled={isUploading || isSaving}
+              className={`w-full bg-gold text-wine-bg py-5 font-bold tracking-[0.3em] uppercase text-xs hover:bg-gold/90 transition-all shadow-2xl active:scale-95 flex items-center justify-center gap-3 ${(isUploading || isSaving) ? 'opacity-50 cursor-wait' : ''}`}
             >
-              {isUploading ? 'Processing Photo...' : 'Commit to Diary'}
+              {(isUploading || isSaving) && <Loader2 size={16} className="animate-spin" />}
+              {isUploading ? 'Processing Photo...' : isSaving ? 'Saving to Diary...' : 'Commit to Diary'}
             </button>
           </div>
         </form>
@@ -3040,7 +3055,7 @@ export default function App() {
           >
             <div className="bg-[#1c2e1c] border border-green-500/30 p-5 rounded-sm shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center gap-4">
               <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white shrink-0 shadow-[0_0_15px_rgba(34,197,94,0.4)]">
-                <Sparkle size={18} className="fill-current" />
+                <Check size={18} strokeWidth={3} />
               </div>
               <div className="flex-1">
                 <p className="text-[10px] uppercase font-black tracking-[0.15em] text-green-100 leading-tight">
