@@ -599,67 +599,101 @@ interface WineCardProps {
 const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
   const typeConfig = WINE_TYPE_CONFIG[bottle.type] || { text: 'text-gray-400', bg: 'bg-gray-900/40', border: 'border-gray-800/50', accent: 'bg-gray-500' };
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isImageOpen, setIsImageOpen] = useState(false);
 
   return (
-    <motion.div
-      layout
-      variants={cardVariants}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      whileHover={{ y: -4, transition: { duration: 0.3 } }}
-      className={`glass-panel flex flex-col md:flex-row group transition-all duration-500 rounded-sm overflow-hidden border-l border-white/5 md:border-l-4 ${typeConfig.border.replace('border-', 'border-l-')} shadow-2xl hover:border-gold/40 mb-8`}
-    >
-      {/* 1. Visuals Column (Left - Full Size Presentation) */}
-      <div className="w-full md:w-[32%] bg-gradient-to-b from-black/20 to-black/40 p-10 flex flex-col items-center border-b md:border-b-0 md:border-r border-white/5 relative overflow-hidden group-hover:from-black/30 group-hover:to-black/50 transition-all duration-700">
-        {/* Subtle background glow */}
-        <div className="absolute inset-0 bg-gold/2 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 blur-3xl pointer-events-none"></div>
-        
-        {/* Full Size Bottle Presentation */}
-        <div className="w-full aspect-[2/3.5] relative rounded-sm border border-white/10 overflow-hidden flex items-center justify-center transition-all duration-700 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.8)] group-hover:shadow-[0_60px_100px_-20px_rgba(0,0,0,0.95)] group-hover:border-gold/30 bg-black/50 backdrop-blur-xl mb-10">
-          {bottle.imageUrl ? (
-            <img 
-              src={bottle.imageUrl} 
-              alt={bottle.name}
-              className="w-full h-full object-contain opacity-100 p-1 group-hover:scale-105 transition-transform duration-1000 ease-out z-10"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div className="flex flex-col items-center justify-center text-gold/5 transition-all duration-700 group-hover:text-gold/15">
-              <Wine size={140} strokeWidth={0.5} />
-            </div>
-          )}
-          
-          {/* Glass Reflections */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/[0.08] to-white/0 pointer-events-none z-20"></div>
-          <div className="absolute inset-0 bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none z-20"></div>
-        </div>
-      </div>
+    <>
+      {/* Lightbox / Enlarged View */}
+      <AnimatePresence>
+        {isImageOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsImageOpen(false)}
+            className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 md:p-12 cursor-zoom-out"
+          >
+            <motion.div
+              layoutId={`bottle-image-${bottle.id}`}
+              className="relative w-full max-w-2xl aspect-[2/3.5] flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button 
+                onClick={() => setIsImageOpen(false)}
+                className="absolute top-4 right-4 md:-top-12 md:-right-12 z-[110] text-white/40 hover:text-gold transition-all bg-white/5 hover:bg-white/10 rounded-full p-2 backdrop-blur-sm"
+                aria-label="Close"
+              >
+                <X size={28} />
+              </button>
+              
+              {bottle.imageUrl ? (
+                <img 
+                  src={bottle.imageUrl} 
+                  alt={bottle.name}
+                  className="w-full h-full object-contain"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <Wine size={300} className="text-gold/10" strokeWidth={0.5} />
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* 2. Information Column (Right - Remaining width) */}
-      <div className="flex-1 p-8 md:p-10 flex flex-col min-w-0">
-        {/* Top Corners: Type (Left) & Price (Right) */}
-        <div className="flex justify-between items-start mb-4">
-          <div className={`text-[9px] uppercase tracking-[0.4em] font-black px-3 py-1.5 rounded-sm border shadow-sm backdrop-blur-md transition-all duration-500 ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border}`}>
-            {bottle.type}
+      <motion.div
+        layout
+        variants={cardVariants}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        whileHover={{ y: -4, transition: { duration: 0.3 } }}
+        className={`glass-panel flex flex-col group transition-all duration-500 rounded-sm overflow-hidden border-l border-white/5 md:border-l-4 ${typeConfig.border.replace('border-', 'border-l-')} shadow-2xl hover:border-gold/40 mb-8 relative`}
+      >
+        {/* Information Column (Full Width Now) */}
+        <div className="flex-1 p-8 md:p-10 flex flex-col min-w-0">
+          {/* Top Line: Image Icon, Type and Price */}
+          <div className="flex justify-between items-start mb-6 gap-4">
+            <div className="flex items-center gap-4">
+              {/* The "Icon" Corner Image */}
+              <motion.div
+                layoutId={`bottle-image-${bottle.id}`}
+                onClick={() => setIsImageOpen(true)}
+                className="w-14 h-14 md:w-16 md:h-16 rounded-full border border-gold/20 bg-black/40 flex items-center justify-center cursor-zoom-in overflow-hidden hover:border-gold/50 transition-all shadow-lg group/icon shrink-0"
+              >
+                {bottle.imageUrl ? (
+                  <img 
+                    src={bottle.imageUrl} 
+                    alt="thumbnail" 
+                    className="w-full h-full object-contain p-1.5 opacity-80 group-hover/icon:opacity-100 group-hover/icon:scale-110 transition-all duration-500"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <Wine size={24} className="text-gold/30" />
+                )}
+              </motion.div>
+
+              <div className={`text-[9px] uppercase tracking-[0.4em] font-black px-3 py-1.5 rounded-sm border shadow-sm backdrop-blur-md transition-all duration-500 ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border}`}>
+                {bottle.type}
+              </div>
+            </div>
+            
+            {bottle.price && (
+              <div className="flex flex-col items-end gap-0.5">
+                <span className="text-[8px] uppercase tracking-[0.2em] text-ink/30 font-black">Price</span>
+                <span className="font-sans text-xl text-gold font-bold tabular-nums tracking-wide">
+                  ฿{bottle.price.toLocaleString()}
+                </span>
+              </div>
+            )}
           </div>
-          
-          {bottle.price && (
-            <div className="flex flex-col items-end gap-0.5">
-              <span className="text-[8px] uppercase tracking-[0.2em] text-ink/30 font-black">Price</span>
-              <span className="font-sans text-lg text-gold font-bold tabular-nums tracking-wide">
-                ฿{bottle.price.toLocaleString()}
-              </span>
-            </div>
-          )}
-        </div>
 
-        {/* Top Line: Name and Vintage */}
-        <div className="mb-6">
-          <h3 className="font-serif text-2xl md:text-3xl font-bold text-gold tracking-tight leading-tight selection:bg-gold/30">
-            {bottle.name} <span className="text-gold/40 mx-2 font-light">•</span> <span className="italic font-medium text-gold/80">{bottle.year || 'NV'}</span>
-          </h3>
-        </div>
+          {/* Rest of the Bottle Content */}
+          <div className="mb-6">
+            <h3 className="font-serif text-2xl md:text-3xl font-bold text-gold tracking-tight leading-tight selection:bg-gold/30">
+              {bottle.name} <span className="text-gold/40 mx-2 font-light">•</span> <span className="italic font-medium text-gold/80">{bottle.year || 'NV'}</span>
+            </h3>
+          </div>
 
         {/* Details: Producer, Varietal, Terroir */}
         <div className="space-y-2.5 mb-8">
@@ -826,6 +860,7 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
         )}
       </AnimatePresence>
     </motion.div>
+    </>
   );
 };
 
