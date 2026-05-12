@@ -598,8 +598,6 @@ interface WineCardProps {
 
 const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
   const typeConfig = WINE_TYPE_CONFIG[bottle.type] || { text: 'text-gray-400', bg: 'bg-gray-900/40', border: 'border-gray-800/50', accent: 'bg-gray-500' };
-  const [showEditTooltip, setShowEditTooltip] = useState(false);
-  const [showDeleteTooltip, setShowDeleteTooltip] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -610,57 +608,59 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
       animate="visible"
       exit="exit"
       whileHover={{ y: -2, transition: { duration: 0.2 } }}
-      className={`glass-panel flex flex-col group transition-all duration-300 rounded-sm overflow-hidden border-l-2 ${typeConfig.border.replace('border-', 'border-l-')} min-h-[160px] shadow-sm hover:shadow-md hover:border-gold/30 mb-4`}
+      className={`glass-panel flex flex-col group transition-all duration-300 rounded-sm overflow-hidden border-l-2 ${typeConfig.border.replace('border-', 'border-l-')} min-h-[180px] shadow-sm hover:shadow-md hover:border-gold/30 mb-6`}
     >
-      <div className="flex p-4 gap-6 relative">
-        {/* Left Column: Text Information (75%) */}
-        <div className="flex-1 flex flex-col min-w-0 pr-4">
-          <div className="flex items-center gap-3 mb-1">
-            <span className={`text-[7px] uppercase tracking-[0.2em] font-black px-1.5 py-0.5 rounded-sm border ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border}`}>
-              {bottle.type}
-            </span>
-            <div className="flex items-baseline gap-2">
-              <h3 className="font-serif text-lg font-medium text-ink tracking-tight group-hover:text-gold transition-colors leading-tight">
-                {bottle.name}
-              </h3>
-              <span className="font-sans text-xs tracking-widest text-gold/80 font-bold">{bottle.year}</span>
+      <div className="flex p-6 gap-8 relative">
+        {/* Left Column: Text Information (70-75% width) */}
+        <div className="flex-[3] flex flex-col min-w-0">
+          {/* Main Line: Name, Year, Price */}
+          <div className="flex justify-between items-baseline border-b border-gold/10 pb-2 mb-4">
+            <h3 className="font-serif text-xl font-medium text-gold tracking-tight truncate mr-4">
+              {bottle.name}
+            </h3>
+            <div className="flex items-baseline gap-4 shrink-0">
+              <span className="font-serif text-lg text-gold/90">{bottle.year}</span>
+              {bottle.price && (
+                <span className="font-serif text-lg text-gold font-bold">฿{bottle.price.toLocaleString()}</span>
+              )}
             </div>
           </div>
 
-          <div className="flex flex-col gap-0.5 mb-2">
-            <p className="text-[10px] font-sans text-ink/40 uppercase tracking-widest leading-normal">
+          {/* Secondary Info: Producer, Grape, Region */}
+          <div className="space-y-1 mb-6">
+            <p className="font-sans text-xs text-ink/50 uppercase tracking-[0.1em] font-medium leading-tight">
+              {bottle.producer}
+            </p>
+            <p className="font-sans text-[11px] text-ink/40 leading-tight">
+              {Array.isArray(bottle.grape) ? bottle.grape.join(' • ') : bottle.grape}
+            </p>
+            <p className="font-sans text-[11px] text-ink/40 leading-tight">
               {bottle.region}{bottle.country ? `, ${bottle.country}` : ''}
             </p>
-            <p className="font-serif italic text-ink/50 text-xs">{bottle.producer}</p>
           </div>
 
-          <div className="flex flex-wrap gap-x-2 gap-y-1 mb-2">
-            {Array.isArray(bottle.grape) && bottle.grape.map((g, i) => (
-              <span key={i} className="text-[10px] italic text-ink/30 font-serif">
-                {i > 0 && " • "}{g}
-              </span>
-            ))}
+          {/* Additional Notes: Full text, larger font */}
+          <div className="bg-white/[0.02] p-4 rounded-sm border border-white/5 mb-6">
+            <p className="text-sm font-serif text-ink/80 leading-relaxed italic">
+              {bottle.additionalNote || "Discovery awaits..."}
+            </p>
           </div>
-
-          <p className="text-[11px] text-ink/50 leading-relaxed italic font-serif line-clamp-2 mb-4">
-            {bottle.additionalNote || "Discovery awaits..."}
-          </p>
 
           <div className="mt-auto flex items-center justify-between">
-            <div className="flex space-x-3">
+            <div className="flex space-x-4">
               <button
                 onClick={() => onEdit(bottle)}
                 className="p-1 text-ink/20 hover:text-gold transition-colors"
                 title="Edit Diary"
               >
-                <Edit2 size={12} />
+                <Edit2 size={14} />
               </button>
               <button
                 onClick={() => onDelete(bottle.id)}
                 className="p-1 text-ink/20 hover:text-red-500 transition-colors"
                 title="Delete Entry"
               >
-                <Trash2 size={12} />
+                <Trash2 size={14} />
               </button>
             </div>
             
@@ -679,31 +679,34 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
           </div>
         </div>
 
-        {/* Right Column: Image & Price (25%) */}
-        <div className="w-20 md:w-24 flex flex-col items-end gap-3 shrink-0">
-          <div className="text-right">
-            {bottle.price ? (
-              <p className="text-[11px] font-bold text-gold flex items-center justify-end gap-1">
-                ฿{bottle.price.toLocaleString()}
-              </p>
-            ) : (
-              <p className="text-[9px] text-ink/20 uppercase tracking-widest italic">Priceless</p>
-            )}
-          </div>
-          
-          <div className="w-full aspect-[2/3] relative bg-black/10 rounded border border-white/5 overflow-hidden flex items-center justify-center group-hover:bg-black/20 transition-colors">
+        {/* Right Column: Image & Type Label (25-30% width) */}
+        <div className="flex-1 flex flex-col items-center">
+          <div className="w-full aspect-[2/3] relative bg-black/10 rounded-sm border border-white/5 overflow-hidden flex items-center justify-center group-hover:bg-black/20 transition-colors shadow-2xl">
             {bottle.imageUrl ? (
               <img 
                 src={bottle.imageUrl} 
                 alt={bottle.name} 
-                className="w-full h-full object-contain opacity-90 p-2 group-hover:scale-110 transition-transform duration-700"
+                className="w-full h-full object-contain opacity-95 p-2 group-hover:scale-110 transition-transform duration-700"
                 referrerPolicy="no-referrer"
               />
             ) : (
               <div className="flex flex-col items-center justify-center text-ink/5 scale-50">
-                <Wine size={32} strokeWidth={1} />
+                <Wine size={48} strokeWidth={1} />
               </div>
             )}
+            
+            {!bottle.price && (
+              <div className="absolute top-2 right-2">
+                <p className="text-[8px] text-ink/20 uppercase tracking-widest italic font-bold">Unpriced</p>
+              </div>
+            )}
+          </div>
+          
+          {/* Repositioned Type Label */}
+          <div className="mt-3 w-full">
+            <div className={`text-[9px] text-center uppercase tracking-[0.3em] font-black py-1.5 rounded-sm border border-dashed ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border}`}>
+              {bottle.type}
+            </div>
           </div>
         </div>
       </div>
@@ -1363,9 +1366,10 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
           <div className="pt-8">
             <button
               type="submit"
-              className="w-full bg-gold text-wine-bg py-5 font-bold tracking-[0.3em] uppercase text-xs hover:bg-gold/90 transition-all shadow-2xl active:scale-95"
+              disabled={isUploading}
+              className={`w-full bg-gold text-wine-bg py-5 font-bold tracking-[0.3em] uppercase text-xs hover:bg-gold/90 transition-all shadow-2xl active:scale-95 ${isUploading ? 'opacity-50 cursor-wait' : ''}`}
             >
-              Commit to Diary
+              {isUploading ? 'Processing Photo...' : 'Commit to Diary'}
             </button>
           </div>
         </form>
@@ -1445,6 +1449,7 @@ export default function App() {
   const [selectedAnalysisRegion, setSelectedAnalysisRegion] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'bottle' | 'grape' } | null>(null);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
 
   const availableGrapes = useMemo(() => {
     const fromBottles = bottles.flatMap(b => b.grape || []);
@@ -1561,6 +1566,8 @@ export default function App() {
       }
       setIsFormOpen(false);
       setEditingBottle(undefined);
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 4000);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'bottles');
     }
@@ -3021,6 +3028,42 @@ export default function App() {
           </p>
         </div>
       </footer>
+
+      {/* Success Toast Notification */}
+      <AnimatePresence>
+        {showSuccessToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[100] px-4 w-full max-w-sm"
+          >
+            <div className="bg-[#1c2e1c] border border-green-500/30 p-5 rounded-sm shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center gap-4">
+              <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white shrink-0 shadow-[0_0_15px_rgba(34,197,94,0.4)]">
+                <Sparkle size={18} className="fill-current" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[10px] uppercase font-black tracking-[0.15em] text-green-100 leading-tight">
+                  IMAGE COMMITTED TO DIARY. RECORD UPDATED.
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowSuccessToast(false)}
+                className="text-green-500/40 hover:text-green-500 transition-colors"
+                title="Dismiss"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <motion.div 
+              initial={{ width: "100%" }}
+              animate={{ width: "0%" }}
+              transition={{ duration: 4, ease: "linear" }}
+              className="absolute bottom-0 left-0 h-0.5 bg-green-500/50 rounded-full"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
