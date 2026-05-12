@@ -610,33 +610,44 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
       whileHover={{ y: -4, transition: { duration: 0.3 } }}
       className={`glass-panel flex flex-col md:flex-row group transition-all duration-500 rounded-sm overflow-hidden border-l border-white/5 md:border-l-4 ${typeConfig.border.replace('border-', 'border-l-')} shadow-2xl hover:border-gold/40 mb-8`}
     >
-      {/* 1. Visuals Column (Left - Big Picture) */}
-      <div className="w-full md:w-[28%] bg-gradient-to-b from-black/20 to-black/40 p-8 flex flex-col items-center border-b md:border-b-0 md:border-r border-white/5 relative overflow-hidden group-hover:from-black/30 group-hover:to-black/50 transition-all duration-700">
+      {/* 1. Visuals Column (Left - Full Size Presentation) */}
+      <div className="w-full md:w-[32%] bg-gradient-to-b from-black/20 to-black/40 p-10 flex flex-col items-center border-b md:border-b-0 md:border-r border-white/5 relative overflow-hidden group-hover:from-black/30 group-hover:to-black/50 transition-all duration-700">
         {/* Subtle background glow */}
         <div className="absolute inset-0 bg-gold/2 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 blur-3xl pointer-events-none"></div>
         
-        {/* Big Bottle Image */}
-        <div className="w-32 md:w-full aspect-[2/3.8] relative rounded-sm border border-white/10 overflow-hidden flex items-center justify-center transition-all duration-700 shadow-2xl group-hover:border-gold/30 bg-black/40 backdrop-blur-md mb-8">
+        {/* Full Size Bottle Presentation */}
+        <div className="w-full aspect-[2/3.5] relative rounded-sm border border-white/10 overflow-hidden flex items-center justify-center transition-all duration-700 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.8)] group-hover:shadow-[0_60px_100px_-20px_rgba(0,0,0,0.95)] group-hover:border-gold/30 bg-black/50 backdrop-blur-xl mb-10">
           {bottle.imageUrl ? (
             <img 
               src={bottle.imageUrl} 
               alt={bottle.name}
-              className="w-full h-full object-contain opacity-100 p-2 group-hover:scale-110 transition-transform duration-1000 ease-out z-10"
+              className="w-full h-full object-contain opacity-100 p-1 group-hover:scale-105 transition-transform duration-1000 ease-out z-10"
               referrerPolicy="no-referrer"
             />
           ) : (
             <div className="flex flex-col items-center justify-center text-gold/5 transition-all duration-700 group-hover:text-gold/15">
-              <Wine size={100} strokeWidth={0.5} />
+              <Wine size={140} strokeWidth={0.5} />
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/[0.05] to-white/0 pointer-events-none z-20"></div>
+          
+          {/* Glass Reflections */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/[0.08] to-white/0 pointer-events-none z-20"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none z-20"></div>
         </div>
         
-        {/* Minimalist Type & Price Label */}
-        <div className="flex items-center gap-1 text-xs font-serif italic text-gold font-bold tracking-wide">
-          <span>•{bottle.type.charAt(0) + bottle.type.slice(1).toLowerCase()}</span>
+        {/* Type Label (With Color) & Price */}
+        <div className="w-full space-y-5">
+          <div className={`text-[10px] text-center uppercase tracking-[0.5em] font-black py-3 rounded-sm border shadow-2xl backdrop-blur-xl transition-all duration-500 ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border} group-hover:brightness-110`}>
+            {bottle.type}
+          </div>
+          
           {bottle.price && (
-            <span className="ml-2">•{bottle.price.toLocaleString()}฿</span>
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-[10px] uppercase tracking-[0.3em] text-ink/30 font-black">Appraisal Value</span>
+              <span className="font-serif text-2xl text-gold font-bold tabular-nums drop-shadow-lg">
+                ฿{bottle.price.toLocaleString()}
+              </span>
+            </div>
           )}
         </div>
       </div>
