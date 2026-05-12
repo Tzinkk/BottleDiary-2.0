@@ -609,205 +609,204 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
       initial="hidden"
       animate="visible"
       exit="exit"
-      whileHover={{ y: -8, transition: { duration: 0.2 } }}
-      className={`glass-panel p-6 flex flex-col h-full group relative transition-all duration-300 rounded-sm overflow-hidden border-l-2 ${typeConfig.border.replace('border-', 'border-l-')}`}
+      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      className={`glass-panel flex flex-col md:flex-row group transition-all duration-300 rounded-sm overflow-hidden border-l-2 ${typeConfig.border.replace('border-', 'border-l-')} min-h-[380px] shadow-sm hover:shadow-xl hover:border-gold/30`}
     >
-      <div className="flex justify-between items-start mb-6">
-        <span className={`text-[9px] uppercase tracking-[0.2em] font-bold px-3 py-1 rounded-full border ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border}`}>
-          {bottle.type}
-        </span>
-        <div className="flex space-x-1">
-          <div className="relative">
-            <button
-              onClick={() => onEdit(bottle)}
-              onMouseEnter={() => setShowEditTooltip(true)}
-              onMouseLeave={() => setShowEditTooltip(false)}
-              className="p-1.5 text-ink/40 hover:text-gold transition-colors"
-              aria-label="Edit Diary"
-            >
-              <Edit2 size={14} />
-            </button>
-            <AnimatePresence>
-              {showEditTooltip && (
-                <motion.div
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 5 }}
-                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-ink text-gold text-[8px] uppercase tracking-widest whitespace-nowrap rounded font-bold shadow-xl pointer-events-none z-10"
-                >
-                  Edit Diary
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-x-4 border-x-transparent border-t-4 border-t-ink"></div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+      {/* Left Column: Text Information (60-70%) */}
+      <div className="flex-1 flex flex-col p-6 min-w-0">
+        <div className="flex justify-between items-start mb-4">
+          <span className={`text-[8px] uppercase tracking-[0.2em] font-black px-2 py-0.5 rounded border ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border}`}>
+            {bottle.type}
+          </span>
+          <div className="flex space-x-1">
+            <div className="relative">
+              <button
+                onClick={() => onEdit(bottle)}
+                onMouseEnter={() => setShowEditTooltip(true)}
+                onMouseLeave={() => setShowEditTooltip(false)}
+                className="p-1 text-ink/30 hover:text-gold transition-colors"
+                aria-label="Edit Diary"
+              >
+                <Edit2 size={12} />
+              </button>
+              <AnimatePresence>
+                {showEditTooltip && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 5 }}
+                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-ink text-gold text-[7px] uppercase tracking-widest whitespace-nowrap rounded font-bold shadow-xl pointer-events-none z-10"
+                  >
+                    Edit
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-x-4 border-x-transparent border-t-4 border-t-ink"></div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            
+            <div className="relative">
+              <button
+                onClick={() => onDelete(bottle.id)}
+                onMouseEnter={() => setShowDeleteTooltip(true)}
+                onMouseLeave={() => setShowDeleteTooltip(false)}
+                className="p-1 text-ink/30 hover:text-red-500 transition-colors"
+                aria-label="Delete Entry"
+              >
+                <Trash2 size={12} />
+              </button>
+              <AnimatePresence>
+                {showDeleteTooltip && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 5 }}
+                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-red-900 text-white text-[7px] uppercase tracking-widest whitespace-nowrap rounded font-bold shadow-xl pointer-events-none z-10"
+                  >
+                    Delete
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-x-4 border-x-transparent border-t-4 border-t-red-900"></div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <h3 className="font-serif text-xl font-medium text-ink tracking-tight group-hover:text-gold transition-colors">{bottle.name}</h3>
+            <span className="font-sans not-italic text-sm tracking-widest text-gold/80 font-bold">{bottle.year}</span>
+          </div>
+          <p className="font-serif italic text-ink/50 text-sm mt-0.5">{bottle.producer}</p>
+        </div>
+
+        <div className="space-y-4 flex-1">
+          <div className="flex flex-wrap gap-1.5">
+            {Array.isArray(bottle.grape) && bottle.grape.map((g, i) => (
+              <span key={i} className="text-[8px] uppercase tracking-wider text-ink/40 bg-white/5 border border-white/5 px-2 py-0.5 rounded-sm">
+                {g}
+              </span>
+            ))}
           </div>
           
-          <div className="relative">
-            <button
-              onClick={() => onDelete(bottle.id)}
-              onMouseEnter={() => setShowDeleteTooltip(true)}
-              onMouseLeave={() => setShowDeleteTooltip(false)}
-              className="p-1.5 text-ink/40 hover:text-red-500 transition-colors"
-              aria-label="Delete Entry"
-            >
-              <Trash2 size={14} />
-            </button>
-            <AnimatePresence>
-              {showDeleteTooltip && (
-                <motion.div
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 5 }}
-                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-red-900 text-white text-[8px] uppercase tracking-widest whitespace-nowrap rounded font-bold shadow-xl pointer-events-none z-10"
-                >
-                  Delete Entry
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-x-4 border-x-transparent border-t-4 border-t-red-900"></div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-      </div>
-
-      {bottle.imageUrl && (
-        <div className="mb-6 -mx-6 -mt-6 aspect-[3/4] overflow-hidden rounded-t-sm border-b border-white/5 relative bg-black/40">
-          <img 
-            src={bottle.imageUrl} 
-            alt={bottle.name} 
-            className="w-full h-full object-contain opacity-90 group-hover:scale-105 transition-transform duration-700 p-4"
-            referrerPolicy="no-referrer"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#141212]/80 via-transparent to-transparent opacity-40"></div>
-        </div>
-      )}
-
-      <div className="mb-4">
-        <h3 className="font-serif text-2xl font-light text-ink tracking-wide line-clamp-2 leading-tight group-hover:text-gold transition-colors">{bottle.name}</h3>
-        <p className="font-serif italic text-gold/80 text-sm mt-1">{bottle.producer} • <span className="font-sans not-italic text-xs tracking-widest uppercase opacity-60">{bottle.year}</span></p>
-      </div>
-
-      {/* Details Section */}
-      <div className="mt-auto space-y-4">
-        <div className="flex flex-wrap gap-1.5 min-h-[1.5rem]">
-          {Array.isArray(bottle.grape) && bottle.grape.map((g, i) => (
-            <span key={i} className="text-[9px] uppercase tracking-wider text-gold/60 border border-gold/10 px-2 py-0.5 rounded-sm flex items-center gap-1">
-              <span className="w-1 h-1 bg-gold/40 rounded-full"></span>
-              {g}
-            </span>
-          ))}
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <p className="text-[9px] text-ink/30 uppercase tracking-widest font-bold">Region & Country</p>
-            <p className="text-[11px] font-medium text-ink/80 flex items-center gap-1">
-              <Globe size={10} className="text-gold/60" />
-              {bottle.region}{bottle.country ? `, ${bottle.country}` : ''}
-            </p>
-          </div>
-          {bottle.price && (
-            <div className="space-y-1">
-              <p className="text-[9px] text-ink/30 uppercase tracking-widest font-bold">Value</p>
-              <p className="text-[11px] font-medium text-gold flex items-center gap-1">
-                <Banknote size={10} className="text-gold/60" />
-                ฿{bottle.price.toLocaleString()}
+          <div className="flex items-center gap-6 border-y border-white/5 py-3">
+            <div className="space-y-0.5">
+              <p className="text-[8px] text-ink/30 uppercase tracking-widest font-black">Origins</p>
+              <p className="text-[10px] font-medium text-ink/70 flex items-center gap-1.5">
+                <Globe size={10} className="text-gold/40" />
+                {bottle.region}{bottle.country ? `, ${bottle.country}` : ''}
               </p>
             </div>
-          )}
-        </div>
+            {bottle.price && (
+              <div className="space-y-0.5">
+                <p className="text-[8px] text-ink/30 uppercase tracking-widest font-black">Appraisal</p>
+                <p className="text-[10px] font-bold text-gold flex items-center gap-1.5">
+                  <Banknote size={10} className="text-gold/30" />
+                  ฿{bottle.price.toLocaleString()}
+                </p>
+              </div>
+            )}
+          </div>
 
-        {bottle.additionalNote && (
-          <div className="pt-3 border-t border-white/5">
-            <p className="text-[9px] text-ink/30 uppercase tracking-widest font-bold mb-1">Additional Notes</p>
-            <p className="text-sm text-ink/60 leading-relaxed italic font-serif">
-              {bottle.additionalNote}
+          <div className="space-y-1">
+            <p className="text-[8px] text-ink/20 uppercase tracking-widest font-black">Additional Notes</p>
+            <p className="text-xs text-ink/60 leading-relaxed italic font-serif">
+              {bottle.additionalNote || "No extra metadata recorded..."}
             </p>
           </div>
-        )}
+        </div>
 
-        <AnimatePresence>
-          {isExpanded && (
+        <div className="mt-6 pt-4 border-t border-white/5">
+          <button 
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="w-full flex items-center justify-between text-[9px] uppercase tracking-[0.2em] font-bold text-gold/60 hover:text-gold transition-all"
+          >
+            {isExpanded ? 'Hide Technical Profile' : 'Reveal Detail View'}
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
+              animate={{ rotate: isExpanded ? 180 : 0 }}
+              transition={{ duration: 0.3 }}
             >
-              <div className="pt-5 border-t border-white/5 space-y-5">
-                <div className="space-y-5">
-                  <p className="text-[10px] text-gold uppercase tracking-[0.2em] font-bold">Analytical Tasting</p>
-                  
+              <ChevronDown size={12} />
+            </motion.div>
+          </button>
+
+          <AnimatePresence>
+            {isExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="pt-6 space-y-6">
                   <div className="grid grid-cols-1 gap-5">
                     {bottle.appearance && (
-                      <div className="space-y-1.5">
-                        <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">01 Appearance</p>
+                      <div className="space-y-1">
+                        <p className="text-[7px] text-gold/40 uppercase tracking-tighter font-bold">Appearance</p>
                         <p className="text-sm text-ink/80 italic font-serif leading-relaxed">{bottle.appearance}</p>
                       </div>
                     )}
                     {bottle.nose && (
-                      <div className="space-y-1.5">
-                        <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">02 Nose</p>
+                      <div className="space-y-1">
+                        <p className="text-[7px] text-gold/40 uppercase tracking-tighter font-bold">Nose</p>
                         <p className="text-sm text-ink/80 italic font-serif leading-relaxed">{bottle.nose}</p>
                       </div>
                     )}
                     {bottle.palate && (
-                      <div className="space-y-1.5">
-                        <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">03 Palate</p>
+                      <div className="space-y-1">
+                        <p className="text-[7px] text-gold/40 uppercase tracking-tighter font-bold">Palate</p>
                         <p className="text-sm text-ink/80 italic font-serif leading-relaxed">{bottle.palate}</p>
                       </div>
                     )}
                     {bottle.finish && (
-                      <div className="space-y-1.5">
-                        <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">04 Finish</p>
+                      <div className="space-y-1">
+                        <p className="text-[7px] text-gold/40 uppercase tracking-tighter font-bold">Finish</p>
                         <p className="text-sm text-ink/80 italic font-serif leading-relaxed">{bottle.finish}</p>
                       </div>
                     )}
                   </div>
 
-                  {!bottle.appearance && !bottle.nose && !bottle.palate && !bottle.finish && bottle.tastingNotes && (
-                    <div className="space-y-1.5">
-                      <p className="text-[8px] text-ink/40 uppercase tracking-tighter font-bold font-sans">Tasting Notes</p>
-                      <p className="text-sm italic text-ink/60 leading-relaxed font-serif">
-                        {bottle.tastingNotes}
-                      </p>
-                    </div>
-                  )}
-
                   {Array.isArray(bottle.foodPairing) && bottle.foodPairing.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-white/5">
-                      <p className="text-[9px] text-ink/30 uppercase tracking-widest font-bold mb-2 flex items-center gap-2">
-                        <Utensils size={10} className="text-gold/60" />
-                        Sommelier Pairings
+                    <div className="pt-4 border-t border-white/5 space-y-3">
+                      <p className="text-[8px] text-ink/30 uppercase tracking-widest font-black flex items-center gap-2">
+                        <Utensils size={10} className="text-gold/40" />
+                        Culinary Affinities
                       </p>
-                      <ul className="space-y-1.5">
+                      <div className="flex flex-wrap gap-2">
                         {bottle.foodPairing.map((pairing, i) => (
-                          <li key={i} className="text-[10px] text-gold/70 italic leading-tight flex items-start gap-2">
-                            <span className="mt-1.5 w-1 h-1 rounded-full bg-gold/40 shrink-0" />
+                          <span key={i} className="text-[10px] text-gold/70 italic bg-gold/5 px-2 py-1 rounded-sm border border-gold/10">
                             {pairing}
-                          </li>
+                          </span>
                         ))}
-                      </ul>
+                      </div>
                     </div>
                   )}
                 </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
-      
-      <button 
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="mt-6 w-full py-2.5 bg-white/[0.03] border border-white/10 text-ink/50 hover:text-gold hover:border-gold/30 hover:bg-gold/5 text-[9px] uppercase tracking-[0.3em] transition-all rounded-sm flex items-center justify-center gap-2 font-bold"
-      >
-        {isExpanded ? 'Hide Details' : 'View More Details'}
-        <motion.div
-          animate={{ rotate: isExpanded ? 180 : 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <ChevronDown size={12} />
-        </motion.div>
-      </button>
+
+      {/* Right Column: Bottle Photo (35-40%) */}
+      <div className="w-full md:w-[38%] relative bg-black/40 border-l border-white/5 overflow-hidden flex items-center justify-center min-h-[300px]">
+        {bottle.imageUrl ? (
+          <>
+            <img 
+              src={bottle.imageUrl} 
+              alt={bottle.name} 
+              className="w-full h-full object-contain opacity-90 p-8 group-hover:scale-105 transition-transform duration-700 relative z-10"
+              referrerPolicy="no-referrer"
+            />
+            {/* Artistic backdrop */}
+            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#141212] to-transparent z-0 opacity-80"></div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center text-ink/10">
+            <Wine size={48} strokeWidth={1} />
+            <p className="text-[8px] uppercase tracking-[0.4em] mt-4">Profile Missing</p>
+          </div>
+        )}
+      </div>
     </motion.div>
   );
 };
