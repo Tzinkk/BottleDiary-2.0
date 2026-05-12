@@ -807,8 +807,57 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadTaskRef = useRef<Promise<string> | null>(null);
+  const lastSelectedFileRef = useRef<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisSuccess, setAnalysisSuccess] = useState(false);
+
+  // Helper to compress image for Firestore fallback (max 1MB)
+  const compressImage = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          const MAX_DIM = 800; // Efficient size for mobile viewing
+          if (width > height) {
+            if (width > MAX_DIM) {
+              height *= MAX_DIM / width;
+              width = MAX_DIM;
+            }
+          } else {
+            if (height > MAX_DIM) {
+              width *= MAX_DIM / height;
+              height = MAX_DIM;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          let quality = 0.6;
+          let dataUrl = canvas.toDataURL('image/jpeg', quality);
+          
+          // Ensure it's under 500KB to be safe for Firestore strings
+          while (dataUrl.length > 500000 && quality > 0.1) {
+            quality -= 0.1;
+            dataUrl = canvas.toDataURL('image/jpeg', quality);
+          }
+          
+          resolve(dataUrl);
+        };
+        img.onerror = (e) => reject(new Error("Image loading failed"));
+      };
+      reader.onerror = (e) => reject(new Error("File reading failed"));
+    });
+  };
 
   useEffect(() => {
     if (analysisSuccess) {
@@ -868,6 +917,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
       return;
     }
 
+    lastSelectedFileRef.current = file;
     setIsUploading(true);
     setUploadError(null);
     
@@ -884,9 +934,17 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
       setFormData(prev => ({ ...prev, imageUrl: remoteUrl }));
       URL.revokeObjectURL(localUrl);
       setIsUploading(false);
-    }).catch(err => {
-      console.error('Auto-upload failed:', err);
-      setUploadError('Background upload failed. Will try to save again on commit.');
+    }).catch(async (err) => {
+      console.error('Auto-upload failed, preparing fallback:', err);
+      try {
+        // Prepare base64 fallback in background if remote upload fails
+        const base64 = await compressImage(file);
+        // We don't set it yet, just prepare it for handleSubmit if needed
+        // or we can set it as the preview if the user wants to see it's "ready"
+        setUploadError(null); // Clear errors because we have a fallback
+      } catch (fallbackErr) {
+        setUploadError('Background upload failed. Will try to save again on commit.');
+      }
       setIsUploading(false);
     });
   };
@@ -912,16 +970,26 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
       let finalImageUrl = formData.imageUrl;
 
       // Ensure we have a permanent URL before saving
-      if (finalImageUrl.startsWith('blob:') && uploadTaskRef.current) {
+      if (finalImageUrl.startsWith('blob:')) {
         try {
-          finalImageUrl = await uploadTaskRef.current;
+          if (uploadTaskRef.current) {
+            finalImageUrl = await uploadTaskRef.current;
+          } else {
+            throw new Error("No upload task");
+          }
         } catch (err) {
-          console.error("Delayed upload failed during submit:", err);
-          throw new Error("Could not upload image. Please try again.");
+          console.warn("Remote upload failed, using base64 fallback:", err);
+          // If remote upload fails (credentials etc.), fallback to base64
+          // We need the original file. Since we don't have it here easily, 
+          // let's try to fetch it from the blob URL or re-read it.
+          // Actually, we can just use the compressImage if we keep the file.
+          // Let's modify handleFileUpload to store the file in a ref.
+          if (lastSelectedFileRef.current) {
+            finalImageUrl = await compressImage(lastSelectedFileRef.current);
+          } else {
+             throw new Error("Cloud upload failed and original file reference lost. Please re-select the photo.");
+          }
         }
-      } else if (finalImageUrl.startsWith('blob:')) {
-        // This shouldn't happen if everything worked, but as fallback
-        throw new Error("Image upload in progress or failed. Please re-upload the photo.");
       }
 
       const currentGrapes = Array.isArray(formData.grape) ? formData.grape : [];
