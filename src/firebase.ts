@@ -1,10 +1,35 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { 
+  initializeFirestore, 
+  doc, 
+  getDocFromServer, 
+  persistentLocalCache, 
+  persistentMultipleTabManager,
+  memoryLocalCache,
+  CACHE_SIZE_UNLIMITED
+} from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+// Initialize Firestore with a more robust cache strategy to handle environment-specific IndexedDB issues
+// This help solve "Connection to Indexed Database server lost" errors common in iframe/multi-tab previews
+let dbInstance;
+try {
+  dbInstance = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+    }),
+  }, firebaseConfig.firestoreDatabaseId);
+} catch (error) {
+  console.warn("Failed to initialize persistent cache, falling back to memory cache:", error);
+  dbInstance = initializeFirestore(app, {
+    localCache: memoryLocalCache(),
+  }, firebaseConfig.firestoreDatabaseId);
+}
+
+export const db = dbInstance;
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 

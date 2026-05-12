@@ -610,111 +610,89 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
       whileHover={{ y: -4, transition: { duration: 0.3 } }}
       className={`glass-panel flex flex-col md:flex-row group transition-all duration-500 rounded-sm overflow-hidden border-l border-white/5 md:border-l-4 ${typeConfig.border.replace('border-', 'border-l-')} shadow-2xl hover:border-gold/40 mb-8`}
     >
-      {/* 1. Primary Information Area (Left/Top) */}
-      <div className="flex-1 p-8 md:p-10 flex flex-col min-w-0">
-        {/* Header Section: Full Width Name */}
-        <div className="mb-4">
-          <h3 className="font-serif text-3xl md:text-4xl font-bold text-gold tracking-tight leading-[1.1] selection:bg-gold/30">
-            {bottle.name}
+      {/* 1. Information Area (Left Column) */}
+      <div className="flex-1 p-8 md:p-10 flex flex-col min-w-0 order-1">
+        {/* Top Line: Name and Vintage */}
+        <div className="mb-6">
+          <h3 className="font-serif text-2xl md:text-3xl font-bold text-gold tracking-tight leading-tight selection:bg-gold/30">
+            {bottle.name} <span className="text-gold/40 mx-2 font-light">/</span> <span className="italic font-medium text-gold/80">{bottle.year || 'NV'}</span>
           </h3>
         </div>
 
-        {/* Metadata Row: Vintage & Appraisal */}
-        <div className="flex items-center gap-8 mb-8 flex-wrap">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[9px] uppercase tracking-[0.25em] text-ink/20 font-black">Millésime</span>
-            <span className="font-serif text-xl md:text-2xl text-gold/80 italic font-medium">{bottle.year || 'NV'}</span>
-          </div>
-          {bottle.price && (
-            <div className="flex flex-col gap-0.5 border-l border-white/10 pl-8">
-              <span className="text-[9px] uppercase tracking-[0.25em] text-ink/20 font-black">Valuation</span>
-              <span className="font-serif text-xl md:text-2xl text-gold font-bold tabular-nums">฿{bottle.price.toLocaleString()}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Detailed Secondary Info: Producer, Varietal, Terroir */}
-        <div className="space-y-4 mb-10">
-          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-            <span className="text-[8px] uppercase tracking-[0.3em] text-ink/30 font-black md:min-w-[80px]">Producer</span>
-            <p className="font-sans text-xs md:text-sm text-ink/70 font-medium tracking-wide uppercase">
-              {bottle.producer || 'Artisan Unknown'}
+        {/* Middle Lines: Producer, Grape, Terroir */}
+        <div className="space-y-2 mb-10">
+          <div className="flex items-baseline gap-3">
+            <span className="text-[9px] uppercase tracking-[0.2em] text-ink/20 font-black shrink-0 w-20">Producer</span>
+            <p className="font-sans text-xs text-ink/70 font-semibold tracking-wide uppercase">
+              {bottle.producer || 'Unknown'}
             </p>
           </div>
-          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-            <span className="text-[8px] uppercase tracking-[0.3em] text-ink/30 font-black md:min-w-[80px]">Varietal</span>
-            <p className="font-sans text-xs md:text-sm text-ink/50 italic border-l border-gold/10 pl-3 md:pl-0 md:border-0 overflow-hidden text-ellipsis">
+          <div className="flex items-baseline gap-3">
+            <span className="text-[9px] uppercase tracking-[0.2em] text-ink/20 font-black shrink-0 w-20">Varietal</span>
+            <p className="font-sans text-xs text-ink/50 italic">
               {Array.isArray(bottle.grape) ? bottle.grape.join(' • ') : bottle.grape || 'Secret Assemblage'}
             </p>
           </div>
-          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-            <span className="text-[8px] uppercase tracking-[0.3em] text-ink/30 font-black md:min-w-[80px]">Terroir</span>
-            <p className="font-sans text-xs md:text-sm text-ink/50 border-l border-gold/10 pl-3 md:pl-0 md:border-0">
-              {bottle.region}{bottle.country ? `, ${bottle.country}` : 'Global Origin'}
+          <div className="flex items-baseline gap-3">
+            <span className="text-[9px] uppercase tracking-[0.2em] text-ink/20 font-black shrink-0 w-20">Terroir</span>
+            <p className="font-sans text-xs text-ink/50">
+              {bottle.region}{bottle.country ? `, ${bottle.country}` : ''}
             </p>
           </div>
         </div>
 
-        {/* Additional Tasting Notes: Premium Block */}
-        <div className="mb-10 relative">
-          <div className="absolute -left-4 top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-gold/30 to-transparent hidden md:block"></div>
+        {/* Additional Tasting Notes: Full Content */}
+        <div className="mb-10 flex-1">
           <div className="flex items-center gap-4 mb-4">
-            <span className="text-[8px] uppercase tracking-[0.5em] text-gold/60 font-black">Sommelier Notes</span>
-            <div className="h-[1px] flex-1 bg-gradient-to-r from-gold/20 to-transparent"></div>
+            <span className="text-[8px] uppercase tracking-[0.4em] text-gold/40 font-black">Sommelier Tasting Diary</span>
+            <div className="h-[1px] flex-1 bg-gold/10"></div>
           </div>
-          <p className="text-lg md:text-xl font-serif text-ink/90 font-medium leading-relaxed italic pr-4 selection:bg-gold/20">
+          <p className="text-base font-serif text-ink/90 font-medium leading-relaxed italic pr-4">
             "{bottle.additionalNote || "An unwritten chapter in the glass..."}"
           </p>
         </div>
 
-        {/* Footer Actions: Discrete & Professional */}
-        <div className="mt-auto pt-8 border-t border-white/5 flex flex-wrap items-center justify-between gap-6">
-          <div className="flex items-center gap-8">
+        {/* Footer: Action & Navigation */}
+        <div className="mt-8 pt-8 border-t border-white/5 flex items-center justify-between">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center gap-2 text-[10px] uppercase tracking-[0.4em] font-black text-gold/60 hover:text-gold transition-all group/link"
+          >
+            <span>View full analytical profile</span>
+            <motion.span
+              animate={{ x: isExpanded ? 5 : 0 }}
+              className="group-hover/link:translate-x-1 transition-transform"
+            >
+              →
+            </motion.span>
+          </button>
+
+          <div className="flex items-center gap-5">
             <button
               onClick={() => onEdit(bottle)}
-              className="group/btn flex items-center gap-3 text-[10px] uppercase tracking-[0.3em] text-ink/30 hover:text-gold transition-all font-black"
+              className="p-2 text-ink/20 hover:text-gold transition-all hover:scale-110"
+              title="Edit Entry"
             >
-              <div className="w-9 h-9 rounded-full border border-white/5 flex items-center justify-center text-ink/20 group-hover/btn:border-gold/30 group-hover/btn:text-gold group-hover/btn:bg-gold/5 transition-all">
-                <Edit2 size={13} />
-              </div>
-              <span>Modifier</span>
+              <Edit2 size={16} />
             </button>
             <button
               onClick={() => onDelete(bottle.id)}
-              className="group/btn flex items-center gap-3 text-[10px] uppercase tracking-[0.3em] text-ink/30 hover:text-red-500/80 transition-all font-black"
+              className="p-2 text-ink/20 hover:text-red-500/80 transition-all hover:scale-110"
+              title="Archive Entry"
             >
-              <div className="w-9 h-9 rounded-full border border-white/5 flex items-center justify-center text-ink/20 group-hover/btn:border-red-500/20 group-hover/btn:text-red-500/80 group-hover/btn:bg-red-500/5 transition-all">
-                <Trash2 size={13} />
-              </div>
-              <span>Archiver</span>
+              <Trash2 size={16} />
             </button>
           </div>
-          
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-3 text-[10px] uppercase tracking-[0.4em] font-black text-gold/40 hover:text-gold transition-all group/reveal"
-          >
-            <span>{isExpanded ? 'Concise View' : 'Full Profile'}</span>
-            <motion.div
-              animate={{ rotate: isExpanded ? 180 : 0, y: isExpanded ? 0 : [0, 2, 0] }}
-              transition={{ 
-                rotate: { duration: 0.4, ease: "circOut" },
-                y: { repeat: Infinity, duration: 2, ease: "easeInOut" }
-              }}
-              className="p-1 rounded bg-gold/5 group-hover/reveal:bg-gold/10"
-            >
-              <ChevronDown size={14} />
-            </motion.div>
-          </button>
         </div>
       </div>
 
-      {/* 2. Visual Representation: Right Column (30% width) */}
-      <div className="w-full md:w-[280px] bg-gradient-to-b from-black/20 to-black/40 p-8 flex flex-col items-center justify-center border-t md:border-t-0 md:border-l border-white/5 relative overflow-hidden group-hover:from-black/30 group-hover:to-black/50 transition-all duration-700">
+      {/* 2. Visuals & Price (Right Column) */}
+      <div className="w-full md:w-[240px] lg:w-[280px] bg-gradient-to-b from-black/20 to-black/40 p-8 flex flex-col items-center justify-center border-t md:border-t-0 md:border-l border-white/5 relative overflow-hidden group-hover:from-black/30 group-hover:to-black/50 transition-all duration-700 order-2">
         {/* Subtle background glow */}
-          <div className="absolute inset-0 bg-gold/2 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 blur-3xl pointer-events-none"></div>
+        <div className="absolute inset-0 bg-gold/2 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 blur-3xl pointer-events-none"></div>
         
-        <div className="w-full aspect-[2/3.5] relative rounded-sm border border-white/10 overflow-hidden flex items-center justify-center transition-all duration-700 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8)] group-hover:shadow-[0_45px_100px_-20px_rgba(0,0,0,0.9)] group-hover:border-gold/30 bg-black/30 backdrop-blur-md">
+        {/* Bottle Image */}
+        <div className="w-full aspect-[2/3.5] relative rounded-sm border border-white/10 overflow-hidden flex items-center justify-center transition-all duration-700 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8)] group-hover:shadow-[0_45px_100px_-20px_rgba(0,0,0,0.9)] group-hover:border-gold/30 bg-black/30 backdrop-blur-md mb-6">
           {bottle.imageUrl ? (
             <img 
               src={bottle.imageUrl} 
@@ -733,11 +711,18 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
           <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none z-20"></div>
         </div>
         
-        {/* Type Label: Centered under bottle */}
-        <div className="mt-8 w-full">
-          <div className={`text-[11px] text-center uppercase tracking-[0.5em] font-black py-4 rounded-sm border-2 border-dashed shadow-2xl backdrop-blur-xl transition-all duration-500 scale-100 group-hover:scale-[1.02] ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border} group-hover:border-solid`}>
+        {/* Type Label & Price */}
+        <div className="w-full space-y-4 text-center">
+          <div className={`text-[10px] uppercase tracking-[0.6em] font-black py-3 rounded-sm border-2 border-dashed shadow-2xl backdrop-blur-xl transition-all duration-500 ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border} group-hover:border-solid`}>
             {bottle.type}
           </div>
+          
+          {bottle.price && (
+            <div className="flex flex-col gap-1">
+              <span className="text-[8px] uppercase tracking-[0.3em] text-ink/30 font-black">Valuation</span>
+              <span className="font-serif text-2xl text-gold font-bold tabular-nums">฿{bottle.price.toLocaleString()}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -751,58 +736,91 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
             transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
             className="w-full overflow-hidden border-t border-white/5 bg-black/10"
           >
-            <div className="p-8 md:p-12">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
-                {/* Physical Profile */}
-                <div className="space-y-6">
-                  <h4 className="text-[10px] uppercase tracking-[0.3em] text-gold font-black flex items-center gap-3">
-                    <Droplets size={12} className="text-gold/60" />
-                    Physical Profile
-                  </h4>
-                  <div className="space-y-4">
-                    <div className="flex flex-col gap-1.5 p-4 rounded bg-white/[0.02] border border-white/5">
-                      <span className="text-[9px] uppercase tracking-widest text-ink/30 font-bold">Appearance</span>
-                      <p className="text-xs text-ink/80 italic leading-relaxed">{bottle.appearance || "Robe not recorded"}</p>
+            <div className="p-8 md:p-14">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+                {/* Left Column: Analysis */}
+                <div className="space-y-12">
+                  {/* Section 1: PHYSICAL PROFILE */}
+                  <div>
+                    <h4 className="text-[11px] uppercase tracking-[0.4em] text-gold font-black mb-6 flex items-center gap-3">
+                      <span className="w-8 h-[1px] bg-gold/30"></span>
+                      Section 1: PHYSICAL PROFILE
+                    </h4>
+                    <div className="bg-[#1a1a1a] p-8 rounded-sm border border-white/5 shadow-inner">
+                      <span className="text-[9px] uppercase tracking-[0.3em] text-ink/30 font-black mb-3 block">APPEARANCE</span>
+                      <p className="font-serif text-base text-ink/80 leading-relaxed italic">
+                        {bottle.appearance || "Robe and clarity details not recorded for this millésime."}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Section 2: SENSORY ANALYSIS */}
+                  <div>
+                    <h4 className="text-[11px] uppercase tracking-[0.4em] text-gold font-black mb-6 flex items-center gap-3">
+                      <span className="w-8 h-[1px] bg-gold/30"></span>
+                      Section 2: SENSORY ANALYSIS
+                    </h4>
+                    <div className="space-y-4">
+                      <div className="bg-[#1a1a1a] p-8 rounded-sm border border-white/5 shadow-inner transition-colors hover:border-gold/20">
+                        <span className="text-[9px] uppercase tracking-[0.3em] text-ink/30 font-black mb-3 block">NOSE (AROMATIC)</span>
+                        <p className="font-serif text-base text-ink/80 leading-relaxed italic">
+                          {bottle.nose || "Aromatic profile remains unlogged."}
+                        </p>
+                      </div>
+                      <div className="bg-[#1a1a1a] p-8 rounded-sm border border-white/5 shadow-inner transition-colors hover:border-gold/20">
+                        <span className="text-[9px] uppercase tracking-[0.3em] text-ink/30 font-black mb-3 block">PALATE (STRUCTURE)</span>
+                        <p className="font-serif text-base text-ink/80 leading-relaxed italic">
+                          {bottle.palate || "Structural and mouthfeel analysis missing."}
+                        </p>
+                      </div>
+                      <div className="bg-[#1a1a1a] p-8 rounded-sm border border-white/5 shadow-inner transition-colors hover:border-gold/20">
+                        <span className="text-[9px] uppercase tracking-[0.3em] text-ink/30 font-black mb-3 block">FINISH</span>
+                        <p className="font-serif text-base text-ink/80 leading-relaxed italic">
+                          {bottle.finish || "Final persistence and aftertaste not described."}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Sensory Experience */}
-                <div className="space-y-6 lg:col-span-2">
-                  <h4 className="text-[10px] uppercase tracking-[0.3em] text-gold font-black flex items-center gap-3">
-                    <FlaskConical size={12} className="text-gold/60" />
-                    Sensory Analysis
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-1.5 p-4 rounded bg-white/[0.02] border border-white/5">
-                      <span className="text-[9px] uppercase tracking-widest text-ink/30 font-bold">Nose (Aromatic)</span>
-                      <p className="text-xs text-ink/80 italic leading-relaxed">{bottle.nose || "No aromatic profile"}</p>
-                    </div>
-                    <div className="flex flex-col gap-1.5 p-4 rounded bg-white/[0.02] border border-white/5">
-                      <span className="text-[9px] uppercase tracking-widest text-ink/30 font-bold">Palate (Structure)</span>
-                      <p className="text-xs text-ink/80 italic leading-relaxed">{bottle.palate || "Flavor notes missing"}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Gastronomy & Legacy */}
-                <div className="space-y-6">
-                  <h4 className="text-[10px] uppercase tracking-[0.3em] text-gold font-black flex items-center gap-3">
-                    <Utensils size={12} className="text-gold/60" />
-                    Gastronomy
-                  </h4>
-                  <div className="space-y-4">
-                    <div className="flex flex-col gap-1.5 p-4 rounded bg-white/[0.02] border border-white/5">
-                      <span className="text-[9px] uppercase tracking-widest text-ink/30 font-bold">Pairings</span>
-                      <div className="flex flex-wrap gap-2">
+                {/* Right Column: Gastronomy & Legacy */}
+                <div className="space-y-12">
+                  {/* Section 3: GASTRONOMY */}
+                  <div>
+                    <h4 className="text-[11px] uppercase tracking-[0.4em] text-gold font-black mb-6 flex items-center gap-3">
+                      <span className="w-8 h-[1px] bg-gold/30"></span>
+                      Section 3: GASTRONOMY
+                    </h4>
+                    <div className="bg-[#1a1a1a] p-8 rounded-sm border border-white/5 shadow-inner">
+                      <span className="text-[9px] uppercase tracking-[0.3em] text-ink/30 font-black mb-5 block">PAIRINGS</span>
+                      <div className="flex flex-wrap gap-3">
                         {Array.isArray(bottle.foodPairing) && bottle.foodPairing.length > 0 ? (
                           bottle.foodPairing.map((food, i) => (
-                            <span key={i} className="text-[10px] px-2 py-0.5 rounded bg-gold/10 text-gold/80 border border-gold/20 italic">{food}</span>
+                            <button key={i} className="px-5 py-2.5 rounded-full bg-gold/5 border border-gold/20 text-gold/80 text-[11px] font-serif italic hover:bg-gold/10 hover:border-gold/40 transition-all">
+                              {food}
+                            </button>
                           ))
                         ) : (
-                          <span className="text-xs text-ink/40">No suggestions</span>
+                          <span className="text-xs text-ink/30 italic">No cuisine recommendations recorded.</span>
                         )}
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Section 4: SUMMARY / OVERALL NOTES */}
+                  <div>
+                    <h4 className="text-[11px] uppercase tracking-[0.4em] text-gold font-black mb-6 flex items-center gap-3">
+                      <span className="w-8 h-[1px] bg-gold/30"></span>
+                      Section 4: SUMMARY / OVERALL NOTES
+                    </h4>
+                    <div className="bg-[#1a1a1a] p-8 rounded-sm border border-white/5 shadow-inner relative overflow-hidden group/summary">
+                      <div className="absolute top-0 right-0 p-4 text-gold/5 group-hover/summary:text-gold/10 transition-colors">
+                        <Sparkles size={40} />
+                      </div>
+                      <span className="text-[9px] uppercase tracking-[0.3em] text-ink/30 font-black mb-3 block">SUMMARY</span>
+                      <p className="font-serif text-lg text-ink font-medium leading-relaxed selection:bg-gold/20">
+                        {bottle.tastingNotes || "Professional benchmark and sub-region context not provided. This entry serves as a pure sensory record."}
+                      </p>
                     </div>
                   </div>
                 </div>
