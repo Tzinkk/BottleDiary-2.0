@@ -614,97 +614,99 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
         {/* Left Column: Text Information (70-75% width) */}
         <div className="flex-[3] flex flex-col min-w-0">
           {/* Main Line: Name, Year, Price */}
-          <div className="flex justify-between items-baseline border-b border-gold/10 pb-2 mb-4">
+          <div className="flex justify-between items-baseline border-b border-gold/10 pb-3 mb-4">
             <h3 className="font-serif text-xl font-medium text-gold tracking-tight truncate mr-4">
               {bottle.name}
             </h3>
             <div className="flex items-baseline gap-4 shrink-0">
               <span className="font-serif text-lg text-gold/90">{bottle.year}</span>
               {bottle.price && (
-                <span className="font-serif text-lg text-gold font-bold">฿{bottle.price.toLocaleString()}</span>
+                <span className="font-serif text-lg text-gold font-bold whitespace-nowrap">฿{bottle.price.toLocaleString()}</span>
               )}
             </div>
           </div>
 
           {/* Secondary Info: Producer, Grape, Region */}
-          <div className="space-y-1 mb-6">
-            <p className="font-sans text-xs text-ink/50 uppercase tracking-[0.1em] font-medium leading-tight">
-              {bottle.producer}
-            </p>
-            <p className="font-sans text-[11px] text-ink/40 leading-tight">
-              {Array.isArray(bottle.grape) ? bottle.grape.join(' • ') : bottle.grape}
-            </p>
-            <p className="font-sans text-[11px] text-ink/40 leading-tight">
-              {bottle.region}{bottle.country ? `, ${bottle.country}` : ''}
-            </p>
+          <div className="space-y-1.5 mb-6">
+            <div className="flex flex-col gap-1">
+              <p className="font-sans text-[11px] text-ink/50 uppercase tracking-[0.1em] font-medium leading-tight">
+                {bottle.producer}
+              </p>
+              <p className="font-sans text-[11px] text-ink/40 leading-tight">
+                {Array.isArray(bottle.grape) ? bottle.grape.join(' • ') : bottle.grape}
+              </p>
+              <p className="font-sans text-[11px] text-ink/40 leading-tight">
+                {bottle.region}{bottle.country ? `, ${bottle.country}` : ''}
+              </p>
+            </div>
           </div>
 
           {/* Additional Notes: Full text, larger font */}
-          <div className="bg-white/[0.02] p-4 rounded-sm border border-white/5 mb-6">
-            <p className="text-sm font-serif text-ink/80 leading-relaxed italic">
+          <div className="bg-white/[0.02] p-5 rounded-sm border border-white/5 mb-6">
+            <p className="text-base font-serif text-ink/90 font-medium leading-relaxed italic">
               {bottle.additionalNote || "Discovery awaits..."}
             </p>
           </div>
 
           <div className="mt-auto flex items-center justify-between">
-            <div className="flex space-x-4">
+            <div className="flex space-x-5">
               <button
                 onClick={() => onEdit(bottle)}
                 className="p-1 text-ink/20 hover:text-gold transition-colors"
                 title="Edit Diary"
               >
-                <Edit2 size={14} />
+                <Edit2 size={16} />
               </button>
               <button
                 onClick={() => onDelete(bottle.id)}
                 className="p-1 text-ink/20 hover:text-red-500 transition-colors"
                 title="Delete Entry"
               >
-                <Trash2 size={14} />
+                <Trash2 size={16} />
               </button>
             </div>
             
             <button 
               onClick={() => setIsExpanded(!isExpanded)}
-              className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.2em] font-bold text-gold/60 hover:text-gold transition-all"
+              className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] font-bold text-gold/60 hover:text-gold transition-all"
             >
-              {isExpanded ? 'Hide Profile' : 'Reveal Detail'}
+              {isExpanded ? 'Hide Profile' : 'Reveal Detail View'}
               <motion.div
                 animate={{ rotate: isExpanded ? 180 : 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <ChevronDown size={10} />
+                <ChevronDown size={12} />
               </motion.div>
             </button>
           </div>
         </div>
 
         {/* Right Column: Image & Type Label (25-30% width) */}
-        <div className="flex-1 flex flex-col items-center">
-          <div className="w-full aspect-[2/3] relative bg-black/10 rounded-sm border border-white/5 overflow-hidden flex items-center justify-center group-hover:bg-black/20 transition-colors shadow-2xl">
+        <div className="flex-1 flex flex-col items-center max-w-[140px]">
+          <div className="w-full aspect-[2/3] relative bg-black/20 rounded-sm border border-white/10 overflow-hidden flex items-center justify-center group-hover:bg-black/30 transition-colors shadow-2xl">
             {bottle.imageUrl ? (
               <img 
                 src={bottle.imageUrl} 
                 alt={bottle.name} 
-                className="w-full h-full object-contain opacity-95 p-2 group-hover:scale-110 transition-transform duration-700"
+                className="w-full h-full object-contain opacity-95 p-3 group-hover:scale-110 transition-transform duration-700"
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <div className="flex flex-col items-center justify-center text-ink/5 scale-50">
-                <Wine size={48} strokeWidth={1} />
+              <div className="flex flex-col items-center justify-center text-ink/5 scale-75">
+                <Wine size={56} strokeWidth={1} />
               </div>
             )}
             
             {!bottle.price && (
               <div className="absolute top-2 right-2">
-                <p className="text-[8px] text-ink/20 uppercase tracking-widest italic font-bold">Unpriced</p>
+                <p className="text-[8px] text-ink/20 uppercase tracking-widest italic font-bold">Reserver</p>
               </div>
             )}
           </div>
           
-          {/* Repositioned Type Label */}
-          <div className="mt-3 w-full">
-            <div className={`text-[9px] text-center uppercase tracking-[0.3em] font-black py-1.5 rounded-sm border border-dashed ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border}`}>
+          {/* Repositioned Type Label directly below bottle */}
+          <div className="mt-4 w-full">
+            <div className={`text-[10px] text-center uppercase tracking-[0.3em] font-black py-2 rounded-sm border border-dashed shadow-inner ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border}`}>
               {bottle.type}
             </div>
           </div>
@@ -804,6 +806,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
   const [isSaving, setIsSaving] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadTaskRef = useRef<Promise<string> | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisSuccess, setAnalysisSuccess] = useState(false);
 
@@ -815,124 +818,112 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
   }, [analysisSuccess]);
 
   const handleAIScan = async (imageUrl: string) => {
-    if (!imageUrl || typeof imageUrl !== 'string') {
-      console.warn("AI Scan attempted with invalid URL");
-      return;
-    }
+    if (!imageUrl) return;
     
-    // Sanitize URL for potential issues
-    const sanitizedUrl = imageUrl.trim();
-    if (sanitizedUrl.startsWith('data:') || sanitizedUrl.startsWith('http') || sanitizedUrl.startsWith('blob:')) {
-      setIsAnalyzing(true);
-      setUploadError(null);
-      try {
-        const analysis = await analyzeWineLabel(sanitizedUrl);
-        setFormData(prev => ({
-          ...prev,
-          ...analysis,
-          name: typeof analysis.name === 'string' ? analysis.name : prev.name,
-          producer: typeof analysis.producer === 'string' ? analysis.producer : prev.producer,
-          year: typeof analysis.year !== 'undefined' ? String(analysis.year) : prev.year,
-          type: (analysis.type as WineType) || prev.type,
-          region: typeof analysis.region === 'string' ? analysis.region : prev.region,
-          country: typeof analysis.country === 'string' ? analysis.country : prev.country,
-          grape: Array.isArray(analysis.grape) ? [...new Set([...(Array.isArray(prev.grape) ? prev.grape : []), ...analysis.grape])] : (Array.isArray(prev.grape) ? prev.grape : []),
-          tastingNotes: typeof analysis.tastingNotes === 'string' ? `${analysis.tastingNotes}${prev.tastingNotes ? '\n\n' + prev.tastingNotes : ''}` : prev.tastingNotes,
-          appearance: typeof analysis.appearance === 'string' ? analysis.appearance : prev.appearance,
-          nose: typeof analysis.nose === 'string' ? analysis.nose : prev.nose,
-          palate: typeof analysis.palate === 'string' ? analysis.palate : prev.palate,
-          finish: typeof analysis.finish === 'string' ? analysis.finish : prev.finish,
-          foodPairing: Array.isArray(analysis.foodPairing) ? analysis.foodPairing : (typeof analysis.foodPairing === 'string' ? [analysis.foodPairing] : prev.foodPairing),
-        }));
-        setAnalysisSuccess(true);
-      } catch (err: any) {
-        console.error("AI Analysis failed:", err);
-        setUploadError(`Analysis failed: ${err?.message || "Check your photo format. Ensure it's clear and the label is visible."}`);
-      } finally {
-        setIsAnalyzing(false);
-      }
-    } else {
-      setUploadError("The provided image path is not recognized as a valid URL pattern.");
+    setIsAnalyzing(true);
+    setUploadError(null);
+    try {
+      const analysis = await analyzeWineLabel(imageUrl);
+      setFormData(prev => ({
+        ...prev,
+        ...analysis,
+        // Preserve values if analysis returns strings
+        name: analysis.name || prev.name,
+        producer: analysis.producer || prev.producer,
+        year: analysis.year ? String(analysis.year) : prev.year,
+        type: (analysis.type as WineType) || prev.type,
+        region: analysis.region || prev.region,
+        country: analysis.country || prev.country,
+        grape: Array.isArray(analysis.grape) ? [...new Set([...(prev.grape || []), ...analysis.grape])] : (prev.grape || []),
+      }));
+      setAnalysisSuccess(true);
+    } catch (err: any) {
+      console.error("AI Analysis failed:", err);
+      // Don't show total failure to user if upload was okay, just log it
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
-  const uploadFile = async (file: File) => {
-    setIsUploading(true);
-    setUploadError(null);
-
-    // 1. Create a local preview URL and trigger AI Scan immediately from the local file
-    const localUrl = URL.createObjectURL(file);
-    
-    // We want to show the preview right away if possible
-    setFormData(prev => ({ ...prev, imageUrl: localUrl }));
-    
-    // Trigger AI Scan in parallel with the upload
-    const aiScanPromise = handleAIScan(localUrl);
-
+  const uploadFile = async (file: File): Promise<string> => {
     const formDataUpload = new FormData();
     formDataUpload.append('image', file);
 
-    try {
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formDataUpload,
-      });
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formDataUpload,
+    });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to upload image');
-      }
-
-      // Wait for AI scan to finish if it hasn't already
-      await aiScanPromise;
-
-      // Once uploaded, replace the local blob URL with the permanent Cloudinary URL
-      setFormData(prev => ({ ...prev, imageUrl: result.url }));
-    } catch (err) {
-      console.error('Upload failed:', err);
-      setUploadError(err instanceof Error ? err.message : 'An unexpected error occurred during upload');
-    } finally {
-      setIsUploading(false);
-    }
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Failed to upload image');
+    return result.url;
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        setUploadError('Please select a valid image file');
-        return;
-      }
-      uploadFile(file);
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Please select a valid image file');
+      return;
     }
+
+    setIsUploading(true);
+    setUploadError(null);
+    
+    const localUrl = URL.createObjectURL(file);
+    setFormData(prev => ({ ...prev, imageUrl: localUrl }));
+    
+    // Start scan and upload in parallel
+    handleAIScan(localUrl);
+    
+    const task = uploadFile(file);
+    uploadTaskRef.current = task;
+    
+    task.then(remoteUrl => {
+      setFormData(prev => ({ ...prev, imageUrl: remoteUrl }));
+      URL.revokeObjectURL(localUrl);
+      setIsUploading(false);
+    }).catch(err => {
+      console.error('Auto-upload failed:', err);
+      setUploadError('Background upload failed. Will try to save again on commit.');
+      setIsUploading(false);
+    });
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
     if (file) {
-      if (!file.type.startsWith('image/')) {
-        setUploadError('Please drop a valid image file');
-        return;
-      }
-      uploadFile(file);
+      // Simulate input change
+      const mockEvent = { target: { files: [file] } } as unknown as React.ChangeEvent<HTMLInputElement>;
+      handleFileUpload(mockEvent);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (isUploading) return;
-    
-    // Prevent saving blob URLs which will break upon refresh
-    if (formData.imageUrl && formData.imageUrl.startsWith('blob:')) {
-      setUploadError("Image is still being processed or failed to upload to the cloud. Please wait or try again.");
-      return;
-    }
-
+    if (isSaving) return;
     setIsSaving(true);
+    setUploadError(null);
+
     try {
+      let finalImageUrl = formData.imageUrl;
+
+      // Ensure we have a permanent URL before saving
+      if (finalImageUrl.startsWith('blob:') && uploadTaskRef.current) {
+        try {
+          finalImageUrl = await uploadTaskRef.current;
+        } catch (err) {
+          console.error("Delayed upload failed during submit:", err);
+          throw new Error("Could not upload image. Please try again.");
+        }
+      } else if (finalImageUrl.startsWith('blob:')) {
+        // This shouldn't happen if everything worked, but as fallback
+        throw new Error("Image upload in progress or failed. Please re-upload the photo.");
+      }
+
       const currentGrapes = Array.isArray(formData.grape) ? formData.grape : [];
       const finalGrapes = grapeInput.trim() ? [...currentGrapes, grapeInput.trim()] : currentGrapes;
       
@@ -941,6 +932,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
       
       await onSave({ 
         ...formData, 
+        imageUrl: finalImageUrl,
         grape: finalGrapes,
         foodPairing: finalPairings,
         region: formData.region || '',
@@ -949,11 +941,13 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
         year: formData.year || 'NV',
         type: formData.type || 'Red'
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Form submission failed:", error);
-      setUploadError("Failed to save record. Please check your connection and try again.");
-    } finally {
+      setUploadError(error.message || "Failed to save record. Please check your connection.");
       setIsSaving(false);
+    } finally {
+      // isSaving is handled in App.tsx by closing the form, 
+      // but if we stay here (error), we need to unset it
     }
   };
 
@@ -3059,7 +3053,7 @@ export default function App() {
               </div>
               <div className="flex-1">
                 <p className="text-[10px] uppercase font-black tracking-[0.15em] text-green-100 leading-tight">
-                  IMAGE COMMITTED TO DIARY. RECORD UPDATED.
+                  SUCCESS: IMAGE COMMITTED TO DIARY. RECORD UPDATED.
                 </p>
               </div>
               <button 
