@@ -607,187 +607,206 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
       initial="hidden"
       animate="visible"
       exit="exit"
-      whileHover={{ y: -2, transition: { duration: 0.2 } }}
-      className={`glass-panel flex flex-col group transition-all duration-300 rounded-sm overflow-hidden border-l-2 ${typeConfig.border.replace('border-', 'border-l-')} min-h-[180px] shadow-sm hover:shadow-md hover:border-gold/30 mb-6`}
+      whileHover={{ y: -4, transition: { duration: 0.3 } }}
+      className={`glass-panel flex flex-col md:flex-row group transition-all duration-500 rounded-sm overflow-hidden border-l border-white/5 md:border-l-4 ${typeConfig.border.replace('border-', 'border-l-')} shadow-2xl hover:border-gold/40 mb-8`}
     >
-      <div className="flex p-8 gap-10 relative">
-        {/* Left Column: Text Information (70% width) */}
-        <div className="flex-[2.5] flex flex-col min-w-0">
-          {/* 1. Wine Name: Full Width, Top Row */}
-          <div className="mb-3">
-            <h3 className="font-serif text-2xl font-bold text-gold tracking-tight leading-tight">
-              {bottle.name}
-            </h3>
-          </div>
+      {/* 1. Primary Information Area (Left/Top) */}
+      <div className="flex-1 p-8 md:p-10 flex flex-col min-w-0">
+        {/* Header Section: Full Width Name */}
+        <div className="mb-4">
+          <h3 className="font-serif text-3xl md:text-4xl font-bold text-gold tracking-tight leading-[1.1] selection:bg-gold/30">
+            {bottle.name}
+          </h3>
+        </div>
 
-          {/* 2. Metadata Row: Vintage & Price */}
-          <div className="flex items-center gap-6 mb-6">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] uppercase tracking-[0.2em] text-ink/30 font-black">Vintage</span>
-              <span className="font-serif text-lg text-gold/80 italic">{bottle.year}</span>
-            </div>
-            {bottle.price && (
-              <div className="flex items-center gap-2 border-l border-gold/20 pl-6">
-                <span className="text-[10px] uppercase tracking-[0.2em] text-ink/30 font-black">Appraisal</span>
-                <span className="font-serif text-lg text-gold font-bold">฿{bottle.price.toLocaleString()}</span>
-              </div>
-            )}
+        {/* Metadata Row: Vintage & Appraisal */}
+        <div className="flex items-center gap-8 mb-8 flex-wrap">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[9px] uppercase tracking-[0.25em] text-ink/20 font-black">Millésime</span>
+            <span className="font-serif text-xl md:text-2xl text-gold/80 italic font-medium">{bottle.year || 'NV'}</span>
           </div>
+          {bottle.price && (
+            <div className="flex flex-col gap-0.5 border-l border-white/10 pl-8">
+              <span className="text-[9px] uppercase tracking-[0.25em] text-ink/20 font-black">Valuation</span>
+              <span className="font-serif text-xl md:text-2xl text-gold font-bold tabular-nums">฿{bottle.price.toLocaleString()}</span>
+            </div>
+          )}
+        </div>
 
-          {/* 3. Secondary Info: Producer, Grape, Region */}
-          <div className="grid grid-cols-1 gap-1.5 mb-8">
-            <div className="flex items-baseline gap-4">
-              <span className="text-[9px] uppercase tracking-widest text-ink/20 font-bold min-w-[70px]">Producer</span>
-              <p className="font-sans text-xs text-ink/60 font-medium tracking-wide">
-                {bottle.producer}
-              </p>
-            </div>
-            <div className="flex items-baseline gap-4">
-              <span className="text-[9px] uppercase tracking-widest text-ink/20 font-bold min-w-[70px]">Varietal</span>
-              <p className="font-sans text-xs text-ink/50 italic">
-                {Array.isArray(bottle.grape) ? bottle.grape.join(' • ') : bottle.grape}
-              </p>
-            </div>
-            <div className="flex items-baseline gap-4">
-              <span className="text-[9px] uppercase tracking-widest text-ink/20 font-bold min-w-[70px]">Terroir</span>
-              <p className="font-sans text-xs text-ink/50">
-                {bottle.region}{bottle.country ? `, ${bottle.country}` : ''}
-              </p>
-            </div>
-          </div>
-
-          {/* 4. Additional Notes: Full text, elegant font */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="h-[1px] flex-1 bg-gold/10"></div>
-              <span className="text-[8px] uppercase tracking-[0.3em] text-gold/40 font-black">Tasting Diary</span>
-              <div className="h-[1px] flex-1 bg-gold/10"></div>
-            </div>
-            <p className="text-base font-serif text-ink/90 font-medium leading-relaxed italic text-center md:text-left px-2">
-              "{bottle.additionalNote || "No preliminary notes recorded..."}"
+        {/* Detailed Secondary Info: Producer, Varietal, Terroir */}
+        <div className="space-y-4 mb-10">
+          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+            <span className="text-[8px] uppercase tracking-[0.3em] text-ink/30 font-black md:min-w-[80px]">Producer</span>
+            <p className="font-sans text-xs md:text-sm text-ink/70 font-medium tracking-wide uppercase">
+              {bottle.producer || 'Artisan Unknown'}
             </p>
           </div>
-
-          {/* 5. Icons & Actions: Bottom Row */}
-          <div className="mt-auto pt-6 border-t border-white/5 flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <button
-                onClick={() => onEdit(bottle)}
-                className="group/btn flex items-center gap-2 text-[9px] uppercase tracking-widest text-ink/30 hover:text-gold transition-colors font-bold"
-                title="Edit Diary"
-              >
-                <div className="p-2 rounded-full bg-white/[0.02] group-hover/btn:bg-gold/10 transition-colors">
-                  <Edit2 size={12} />
-                </div>
-                Edit
-              </button>
-              <button
-                onClick={() => onDelete(bottle.id)}
-                className="group/btn flex items-center gap-2 text-[9px] uppercase tracking-widest text-ink/30 hover:text-red-500 transition-colors font-bold"
-                title="Delete Entry"
-              >
-                <div className="p-2 rounded-full bg-white/[0.02] group-hover/btn:bg-red-500/10 transition-colors">
-                  <Trash2 size={12} />
-                </div>
-                Delete
-              </button>
-            </div>
-            
-            <button 
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="flex items-center gap-2 text-[9px] uppercase tracking-[0.3em] font-black text-gold/60 hover:text-gold transition-all"
-            >
-              {isExpanded ? 'Minimize Profile' : 'Reveal Detail View'}
-              <motion.div
-                animate={{ rotate: isExpanded ? 180 : 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <ChevronDown size={14} />
-              </motion.div>
-            </button>
+          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+            <span className="text-[8px] uppercase tracking-[0.3em] text-ink/30 font-black md:min-w-[80px]">Varietal</span>
+            <p className="font-sans text-xs md:text-sm text-ink/50 italic border-l border-gold/10 pl-3 md:pl-0 md:border-0 overflow-hidden text-ellipsis">
+              {Array.isArray(bottle.grape) ? bottle.grape.join(' • ') : bottle.grape || 'Secret Assemblage'}
+            </p>
+          </div>
+          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+            <span className="text-[8px] uppercase tracking-[0.3em] text-ink/30 font-black md:min-w-[80px]">Terroir</span>
+            <p className="font-sans text-xs md:text-sm text-ink/50 border-l border-gold/10 pl-3 md:pl-0 md:border-0">
+              {bottle.region}{bottle.country ? `, ${bottle.country}` : 'Global Origin'}
+            </p>
           </div>
         </div>
 
-        {/* Right Column: Image & Type Label (30% width) */}
-        <div className="w-[160px] md:w-[200px] flex flex-col items-center shrink-0">
-          <div className="w-full aspect-[2/3.2] relative bg-gradient-to-br from-white/[0.05] to-black/20 rounded-sm border border-white/10 overflow-hidden flex items-center justify-center group-hover:border-gold/30 transition-all shadow-2xl backdrop-blur-sm">
-            {bottle.imageUrl ? (
-              <img 
-                src={bottle.imageUrl} 
-                alt={bottle.name} 
-                className="w-full h-full object-contain opacity-95 p-4 group-hover:scale-110 transition-transform duration-1000 ease-out"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center text-gold/5 scale-110">
-                <Wine size={80} strokeWidth={0.5} />
+        {/* Additional Tasting Notes: Premium Block */}
+        <div className="mb-10 relative">
+          <div className="absolute -left-4 top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-gold/30 to-transparent hidden md:block"></div>
+          <div className="flex items-center gap-4 mb-4">
+            <span className="text-[8px] uppercase tracking-[0.5em] text-gold/60 font-black">Sommelier Notes</span>
+            <div className="h-[1px] flex-1 bg-gradient-to-r from-gold/20 to-transparent"></div>
+          </div>
+          <p className="text-lg md:text-xl font-serif text-ink/90 font-medium leading-relaxed italic pr-4 selection:bg-gold/20">
+            "{bottle.additionalNote || "An unwritten chapter in the glass..."}"
+          </p>
+        </div>
+
+        {/* Footer Actions: Discrete & Professional */}
+        <div className="mt-auto pt-8 border-t border-white/5 flex flex-wrap items-center justify-between gap-6">
+          <div className="flex items-center gap-8">
+            <button
+              onClick={() => onEdit(bottle)}
+              className="group/btn flex items-center gap-3 text-[10px] uppercase tracking-[0.3em] text-ink/30 hover:text-gold transition-all font-black"
+            >
+              <div className="w-9 h-9 rounded-full border border-white/5 flex items-center justify-center text-ink/20 group-hover/btn:border-gold/30 group-hover/btn:text-gold group-hover/btn:bg-gold/5 transition-all">
+                <Edit2 size={13} />
               </div>
-            )}
-            
-            {/* Glossy overlay effect */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/0 pointer-events-none"></div>
+              <span>Modifier</span>
+            </button>
+            <button
+              onClick={() => onDelete(bottle.id)}
+              className="group/btn flex items-center gap-3 text-[10px] uppercase tracking-[0.3em] text-ink/30 hover:text-red-500/80 transition-all font-black"
+            >
+              <div className="w-9 h-9 rounded-full border border-white/5 flex items-center justify-center text-ink/20 group-hover/btn:border-red-500/20 group-hover/btn:text-red-500/80 group-hover/btn:bg-red-500/5 transition-all">
+                <Trash2 size={13} />
+              </div>
+              <span>Archiver</span>
+            </button>
           </div>
           
-          {/* Repositioned Type Label directly below bottle */}
-          <div className="mt-6 w-full">
-            <div className={`text-[10px] text-center uppercase tracking-[0.4em] font-black py-3 rounded-sm border border-dashed shadow-xl backdrop-blur-md ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border}`}>
-              {bottle.type}
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center gap-3 text-[10px] uppercase tracking-[0.4em] font-black text-gold/40 hover:text-gold transition-all group/reveal"
+          >
+            <span>{isExpanded ? 'Concise View' : 'Full Profile'}</span>
+            <motion.div
+              animate={{ rotate: isExpanded ? 180 : 0, y: isExpanded ? 0 : [0, 2, 0] }}
+              transition={{ 
+                rotate: { duration: 0.4, ease: "circOut" },
+                y: { repeat: Infinity, duration: 2, ease: "easeInOut" }
+              }}
+              className="p-1 rounded bg-gold/5 group-hover/reveal:bg-gold/10"
+            >
+              <ChevronDown size={14} />
+            </motion.div>
+          </button>
+        </div>
+      </div>
+
+      {/* 2. Visual Representation: Right Column (30% width) */}
+      <div className="w-full md:w-[280px] bg-gradient-to-b from-black/20 to-black/40 p-8 flex flex-col items-center justify-center border-t md:border-t-0 md:border-l border-white/5 relative overflow-hidden group-hover:from-black/30 group-hover:to-black/50 transition-all duration-700">
+        {/* Subtle background glow */}
+          <div className="absolute inset-0 bg-gold/2 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 blur-3xl pointer-events-none"></div>
+        
+        <div className="w-full aspect-[2/3.5] relative rounded-sm border border-white/10 overflow-hidden flex items-center justify-center transition-all duration-700 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8)] group-hover:shadow-[0_45px_100px_-20px_rgba(0,0,0,0.9)] group-hover:border-gold/30 bg-black/30 backdrop-blur-md">
+          {bottle.imageUrl ? (
+            <img 
+              src={bottle.imageUrl} 
+              alt={bottle.name}
+              className="w-full h-full object-contain opacity-100 p-6 group-hover:scale-105 transition-transform duration-1000 ease-out z-10"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center text-gold/5 transition-all duration-700 group-hover:text-gold/15">
+              <Wine size={120} strokeWidth={0.5} />
             </div>
+          )}
+          
+          {/* Enhanced Glass Reflections */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/[0.05] to-white/0 pointer-events-none z-20"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none z-20"></div>
+        </div>
+        
+        {/* Type Label: Centered under bottle */}
+        <div className="mt-8 w-full">
+          <div className={`text-[11px] text-center uppercase tracking-[0.5em] font-black py-4 rounded-sm border-2 border-dashed shadow-2xl backdrop-blur-xl transition-all duration-500 scale-100 group-hover:scale-[1.02] ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border} group-hover:border-solid`}>
+            {bottle.type}
           </div>
         </div>
       </div>
 
+      {/* Expanded Details Section */}
       <AnimatePresence>
         {isExpanded && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden border-t border-white/5 bg-white/[0.01]"
+            transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+            className="w-full overflow-hidden border-t border-white/5 bg-black/10"
           >
-            <div className="p-5 flex flex-col md:flex-row gap-6 md:gap-12">
-              <div className="flex-1 space-y-6">
-                <p className="text-[9px] text-gold uppercase tracking-[0.2em] font-black border-b border-gold/10 pb-2">Sommelier Profile</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6">
-                  {bottle.appearance && (
-                    <div className="space-y-1.5">
-                      <p className="text-[8px] text-ink/30 uppercase tracking-widest font-black">Appearance</p>
-                      <p className="text-sm text-ink/80 italic font-serif leading-relaxed">{bottle.appearance}</p>
+            <div className="p-8 md:p-12">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+                {/* Physical Profile */}
+                <div className="space-y-6">
+                  <h4 className="text-[10px] uppercase tracking-[0.3em] text-gold font-black flex items-center gap-3">
+                    <Droplets size={12} className="text-gold/60" />
+                    Physical Profile
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="flex flex-col gap-1.5 p-4 rounded bg-white/[0.02] border border-white/5">
+                      <span className="text-[9px] uppercase tracking-widest text-ink/30 font-bold">Appearance</span>
+                      <p className="text-xs text-ink/80 italic leading-relaxed">{bottle.appearance || "Robe not recorded"}</p>
                     </div>
-                  )}
-                  {bottle.nose && (
-                    <div className="space-y-1.5">
-                      <p className="text-[8px] text-ink/30 uppercase tracking-widest font-black">Nose</p>
-                      <p className="text-sm text-ink/80 italic font-serif leading-relaxed">{bottle.nose}</p>
-                    </div>
-                  )}
-                  {bottle.palate && (
-                    <div className="space-y-1.5">
-                      <p className="text-[8px] text-ink/30 uppercase tracking-widest font-black">Palate</p>
-                      <p className="text-sm text-ink/80 italic font-serif leading-relaxed">{bottle.palate}</p>
-                    </div>
-                  )}
-                  {bottle.finish && (
-                    <div className="space-y-1.5">
-                      <p className="text-[8px] text-ink/30 uppercase tracking-widest font-black">Finish</p>
-                      <p className="text-sm text-ink/80 italic font-serif leading-relaxed">{bottle.finish}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {Array.isArray(bottle.foodPairing) && bottle.foodPairing.length > 0 && (
-                <div className="w-full md:w-48 shrink-0">
-                  <p className="text-[9px] text-gold uppercase tracking-[0.2em] font-black border-b border-gold/10 pb-2 mb-4">Cuisine</p>
-                  <div className="flex flex-wrap gap-2">
-                    {bottle.foodPairing.map((pairing, i) => (
-                      <span key={i} className="text-[10px] text-gold/70 italic bg-gold/5 px-2 py-1 rounded-sm border border-gold/5">
-                        {pairing}
-                      </span>
-                    ))}
                   </div>
                 </div>
-              )}
+
+                {/* Sensory Experience */}
+                <div className="space-y-6 lg:col-span-2">
+                  <h4 className="text-[10px] uppercase tracking-[0.3em] text-gold font-black flex items-center gap-3">
+                    <FlaskConical size={12} className="text-gold/60" />
+                    Sensory Analysis
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5 p-4 rounded bg-white/[0.02] border border-white/5">
+                      <span className="text-[9px] uppercase tracking-widest text-ink/30 font-bold">Nose (Aromatic)</span>
+                      <p className="text-xs text-ink/80 italic leading-relaxed">{bottle.nose || "No aromatic profile"}</p>
+                    </div>
+                    <div className="flex flex-col gap-1.5 p-4 rounded bg-white/[0.02] border border-white/5">
+                      <span className="text-[9px] uppercase tracking-widest text-ink/30 font-bold">Palate (Structure)</span>
+                      <p className="text-xs text-ink/80 italic leading-relaxed">{bottle.palate || "Flavor notes missing"}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Gastronomy & Legacy */}
+                <div className="space-y-6">
+                  <h4 className="text-[10px] uppercase tracking-[0.3em] text-gold font-black flex items-center gap-3">
+                    <Utensils size={12} className="text-gold/60" />
+                    Gastronomy
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="flex flex-col gap-1.5 p-4 rounded bg-white/[0.02] border border-white/5">
+                      <span className="text-[9px] uppercase tracking-widest text-ink/30 font-bold">Pairings</span>
+                      <div className="flex flex-wrap gap-2">
+                        {Array.isArray(bottle.foodPairing) && bottle.foodPairing.length > 0 ? (
+                          bottle.foodPairing.map((food, i) => (
+                            <span key={i} className="text-[10px] px-2 py-0.5 rounded bg-gold/10 text-gold/80 border border-gold/20 italic">{food}</span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-ink/40">No suggestions</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </motion.div>
         )}
@@ -1087,14 +1106,17 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     >
       <div className="p-10">
         <div className="flex justify-between items-center mb-12">
-          <div>
-            <h2 className="font-serif text-4xl text-ink font-light tracking-wide">
-              {bottle ? 'Update Entry' : 'New Cellar Entry'}
+          <div className="flex-1 space-y-6">
+            <h2 className="font-serif text-3xl font-black text-gold tracking-tight selection:bg-gold/30">
+              {bottle ? 'Update Profile' : 'New Cellar Entry'}
             </h2>
-            <p className="text-[10px] uppercase tracking-[0.3em] text-gold/60 mt-2">Log your latest discovery</p>
+            <div className="h-[1px] w-12 bg-gold/50"></div>
           </div>
-          <button onClick={onClose} className="p-3 bg-white/5 hover:bg-white/10 rounded-full transition-colors border border-white/5">
-            <X size={20} />
+          <button 
+            onClick={onClose} 
+            className="p-3 bg-white/5 hover:bg-gold/10 rounded-full transition-all border border-white/5 hover:border-gold/30 group"
+          >
+            <X size={20} className="text-ink/40 group-hover:text-gold" />
           </button>
         </div>
 
@@ -1649,10 +1671,12 @@ export default function App() {
     if (!user) return;
 
     try {
+      console.log("Committing wine record:", { ...data, hasImage: !!data.imageUrl });
       if (editingBottle) {
         const bottleRef = doc(db, 'bottles', editingBottle.id);
         await updateDoc(bottleRef, {
           ...data,
+          lastUpdated: Date.now(), // More accurate sync tracking
           userId: user.uid
         });
       } else {
@@ -1670,6 +1694,7 @@ export default function App() {
       setShowSuccessToast(true);
       setTimeout(() => setShowSuccessToast(false), 4000);
     } catch (error) {
+      console.error("Persistence failed:", error);
       handleFirestoreError(error, OperationType.WRITE, 'bottles');
     }
   };
