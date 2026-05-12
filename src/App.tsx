@@ -634,26 +634,26 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
           <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/[0.08] to-white/0 pointer-events-none z-20"></div>
           <div className="absolute inset-0 bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none z-20"></div>
         </div>
-        
-        {/* Type Label (With Color) & Price */}
-        <div className="w-full space-y-5">
-          <div className={`text-[10px] text-center uppercase tracking-[0.5em] font-black py-3 rounded-sm border shadow-2xl backdrop-blur-xl transition-all duration-500 ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border} group-hover:brightness-110`}>
+      </div>
+
+      {/* 2. Information Column (Right - Remaining width) */}
+      <div className="flex-1 p-8 md:p-10 flex flex-col min-w-0">
+        {/* Top Corners: Type (Left) & Price (Right) */}
+        <div className="flex justify-between items-start mb-4">
+          <div className={`text-[9px] uppercase tracking-[0.4em] font-black px-3 py-1.5 rounded-sm border shadow-sm backdrop-blur-md transition-all duration-500 ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border}`}>
             {bottle.type}
           </div>
           
           {bottle.price && (
-            <div className="flex flex-col items-center gap-1">
-              <span className="text-[10px] uppercase tracking-[0.3em] text-ink/30 font-black">Appraisal Value</span>
-              <span className="font-serif text-2xl text-gold font-bold tabular-nums drop-shadow-lg">
+            <div className="flex flex-col items-end gap-0.5">
+              <span className="text-[8px] uppercase tracking-[0.2em] text-ink/30 font-black">Valuation</span>
+              <span className="font-serif text-xl text-gold font-bold tabular-nums">
                 ฿{bottle.price.toLocaleString()}
               </span>
             </div>
           )}
         </div>
-      </div>
 
-      {/* 2. Information Column (Right - Remaining width) */}
-      <div className="flex-1 p-8 md:p-10 flex flex-col min-w-0">
         {/* Top Line: Name and Vintage */}
         <div className="mb-6">
           <h3 className="font-serif text-2xl md:text-3xl font-bold text-gold tracking-tight leading-tight selection:bg-gold/30">
