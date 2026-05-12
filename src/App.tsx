@@ -99,7 +99,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ title, message, o
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className="glass-panel p-8 max-w-sm w-full space-y-6 relative z-50 rounded-sm border-white/10 shadow-2xl bg-[#1a1414]"
+        className="glass-panel p-8 max-w-sm w-full space-y-6 relative z-50 rounded-sm border-white/10 shadow-2xl bg-[#0d0d0d]"
       >
         <div className="space-y-4">
           <div className="w-12 h-12 bg-red-900/20 border border-red-900/30 rounded-full flex items-center justify-center text-red-500 mx-auto">
@@ -301,7 +301,7 @@ const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
   return (
     <motion.div
       initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-      className="fixed inset-y-0 right-0 w-full max-w-lg bg-[#141212] shadow-2xl z-50 overflow-y-auto border-l border-white/5"
+      className="fixed inset-y-0 right-0 w-full max-w-lg bg-[#0a0a0a] shadow-2xl z-50 overflow-y-auto border-l border-white/5"
     >
       <div className="p-10">
         <div className="flex justify-between items-center mb-12">
@@ -485,7 +485,7 @@ const GrapeComparisonView = ({ grapes, onClose }: { grapes: GrapeVariety[], onCl
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[60] flex flex-col bg-[#0a0808]"
+      className="fixed inset-0 z-[60] flex flex-col bg-[#050505]"
     >
       <div className="flex flex-col h-full w-full overflow-hidden">
         {/* Header */}
@@ -509,16 +509,16 @@ const GrapeComparisonView = ({ grapes, onClose }: { grapes: GrapeVariety[], onCl
         </div>
 
         {/* Comparison Table Container */}
-        <div className="flex-1 overflow-auto bg-[#0a0808] custom-scrollbar">
+        <div className="flex-1 overflow-auto bg-[#050505] custom-scrollbar">
           <div className="min-w-max p-6 md:p-12">
             <table className="w-full border-separate border-spacing-0 table-fixed">
               <thead>
                 <tr>
-                  <th className="w-48 md:w-64 p-6 text-left border-b border-r border-white/10 bg-[#0a0808] sticky top-0 left-0 z-50">
+                  <th className="w-48 md:w-64 p-6 text-left border-b border-r border-white/10 bg-[#050505] sticky top-0 left-0 z-50">
                     <span className="text-[10px] uppercase tracking-[0.3em] text-gold font-bold">Attribute</span>
                   </th>
                   {grapes.map(grape => (
-                    <th key={grape.id} className="p-10 text-center border-b border-r border-white/10 bg-[#0a0808] sticky top-0 z-40 min-w-[350px]">
+                    <th key={grape.id} className="p-10 text-center border-b border-r border-white/10 bg-[#050505] sticky top-0 z-40 min-w-[350px]">
                       <div className="space-y-4 pb-4">
                         <span className={`text-[9px] uppercase tracking-[0.3em] px-4 py-1.5 rounded-full border transition-all ${
                           grape.type === 'Red' 
@@ -539,7 +539,7 @@ const GrapeComparisonView = ({ grapes, onClose }: { grapes: GrapeVariety[], onCl
               <tbody className="divide-y divide-white/5">
                 {attributes.map((attr, idx) => (
                   <tr key={attr.key} className="group hover:bg-white/[0.02] transition-colors">
-                    <td className="p-8 border-r border-white/10 bg-[#0a0808] sticky left-0 z-30 transition-colors group-hover:bg-[#111]">
+                    <td className="p-8 border-r border-white/10 bg-[#050505] sticky left-0 z-30 transition-colors group-hover:bg-[#111]">
                       <span className="text-[10px] uppercase tracking-[0.3em] text-ink/30 font-bold group-hover:text-gold transition-colors">{attr.label}</span>
                     </td>
                     {grapes.map(grape => {
@@ -776,7 +776,7 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
                       <span className="w-8 h-[1px] bg-gold/30"></span>
                       Section 1: PHYSICAL PROFILE
                     </h4>
-                    <div className="bg-[#1a1a1a] p-8 rounded-sm border border-white/5 shadow-inner">
+                    <div className="bg-[#0d0d0d] p-8 rounded-sm border border-white/5 shadow-inner">
                       <span className="text-[9px] uppercase tracking-[0.3em] text-ink/30 font-black mb-3 block">APPEARANCE</span>
                       <p className="font-serif text-base text-ink/80 leading-relaxed italic">
                         {bottle.appearance || "Robe and clarity details not recorded for this millésime."}
@@ -791,19 +791,19 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
                       Section 2: SENSORY ANALYSIS
                     </h4>
                     <div className="space-y-4">
-                      <div className="bg-[#1a1a1a] p-8 rounded-sm border border-white/5 shadow-inner transition-colors hover:border-gold/20">
+                      <div className="bg-[#0d0d0d] p-8 rounded-sm border border-white/5 shadow-inner transition-colors hover:border-gold/20">
                         <span className="text-[9px] uppercase tracking-[0.3em] text-ink/30 font-black mb-3 block">NOSE (AROMATIC)</span>
                         <p className="font-serif text-base text-ink/80 leading-relaxed italic">
                           {bottle.nose || "Aromatic profile remains unlogged."}
                         </p>
                       </div>
-                      <div className="bg-[#1a1a1a] p-8 rounded-sm border border-white/5 shadow-inner transition-colors hover:border-gold/20">
+                      <div className="bg-[#0d0d0d] p-8 rounded-sm border border-white/5 shadow-inner transition-colors hover:border-gold/20">
                         <span className="text-[9px] uppercase tracking-[0.3em] text-ink/30 font-black mb-3 block">PALATE (STRUCTURE)</span>
                         <p className="font-serif text-base text-ink/80 leading-relaxed italic">
                           {bottle.palate || "Structural and mouthfeel analysis missing."}
                         </p>
                       </div>
-                      <div className="bg-[#1a1a1a] p-8 rounded-sm border border-white/5 shadow-inner transition-colors hover:border-gold/20">
+                      <div className="bg-[#0d0d0d] p-8 rounded-sm border border-white/5 shadow-inner transition-colors hover:border-gold/20">
                         <span className="text-[9px] uppercase tracking-[0.3em] text-ink/30 font-black mb-3 block">FINISH</span>
                         <p className="font-serif text-base text-ink/80 leading-relaxed italic">
                           {bottle.finish || "Final persistence and aftertaste not described."}
@@ -821,7 +821,7 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
                       <span className="w-8 h-[1px] bg-gold/30"></span>
                       Section 3: GASTRONOMY
                     </h4>
-                    <div className="bg-[#1a1a1a] p-8 rounded-sm border border-white/5 shadow-inner">
+                    <div className="bg-[#0d0d0d] p-8 rounded-sm border border-white/5 shadow-inner">
                       <span className="text-[9px] uppercase tracking-[0.3em] text-ink/30 font-black mb-5 block">PAIRINGS</span>
                       <div className="flex flex-wrap gap-3">
                         {Array.isArray(bottle.foodPairing) && bottle.foodPairing.length > 0 ? (
@@ -843,7 +843,7 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
                       <span className="w-8 h-[1px] bg-gold/30"></span>
                       Section 4: SUMMARY / OVERALL NOTES
                     </h4>
-                    <div className="bg-[#1a1a1a] p-8 rounded-sm border border-white/5 shadow-inner relative overflow-hidden group/summary">
+                    <div className="bg-[#0d0d0d] p-8 rounded-sm border border-white/5 shadow-inner relative overflow-hidden group/summary">
                       <div className="absolute top-0 right-0 p-4 text-gold/5 group-hover/summary:text-gold/10 transition-colors">
                         <Sparkles size={40} />
                       </div>
@@ -1151,7 +1151,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
       animate={{ x: 0 }}
       exit={{ x: '100%' }}
       transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-      className="fixed inset-y-0 right-0 w-full max-w-lg bg-[#141212] shadow-2xl z-50 overflow-y-auto border-l border-white/5"
+      className="fixed inset-y-0 right-0 w-full max-w-lg bg-[#0a0a0a] shadow-2xl z-50 overflow-y-auto border-l border-white/5"
     >
       <div className="p-10">
         <div className="flex justify-between items-center mb-12">
@@ -1284,7 +1284,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
                   <Plus size={16} />
                 </button>
                 {grapeInput.trim() && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-[#1a1414] border border-white/10 rounded-sm z-50 max-h-32 overflow-y-auto shadow-2xl scroll-hide">
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-[#0d0d0d] border border-white/10 rounded-sm z-50 max-h-32 overflow-y-auto shadow-2xl scroll-hide">
                     {/* Suggestions from Encyclopedia */}
                     {grapes
                       .filter(g => g.name.toLowerCase().includes(grapeInput.toLowerCase()) && !(formData.grape || []).includes(g.name))
@@ -1962,7 +1962,7 @@ export default function App() {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="glass-panel p-3 bg-[#1a1414] border border-gold/20 shadow-2xl">
+        <div className="glass-panel p-3 bg-[#0d0d0d] border border-gold/20 shadow-2xl">
           <p className="text-[10px] uppercase tracking-widest text-gold font-bold mb-1">{label || payload[0].payload.name}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} className="text-[11px] text-ink/80 flex items-center justify-between gap-4">
@@ -2420,8 +2420,8 @@ export default function App() {
                             className="w-full h-full object-cover mix-blend-lighten opacity-80"
                             referrerPolicy="no-referrer"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#141212] lg:block hidden"></div>
-                          <div className="absolute inset-0 bg-gradient-to-t from-[#141212] to-transparent lg:hidden block"></div>
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#0a0a0a] lg:block hidden"></div>
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] to-transparent lg:hidden block"></div>
                         </div>
                       )}
                       
