@@ -610,103 +610,127 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
       whileHover={{ y: -2, transition: { duration: 0.2 } }}
       className={`glass-panel flex flex-col group transition-all duration-300 rounded-sm overflow-hidden border-l-2 ${typeConfig.border.replace('border-', 'border-l-')} min-h-[180px] shadow-sm hover:shadow-md hover:border-gold/30 mb-6`}
     >
-      <div className="flex p-6 gap-8 relative">
-        {/* Left Column: Text Information (70-75% width) */}
-        <div className="flex-[3] flex flex-col min-w-0">
-          {/* Main Line: Name, Year, Price */}
-          <div className="flex justify-between items-baseline border-b border-gold/10 pb-3 mb-4">
-            <h3 className="font-serif text-xl font-medium text-gold tracking-tight truncate mr-4">
+      <div className="flex p-8 gap-10 relative">
+        {/* Left Column: Text Information (70% width) */}
+        <div className="flex-[2.5] flex flex-col min-w-0">
+          {/* 1. Wine Name: Full Width, Top Row */}
+          <div className="mb-3">
+            <h3 className="font-serif text-2xl font-bold text-gold tracking-tight leading-tight">
               {bottle.name}
             </h3>
-            <div className="flex items-baseline gap-4 shrink-0">
-              <span className="font-serif text-lg text-gold/90">{bottle.year}</span>
-              {bottle.price && (
-                <span className="font-serif text-lg text-gold font-bold whitespace-nowrap">฿{bottle.price.toLocaleString()}</span>
-              )}
-            </div>
           </div>
 
-          {/* Secondary Info: Producer, Grape, Region */}
-          <div className="space-y-1.5 mb-6">
-            <div className="flex flex-col gap-1">
-              <p className="font-sans text-[11px] text-ink/50 uppercase tracking-[0.1em] font-medium leading-tight">
+          {/* 2. Metadata Row: Vintage & Price */}
+          <div className="flex items-center gap-6 mb-6">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] uppercase tracking-[0.2em] text-ink/30 font-black">Vintage</span>
+              <span className="font-serif text-lg text-gold/80 italic">{bottle.year}</span>
+            </div>
+            {bottle.price && (
+              <div className="flex items-center gap-2 border-l border-gold/20 pl-6">
+                <span className="text-[10px] uppercase tracking-[0.2em] text-ink/30 font-black">Appraisal</span>
+                <span className="font-serif text-lg text-gold font-bold">฿{bottle.price.toLocaleString()}</span>
+              </div>
+            )}
+          </div>
+
+          {/* 3. Secondary Info: Producer, Grape, Region */}
+          <div className="grid grid-cols-1 gap-1.5 mb-8">
+            <div className="flex items-baseline gap-4">
+              <span className="text-[9px] uppercase tracking-widest text-ink/20 font-bold min-w-[70px]">Producer</span>
+              <p className="font-sans text-xs text-ink/60 font-medium tracking-wide">
                 {bottle.producer}
               </p>
-              <p className="font-sans text-[11px] text-ink/40 leading-tight">
+            </div>
+            <div className="flex items-baseline gap-4">
+              <span className="text-[9px] uppercase tracking-widest text-ink/20 font-bold min-w-[70px]">Varietal</span>
+              <p className="font-sans text-xs text-ink/50 italic">
                 {Array.isArray(bottle.grape) ? bottle.grape.join(' • ') : bottle.grape}
               </p>
-              <p className="font-sans text-[11px] text-ink/40 leading-tight">
+            </div>
+            <div className="flex items-baseline gap-4">
+              <span className="text-[9px] uppercase tracking-widest text-ink/20 font-bold min-w-[70px]">Terroir</span>
+              <p className="font-sans text-xs text-ink/50">
                 {bottle.region}{bottle.country ? `, ${bottle.country}` : ''}
               </p>
             </div>
           </div>
 
-          {/* Additional Notes: Full text, larger font */}
-          <div className="bg-white/[0.02] p-5 rounded-sm border border-white/5 mb-6">
-            <p className="text-base font-serif text-ink/90 font-medium leading-relaxed italic">
-              {bottle.additionalNote || "Discovery awaits..."}
+          {/* 4. Additional Notes: Full text, elegant font */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="h-[1px] flex-1 bg-gold/10"></div>
+              <span className="text-[8px] uppercase tracking-[0.3em] text-gold/40 font-black">Tasting Diary</span>
+              <div className="h-[1px] flex-1 bg-gold/10"></div>
+            </div>
+            <p className="text-base font-serif text-ink/90 font-medium leading-relaxed italic text-center md:text-left px-2">
+              "{bottle.additionalNote || "No preliminary notes recorded..."}"
             </p>
           </div>
 
-          <div className="mt-auto flex items-center justify-between">
-            <div className="flex space-x-5">
+          {/* 5. Icons & Actions: Bottom Row */}
+          <div className="mt-auto pt-6 border-t border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-6">
               <button
                 onClick={() => onEdit(bottle)}
-                className="p-1 text-ink/20 hover:text-gold transition-colors"
+                className="group/btn flex items-center gap-2 text-[9px] uppercase tracking-widest text-ink/30 hover:text-gold transition-colors font-bold"
                 title="Edit Diary"
               >
-                <Edit2 size={16} />
+                <div className="p-2 rounded-full bg-white/[0.02] group-hover/btn:bg-gold/10 transition-colors">
+                  <Edit2 size={12} />
+                </div>
+                Edit
               </button>
               <button
                 onClick={() => onDelete(bottle.id)}
-                className="p-1 text-ink/20 hover:text-red-500 transition-colors"
+                className="group/btn flex items-center gap-2 text-[9px] uppercase tracking-widest text-ink/30 hover:text-red-500 transition-colors font-bold"
                 title="Delete Entry"
               >
-                <Trash2 size={16} />
+                <div className="p-2 rounded-full bg-white/[0.02] group-hover/btn:bg-red-500/10 transition-colors">
+                  <Trash2 size={12} />
+                </div>
+                Delete
               </button>
             </div>
             
             <button 
               onClick={() => setIsExpanded(!isExpanded)}
-              className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] font-bold text-gold/60 hover:text-gold transition-all"
+              className="flex items-center gap-2 text-[9px] uppercase tracking-[0.3em] font-black text-gold/60 hover:text-gold transition-all"
             >
-              {isExpanded ? 'Hide Profile' : 'Reveal Detail View'}
+              {isExpanded ? 'Minimize Profile' : 'Reveal Detail View'}
               <motion.div
                 animate={{ rotate: isExpanded ? 180 : 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <ChevronDown size={12} />
+                <ChevronDown size={14} />
               </motion.div>
             </button>
           </div>
         </div>
 
-        {/* Right Column: Image & Type Label (25-30% width) */}
-        <div className="flex-1 flex flex-col items-center max-w-[140px]">
-          <div className="w-full aspect-[2/3] relative bg-black/20 rounded-sm border border-white/10 overflow-hidden flex items-center justify-center group-hover:bg-black/30 transition-colors shadow-2xl">
+        {/* Right Column: Image & Type Label (30% width) */}
+        <div className="w-[160px] md:w-[200px] flex flex-col items-center shrink-0">
+          <div className="w-full aspect-[2/3.2] relative bg-gradient-to-br from-white/[0.05] to-black/20 rounded-sm border border-white/10 overflow-hidden flex items-center justify-center group-hover:border-gold/30 transition-all shadow-2xl backdrop-blur-sm">
             {bottle.imageUrl ? (
               <img 
                 src={bottle.imageUrl} 
                 alt={bottle.name} 
-                className="w-full h-full object-contain opacity-95 p-3 group-hover:scale-110 transition-transform duration-700"
+                className="w-full h-full object-contain opacity-95 p-4 group-hover:scale-110 transition-transform duration-1000 ease-out"
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <div className="flex flex-col items-center justify-center text-ink/5 scale-75">
-                <Wine size={56} strokeWidth={1} />
+              <div className="flex flex-col items-center justify-center text-gold/5 scale-110">
+                <Wine size={80} strokeWidth={0.5} />
               </div>
             )}
             
-            {!bottle.price && (
-              <div className="absolute top-2 right-2">
-                <p className="text-[8px] text-ink/20 uppercase tracking-widest italic font-bold">Reserver</p>
-              </div>
-            )}
+            {/* Glossy overlay effect */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/0 pointer-events-none"></div>
           </div>
           
           {/* Repositioned Type Label directly below bottle */}
-          <div className="mt-4 w-full">
-            <div className={`text-[10px] text-center uppercase tracking-[0.3em] font-black py-2 rounded-sm border border-dashed shadow-inner ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border}`}>
+          <div className="mt-6 w-full">
+            <div className={`text-[10px] text-center uppercase tracking-[0.4em] font-black py-3 rounded-sm border border-dashed shadow-xl backdrop-blur-md ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border}`}>
               {bottle.type}
             </div>
           </div>
