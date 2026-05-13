@@ -720,14 +720,14 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
           </div>
         </div>
 
-        {/* Notes */}
+        {/* Tasting Diary (showing tastingNotes) */}
         <div className="mb-8 flex-1">
           <div className="flex items-center gap-4 mb-3">
             <span className="text-[8px] uppercase tracking-[0.4em] text-gold/40 font-black">Tasting Diary</span>
             <div className="h-[1px] flex-1 bg-gold/10"></div>
           </div>
           <p className="text-base font-serif text-ink/90 font-medium leading-relaxed italic pr-4">
-            "{bottle.additionalNote || "Discovery awaits in the glass..."}"
+            "{bottle.tastingNotes || "Discovery awaits in the glass..."}"
           </p>
         </div>
 
@@ -840,19 +840,19 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
                     </div>
                   </div>
 
-                  {/* Section 4: SUMMARY / OVERALL NOTES */}
+                  {/* Section 4: ADDITIONAL NOTES */}
                   <div>
                     <h4 className="text-[11px] uppercase tracking-[0.4em] text-gold font-black mb-6 flex items-center gap-3">
                       <span className="w-8 h-[1px] bg-gold/30"></span>
-                      Section 4: SUMMARY / OVERALL NOTES
+                      Section 4: ADDITIONAL NOTES & SUMMARY
                     </h4>
                     <div className="bg-[#1a1a1a] p-8 rounded-sm border border-white/5 shadow-inner relative overflow-hidden group/summary">
                       <div className="absolute top-0 right-0 p-4 text-gold/5 group-hover/summary:text-gold/10 transition-colors">
                         <Sparkles size={40} />
                       </div>
-                      <span className="text-[9px] uppercase tracking-[0.3em] text-ink/30 font-black mb-3 block">SUMMARY</span>
+                      <span className="text-[9px] uppercase tracking-[0.3em] text-ink/30 font-black mb-3 block">NOTES</span>
                       <p className="font-serif text-lg text-ink font-medium leading-relaxed selection:bg-gold/20">
-                        {bottle.tastingNotes || "Professional benchmark and sub-region context not provided. This entry serves as a pure sensory record."}
+                        {bottle.additionalNote || "This entry serves as a pure sensory record."}
                       </p>
                     </div>
                   </div>
@@ -1428,60 +1428,63 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
             </div>
             
             <div className="space-y-4 pt-4">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Detailed Tasting Diary</label>
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Tasting Diary (Detailed Analytical Profile)</label>
               
-              <div className="space-y-2">
-                <label className="text-[9px] uppercase tracking-widest text-ink/40 font-medium ml-1">Appearance</label>
-                <textarea
-                  rows={2}
-                  value={formData.appearance}
-                  onChange={e => setFormData({ ...formData, appearance: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
-                  placeholder="Clarity, color intensity, hue..."
-                />
+              {/* Prioritizing most expressive descriptive notes */}
+              <div className="space-y-4 p-6 bg-white/5 border border-white/10 rounded-sm">
+                <div className="space-y-2">
+                  <label className="text-[9px] uppercase tracking-widest text-gold/60 font-black ml-1">Appearance & Hue</label>
+                  <textarea
+                    rows={2}
+                    value={formData.appearance}
+                    onChange={e => setFormData({ ...formData, appearance: e.target.value })}
+                    className="w-full bg-white/5 border border-white/5 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
+                    placeholder="Describe the robe, clarity, and intensity..."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[9px] uppercase tracking-widest text-gold/60 font-black ml-1">The Nose (Aromatics)</label>
+                  <textarea
+                    rows={2}
+                    value={formData.nose}
+                    onChange={e => setFormData({ ...formData, nose: e.target.value })}
+                    className="w-full bg-white/5 border border-white/5 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
+                    placeholder="Primary fruits, secondary fermentation notes, tertiary age..."
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[9px] uppercase tracking-widest text-ink/40 font-medium ml-1">Nose</label>
-                <textarea
-                  rows={2}
-                  value={formData.nose}
-                  onChange={e => setFormData({ ...formData, nose: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
-                  placeholder="Aroma, intensity, primary/secondary notes..."
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[9px] uppercase tracking-widest text-ink/40 font-medium ml-1">Palate</label>
+                <label className="text-[9px] uppercase tracking-widest text-ink/40 font-medium ml-1">Palate & Structure</label>
                 <textarea
                   rows={2}
                   value={formData.palate}
                   onChange={e => setFormData({ ...formData, palate: e.target.value })}
                   className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
-                  placeholder="Body, acidity, tannins, alcohol, flavor profile..."
+                  placeholder="Body, acidity, tannins, alcohol, balance..."
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-[9px] uppercase tracking-widest text-ink/40 font-medium ml-1">Finish</label>
+                <label className="text-[9px] uppercase tracking-widest text-ink/40 font-medium ml-1">The Finish</label>
                 <textarea
                   rows={2}
                   value={formData.finish}
                   onChange={e => setFormData({ ...formData, finish: e.target.value })}
                   className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
-                  placeholder="Length, complexity, aftertaste..."
+                  placeholder="Length, persistence, and final impressions..."
                 />
               </div>
 
-              <div className="space-y-2 opacity-40">
-                <label className="text-[9px] uppercase tracking-widest font-medium ml-1">Summary / Overall Notes</label>
+              <div className="space-y-2">
+                <label className="text-[9px] uppercase tracking-widest text-gold font-black ml-1">Main Tasting Notes (List View Quote)</label>
                 <textarea
-                  rows={2}
+                  rows={3}
                   value={formData.tastingNotes}
                   onChange={e => setFormData({ ...formData, tastingNotes: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
-                  placeholder="General impressions..."
+                  className="w-full bg-gold/5 border border-gold/20 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink font-medium italic"
+                  placeholder="The primary descriptive notes that will appear on the main card..."
                 />
               </div>
             </div>
@@ -1526,13 +1529,13 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
             </div>
             
             <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Additional Notes</label>
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Summary / Personal Storage Notes</label>
               <textarea
                 rows={2}
                 value={formData.additionalNote}
                 onChange={e => setFormData({ ...formData, additionalNote: e.target.value })}
                 className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink font-light"
-                placeholder="Storing location, personal memories, etc..."
+                placeholder="Storing location, personal memories, price history, etc..."
               />
             </div>
           </div>
