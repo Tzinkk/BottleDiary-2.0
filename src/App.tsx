@@ -645,224 +645,369 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
 
       <motion.div
         layout
+        transition={{ 
+          layout: { type: "spring", stiffness: 220, damping: 26 },
+          opacity: { duration: 0.15 } 
+        }}
         variants={cardVariants}
         initial="hidden"
         animate="visible"
         exit="exit"
-        whileHover={{ y: -4, transition: { duration: 0.3 } }}
-        className={`glass-panel flex flex-col group transition-all duration-500 rounded-sm overflow-hidden border-l border-white/5 md:border-l-4 ${typeConfig.border.replace('border-', 'border-l-')} shadow-2xl hover:border-gold/40 mb-8 relative`}
+        onClick={!isExpanded ? () => setIsExpanded(true) : undefined}
+        whileHover={!isExpanded ? { y: -3, scale: 1.002, transition: { duration: 0.2 } } : undefined}
+        className={`glass-panel flex flex-col group transition-all duration-500 rounded-sm overflow-hidden border-l border-white/5 md:border-l-4 ${typeConfig.border.replace('border-', 'border-l-')} shadow-2xl hover:border-gold/30 mb-6 relative ${!isExpanded ? 'cursor-pointer hover:bg-white/[0.01]' : ''}`}
       >
-        {/* Information Column (Full Width Now) */}
-        <div className="flex-1 p-8 md:p-10 flex flex-col min-w-0">
-          {/* Top Line: Image Icon, Type and Price */}
-          <div className="flex justify-between items-start mb-6 gap-4">
-            <div className="flex items-center gap-4">
-              {/* The "Icon" Corner Image */}
-              <motion.div
-                layoutId={`bottle-image-${bottle.id}`}
-                transition={{ type: "spring", stiffness: 260, damping: 26 }}
-                onClick={() => setIsImageOpen(true)}
-                className="w-14 h-14 md:w-16 md:h-16 rounded-full border border-gold/20 bg-black/40 flex items-center justify-center cursor-zoom-in overflow-hidden hover:border-gold/50 transition-all shadow-lg group/icon shrink-0"
-              >
-                {bottle.imageUrl ? (
-                  <img 
-                    src={bottle.imageUrl} 
-                    alt="thumbnail" 
-                    className="w-full h-full object-contain p-1.5 opacity-80 group-hover/icon:opacity-100 group-hover/icon:scale-110 transition-all duration-500"
-                    referrerPolicy="no-referrer"
-                  />
+        <AnimatePresence mode="wait" initial={false}>
+          {!isExpanded ? (
+            /* --- MINIMALIST HORIZONTAL CARD LAYOUT --- */
+            <motion.div
+              key="collapsed-horizontal"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 w-full"
+            >
+              {/* Left: Thumbnail & Main Info */}
+              <div className="flex items-center gap-4 min-w-0 flex-1">
+                {/* "Icon" Thumbnail Image */}
+                <motion.div
+                  layoutId={`bottle-image-${bottle.id}`}
+                  transition={{ type: "spring", stiffness: 260, damping: 26 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsImageOpen(true);
+                  }}
+                  className="w-12 h-12 rounded-full border border-gold/20 bg-black/40 flex items-center justify-center cursor-zoom-in overflow-hidden hover:border-gold/50 transition-all shadow-md shrink-0"
+                  title="Click to view full image"
+                >
+                  {bottle.imageUrl ? (
+                    <img 
+                      src={bottle.imageUrl} 
+                      alt="thumbnail" 
+                      className="w-full h-full object-contain p-1 opacity-80 hover:opacity-100 transition-all duration-300"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <Wine size={20} className="text-gold/30" />
+                  )}
+                </motion.div>
+
+                {/* Title & Producer */}
+                <div className="min-w-0 flex-1 pr-2">
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <h3 className="font-serif text-lg md:text-xl font-bold text-gold tracking-tight truncate line-clamp-1">
+                      {bottle.name}
+                    </h3>
+                    <span className="italic font-normal text-gold/80 text-sm md:text-base shrink-0">
+                      {bottle.year || 'NV'}
+                    </span>
+                  </div>
+                  <p className="font-sans text-[10px] text-ink/40 uppercase tracking-[0.2em] truncate mt-0.5">
+                    {bottle.producer || 'Unknown Producer'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Middle: Type Badge & Origin */}
+              <div className="flex items-center gap-4 shrink-0 justify-between md:justify-start">
+                <div className={`text-[9px] uppercase tracking-[0.3em] font-black px-2.5 py-1 rounded-sm border shadow-sm backdrop-blur-md transition-all duration-500 ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border}`}>
+                  {bottle.type}
+                </div>
+                
+                <div className="text-left md:text-right min-w-[100px] hidden sm:block">
+                  <p className="text-[10px] uppercase tracking-wider text-ink/40 font-semibold truncate max-w-[120px]">{bottle.region || 'Any Region'}</p>
+                  <p className="text-[9px] text-ink/30 italic truncate max-w-[124px]">{bottle.country || 'Unknown Origin'}</p>
+                </div>
+              </div>
+
+              {/* Right: Price & Expand Indicator */}
+              <div className="flex items-center justify-between md:justify-end gap-6 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-white/5">
+                {bottle.price ? (
+                  <div className="text-left md:text-right">
+                    <span className="text-[8px] uppercase tracking-wider text-ink/30 font-black block leading-none mb-0.5">Price</span>
+                    <span className="font-sans text-base text-gold font-bold tabular-nums tracking-wide">
+                      ฿{bottle.price.toLocaleString()}
+                    </span>
+                  </div>
                 ) : (
-                  <Wine size={24} className="text-gold/30" />
+                  <div className="text-left md:text-right">
+                    <span className="text-[8px] uppercase tracking-wider text-ink/20 italic block leading-none">No Price</span>
+                  </div>
+                )}
+
+                {/* Click instruction chevron */}
+                <div className="text-gold/40 group-hover:text-gold transition-colors flex items-center justify-center w-8 h-8 rounded-full border border-white/5 hover:border-gold/20 bg-white/[0.01]">
+                  <ChevronDown size={14} className="group-hover:translate-y-0.5 transition-transform duration-300" />
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            /* --- FULL DETAILED EXPANDED CARD LAYOUT --- */
+            <motion.div
+              key="expanded-full"
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
+              variants={{
+                hidden: { opacity: 0 },
+                visible: {
+                  opacity: 1,
+                  transition: {
+                    staggerChildren: 0.05,
+                    delayChildren: 0.05
+                  }
+                }
+              }}
+              className="p-8 md:p-10 flex flex-col min-w-0 relative"
+            >
+              {/* Elegant Close Button Top Right */}
+              <motion.button
+                variants={{
+                  hidden: { opacity: 0, scale: 0.8 },
+                  visible: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 200, damping: 15 } }
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded(false);
+                }}
+                className="absolute top-6 right-6 z-10 text-white/30 hover:text-gold hover:bg-white/5 p-2 rounded-full border border-white/15 hover:border-gold/30 transition-all flex items-center justify-center group/close-btn bg-black/20"
+                title="Close Full Card"
+              >
+                <X size={18} className="group-hover/close-btn:scale-110 transition-transform" />
+              </motion.button>
+
+              {/* Top Line: Image Icon, Type and Price */}
+              <motion.div 
+                variants={{
+                  hidden: { opacity: 0, y: 10 },
+                  visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 150, damping: 15 } }
+                }}
+                className="flex justify-between items-start mb-6 gap-4 pr-10"
+              >
+                <div className="flex items-center gap-4">
+                  {/* The "Icon" Corner Image */}
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsImageOpen(true);
+                    }}
+                    className="w-14 h-14 md:w-16 md:h-16 rounded-full border border-gold/20 bg-black/40 flex items-center justify-center cursor-zoom-in overflow-hidden hover:border-gold/50 transition-all shadow-lg group/icon shrink-0"
+                    title="Click to zoom image"
+                  >
+                    {bottle.imageUrl ? (
+                      <img 
+                        src={bottle.imageUrl} 
+                        alt="thumbnail" 
+                        className="w-full h-full object-contain p-1.5 opacity-80 group-hover/icon:opacity-100 group-hover/icon:scale-110 transition-all duration-500"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <Wine size={24} className="text-gold/30" />
+                    )}
+                  </div>
+
+                  <div className={`text-[9px] uppercase tracking-[0.4em] font-black px-3 py-1.5 rounded-sm border shadow-sm backdrop-blur-md transition-all duration-500 ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border}`}>
+                    {bottle.type}
+                  </div>
+                </div>
+                
+                {bottle.price && (
+                  <div className="flex flex-col items-end gap-0.5">
+                    <span className="text-[8px] uppercase tracking-[0.2em] text-ink/30 font-black">Price</span>
+                    <span className="font-sans text-xl text-gold font-bold tabular-nums tracking-wide">
+                      ฿{bottle.price.toLocaleString()}
+                    </span>
+                  </div>
                 )}
               </motion.div>
 
-              <div className={`text-[9px] uppercase tracking-[0.4em] font-black px-3 py-1.5 rounded-sm border shadow-sm backdrop-blur-md transition-all duration-500 ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border}`}>
-                {bottle.type}
-              </div>
-            </div>
-            
-            {bottle.price && (
-              <div className="flex flex-col items-end gap-0.5">
-                <span className="text-[8px] uppercase tracking-[0.2em] text-ink/30 font-black">Price</span>
-                <span className="font-sans text-xl text-gold font-bold tabular-nums tracking-wide">
-                  ฿{bottle.price.toLocaleString()}
-                </span>
-              </div>
-            )}
-          </div>
+              {/* Title & Year */}
+              <motion.div 
+                variants={{
+                  hidden: { opacity: 0, y: 10 },
+                  visible: { opacity: 1, y: 0 }
+                }}
+                className="mb-6"
+              >
+                <h3 className="font-serif text-2xl md:text-3xl font-bold text-gold tracking-tight leading-tight selection:bg-gold/30">
+                  {bottle.name} <span className="text-gold/40 mx-2 font-light">•</span> <span className="italic font-medium text-gold/80">{bottle.year || 'NV'}</span>
+                </h3>
+              </motion.div>
 
-          {/* Rest of the Bottle Content */}
-          <div className="mb-6">
-            <h3 className="font-serif text-2xl md:text-3xl font-bold text-gold tracking-tight leading-tight selection:bg-gold/30">
-              {bottle.name} <span className="text-gold/40 mx-2 font-light">•</span> <span className="italic font-medium text-gold/80">{bottle.year || 'NV'}</span>
-            </h3>
-          </div>
+              {/* Details: Producer, Varietal, Terroir */}
+              <motion.div 
+                variants={{
+                  hidden: { opacity: 0, y: 10 },
+                  visible: { opacity: 1, y: 0 }
+                }}
+                className="space-y-2.5 mb-8"
+              >
+                <div className="flex items-baseline gap-4">
+                  <span className="text-[9px] uppercase tracking-[0.3em] text-ink/20 font-black shrink-0 w-24">Producer</span>
+                  <p className="font-sans text-xs text-ink/70 font-semibold tracking-widest uppercase">
+                    {bottle.producer || 'Unknown'}
+                  </p>
+                </div>
+                <div className="flex items-baseline gap-4">
+                  <span className="text-[9px] uppercase tracking-[0.3em] text-ink/20 font-black shrink-0 w-24">Varietal</span>
+                  <p className="font-sans text-xs text-ink/50 italic">
+                    {Array.isArray(bottle.grape) ? bottle.grape.join(' • ') : bottle.grape || 'Secret Assemblage'}
+                  </p>
+                </div>
+                <div className="flex items-baseline gap-4">
+                  <span className="text-[9px] uppercase tracking-[0.3em] text-ink/20 font-black shrink-0 w-24">Origin</span>
+                  <p className="font-sans text-xs text-ink/50">
+                    {bottle.region}{bottle.country ? `, ${bottle.country}` : ''}
+                  </p>
+                </div>
+              </motion.div>
 
-        {/* Details: Producer, Varietal, Terroir */}
-        <div className="space-y-2.5 mb-8">
-          <div className="flex items-baseline gap-4">
-            <span className="text-[9px] uppercase tracking-[0.3em] text-ink/20 font-black shrink-0 w-24">Producer</span>
-            <p className="font-sans text-xs text-ink/70 font-semibold tracking-widest uppercase">
-              {bottle.producer || 'Unknown'}
-            </p>
-          </div>
-          <div className="flex items-baseline gap-4">
-            <span className="text-[9px] uppercase tracking-[0.3em] text-ink/20 font-black shrink-0 w-24">Varietal</span>
-            <p className="font-sans text-xs text-ink/50 italic">
-              {Array.isArray(bottle.grape) ? bottle.grape.join(' • ') : bottle.grape || 'Secret Assemblage'}
-            </p>
-          </div>
-          <div className="flex items-baseline gap-4">
-            <span className="text-[9px] uppercase tracking-[0.3em] text-ink/20 font-black shrink-0 w-24">Origin</span>
-            <p className="font-sans text-xs text-ink/50">
-              {bottle.region}{bottle.country ? `, ${bottle.country}` : ''}
-            </p>
-          </div>
-        </div>
+              {/* Tasting Diary (showing tastingNotes) */}
+              <motion.div 
+                variants={{
+                  hidden: { opacity: 0, y: 10 },
+                  visible: { opacity: 1, y: 0 }
+                }}
+                className="mb-8"
+              >
+                <div className="flex items-center gap-4 mb-3">
+                  <span className="text-[8px] uppercase tracking-[0.4em] text-gold/40 font-black">Tasting Diary</span>
+                  <div className="h-[1px] flex-1 bg-gold/10"></div>
+                </div>
+                <p className="text-base font-serif text-ink/90 font-medium leading-relaxed italic pr-4">
+                  "{bottle.tastingNotes || "Discovery awaits in the glass..."}"
+                </p>
+              </motion.div>
 
-        {/* Tasting Diary (showing tastingNotes) */}
-        <div className="mb-8 flex-1">
-          <div className="flex items-center gap-4 mb-3">
-            <span className="text-[8px] uppercase tracking-[0.4em] text-gold/40 font-black">Tasting Diary</span>
-            <div className="h-[1px] flex-1 bg-gold/10"></div>
-          </div>
-          <p className="text-base font-serif text-ink/90 font-medium leading-relaxed italic pr-4">
-            "{bottle.tastingNotes || "Discovery awaits in the glass..."}"
-          </p>
-        </div>
-
-        {/* Footer actions */}
-        <div className="mt-8 pt-8 border-t border-white/5 flex items-center justify-between">
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-2 text-[10px] uppercase tracking-[0.4em] font-black text-gold/60 hover:text-gold transition-all group/link"
-          >
-            <span>{isExpanded ? 'Hide analytical profile ←' : 'View full analytical profile →'}</span>
-          </button>
-
-          <div className="flex items-center gap-6">
-            <button
-              onClick={() => onEdit(bottle)}
-              className="p-2 text-ink/20 hover:text-gold transition-all hover:scale-110"
-              title="Edit Entry"
-            >
-              <Edit2 size={16} />
-            </button>
-            <button
-              onClick={() => onDelete(bottle.id)}
-              className="p-2 text-ink/20 hover:text-red-500/80 transition-all hover:scale-110"
-              title="Archive Entry"
-            >
-              <Trash2 size={16} />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Expanded Details Section */}
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
-            className="w-full overflow-hidden border-t border-white/5 bg-black/10"
-          >
-            <div className="p-8 md:p-14">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
-                {/* Left Column: Analysis */}
-                <div className="space-y-12">
+              {/* Immersive Profile Content rendered inside full card directly */}
+              <motion.div 
+                variants={{
+                  hidden: { opacity: 0, y: 15 },
+                  visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 120, damping: 15 } }
+                }}
+                className="pt-8 border-t border-white/5 space-y-12"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
                   {/* Section 1: PHYSICAL PROFILE */}
-                  <div>
-                    <h4 className="text-[11px] uppercase tracking-[0.4em] text-gold font-black mb-6 flex items-center gap-3">
-                      <span className="w-8 h-[1px] bg-gold/30"></span>
-                      Section 1: PHYSICAL PROFILE
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] uppercase tracking-[0.35em] text-gold font-black flex items-center gap-2">
+                      <span className="w-4 h-[1px] bg-gold/30"></span>
+                      Appearance
                     </h4>
-                    <div className="bg-[#1a1a1a] p-8 rounded-sm border border-white/5 shadow-inner">
-                      <span className="text-[9px] uppercase tracking-[0.3em] text-ink/30 font-black mb-3 block">APPEARANCE</span>
-                      <p className="font-serif text-base text-ink/80 leading-relaxed italic">
+                    <div className="bg-black/25 p-5 rounded-sm border border-white/5 shadow-inner">
+                      <p className="font-serif text-sm text-ink/80 leading-relaxed italic">
                         {bottle.appearance || "Robe and clarity details not recorded for this millésime."}
                       </p>
                     </div>
                   </div>
 
-                  {/* Section 2: SENSORY ANALYSIS */}
-                  <div>
-                    <h4 className="text-[11px] uppercase tracking-[0.4em] text-gold font-black mb-6 flex items-center gap-3">
-                      <span className="w-8 h-[1px] bg-gold/30"></span>
-                      Section 2: SENSORY ANALYSIS
+                  {/* Section 2: GASTRONOMY */}
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] uppercase tracking-[0.35em] text-gold font-black flex items-center gap-2">
+                      <span className="w-4 h-[1px] bg-gold/30"></span>
+                      Gastronomy & Pairings
                     </h4>
-                    <div className="space-y-4">
-                      <div className="bg-[#1a1a1a] p-8 rounded-sm border border-white/5 shadow-inner transition-colors hover:border-gold/20">
-                        <span className="text-[9px] uppercase tracking-[0.3em] text-ink/30 font-black mb-3 block">NOSE (AROMATIC)</span>
-                        <p className="font-serif text-base text-ink/80 leading-relaxed italic">
-                          {bottle.nose || "Aromatic profile remains unlogged."}
-                        </p>
-                      </div>
-                      <div className="bg-[#1a1a1a] p-8 rounded-sm border border-white/5 shadow-inner transition-colors hover:border-gold/20">
-                        <span className="text-[9px] uppercase tracking-[0.3em] text-ink/30 font-black mb-3 block">PALATE (STRUCTURE)</span>
-                        <p className="font-serif text-base text-ink/80 leading-relaxed italic">
-                          {bottle.palate || "Structural and mouthfeel analysis missing."}
-                        </p>
-                      </div>
-                      <div className="bg-[#1a1a1a] p-8 rounded-sm border border-white/5 shadow-inner transition-colors hover:border-gold/20">
-                        <span className="text-[9px] uppercase tracking-[0.3em] text-ink/30 font-black mb-3 block">FINISH</span>
-                        <p className="font-serif text-base text-ink/80 leading-relaxed italic">
-                          {bottle.finish || "Final persistence and aftertaste not described."}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Column: Gastronomy & Legacy */}
-                <div className="space-y-12">
-                  {/* Section 3: GASTRONOMY */}
-                  <div>
-                    <h4 className="text-[11px] uppercase tracking-[0.4em] text-gold font-black mb-6 flex items-center gap-3">
-                      <span className="w-8 h-[1px] bg-gold/30"></span>
-                      Section 3: GASTRONOMY
-                    </h4>
-                    <div className="bg-[#1a1a1a] p-8 rounded-sm border border-white/5 shadow-inner">
-                      <span className="text-[9px] uppercase tracking-[0.3em] text-ink/30 font-black mb-5 block">PAIRINGS</span>
-                      <div className="flex flex-wrap gap-3">
+                    <div className="bg-black/25 p-5 rounded-sm border border-white/5 shadow-inner min-h-[4.5rem]">
+                      <div className="flex flex-wrap gap-2">
                         {Array.isArray(bottle.foodPairing) && bottle.foodPairing.length > 0 ? (
                           bottle.foodPairing.map((food, i) => (
-                            <button key={i} className="px-5 py-2.5 rounded-full bg-gold/5 border border-gold/20 text-gold/80 text-[11px] font-serif italic hover:bg-gold/10 hover:border-gold/40 transition-all">
+                            <span key={i} className="px-3 py-1 rounded-full bg-gold/5 border border-gold/10 text-gold/80 text-[10px] font-serif italic">
                               {food}
-                            </button>
+                            </span>
                           ))
                         ) : (
-                          <span className="text-xs text-ink/30 italic">No cuisine recommendations recorded.</span>
+                          <span className="text-xs text-ink/30 italic">No recommendations recorded.</span>
                         )}
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  {/* Section 4: ADDITIONAL NOTES */}
-                  <div>
-                    <h4 className="text-[11px] uppercase tracking-[0.4em] text-gold font-black mb-6 flex items-center gap-3">
-                      <span className="w-8 h-[1px] bg-gold/30"></span>
-                      Section 4: ADDITIONAL NOTES & SUMMARY
-                    </h4>
-                    <div className="bg-[#1a1a1a] p-8 rounded-sm border border-white/5 shadow-inner relative overflow-hidden group/summary">
-                      <div className="absolute top-0 right-0 p-4 text-gold/5 group-hover/summary:text-gold/10 transition-colors">
-                        <Sparkles size={40} />
-                      </div>
-                      <span className="text-[9px] uppercase tracking-[0.3em] text-ink/30 font-black mb-3 block">NOTES</span>
-                      <p className="font-serif text-lg text-ink font-medium leading-relaxed selection:bg-gold/20">
-                        {bottle.additionalNote || "This entry serves as a pure sensory record."}
+                {/* Section 3: SENSORY ANALYSIS */}
+                <div className="space-y-4">
+                  <h4 className="text-[10px] uppercase tracking-[0.35em] text-gold font-black flex items-center gap-2">
+                    <span className="w-4 h-[1px] bg-gold/30"></span>
+                    Sensory Analysis
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-black/25 p-4 rounded-sm border border-white/5 shadow-inner">
+                      <span className="text-[8px] uppercase tracking-[0.25em] text-ink/30 font-black mb-1.5 block">Nose</span>
+                      <p className="font-serif text-xs text-ink/70 leading-relaxed italic last:mb-0">
+                        {bottle.nose || "Aromatic profile remains unlogged."}
+                      </p>
+                    </div>
+                    <div className="bg-black/25 p-4 rounded-sm border border-white/5 shadow-inner">
+                      <span className="text-[8px] uppercase tracking-[0.25em] text-ink/30 font-black mb-1.5 block">Palate</span>
+                      <p className="font-serif text-xs text-ink/70 leading-relaxed italic last:mb-0">
+                        {bottle.palate || "Structural and mouthfeel analysis missing."}
+                      </p>
+                    </div>
+                    <div className="bg-black/25 p-4 rounded-sm border border-white/5 shadow-inner">
+                      <span className="text-[8px] uppercase tracking-[0.25em] text-ink/30 font-black mb-1.5 block">Finish</span>
+                      <p className="font-serif text-xs text-ink/70 leading-relaxed italic last:mb-0">
+                        {bottle.finish || "Final persistence not described."}
                       </p>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+
+                {/* Section 4: SUMMARY & SECURE NOTES */}
+                {bottle.additionalNote && (
+                  <div className="bg-gold/[0.01] p-6 rounded-sm border border-gold/5 relative overflow-hidden">
+                    <span className="text-[8px] uppercase tracking-[0.25em] text-gold/50 font-black mb-2 block">Collector's Notes</span>
+                    <p className="font-serif text-xs text-ink/80 leading-relaxed">
+                      {bottle.additionalNote}
+                    </p>
+                  </div>
+                )}
+              </motion.div>
+
+              {/* Footer Actions */}
+              <motion.div 
+                variants={{
+                  hidden: { opacity: 0, y: 10 },
+                  visible: { opacity: 1, y: 0 }
+                }}
+                className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between"
+              >
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsExpanded(false);
+                  }}
+                  className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.3em] font-black text-gold/60 hover:text-gold transition-all"
+                >
+                  <span>↑ Collapse Profile</span>
+                </button>
+
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(bottle);
+                    }}
+                    className="p-2 text-ink/30 hover:text-gold transition-all hover:scale-105"
+                    title="Edit Entry"
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(bottle.id);
+                    }}
+                    className="p-2 text-ink/30 hover:text-red-500/80 transition-all hover:scale-105"
+                    title="Archive Entry"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </>
   );
 };
@@ -2063,7 +2208,7 @@ export default function App() {
                    exit={{ height: 0, opacity: 0 }}
                    className="space-y-6 overflow-hidden pb-10"
                  >
-                   <div className="space-y-1.5">
+                   <div className="space-y-1.5 hidden">
                      <button 
                        onClick={() => setActiveFilter('All')}
                        className={`w-full flex items-center justify-between px-4 py-2.5 rounded-sm transition-all text-[9px] uppercase tracking-[0.3em] ${
@@ -2696,11 +2841,62 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Horizontal Classifications Filter */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-4 scroll-hide border-b border-white/5">
+                <button
+                  onClick={() => setActiveFilter('All')}
+                  className={`relative px-5 py-2.5 rounded-sm text-[9px] uppercase font-bold tracking-[0.25em] transition-all whitespace-nowrap border shrink-0 ${
+                    activeFilter === 'All'
+                      ? 'text-wine-bg border-gold shadow-[0_5px_15px_rgba(212,175,55,0.15)] font-bold'
+                      : 'border-white/5 text-ink/40 hover:text-ink'
+                  }`}
+                >
+                  {activeFilter === 'All' && (
+                    <motion.div
+                      layoutId="activeFilterBg"
+                      className="absolute inset-0 bg-gold -z-10 rounded-sm"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10">Entire Cellar ({bottles.length})</span>
+                </button>
+                
+                {WINE_TYPES.map(type => {
+                  const typeConfig = WINE_TYPE_CONFIG[type];
+                  const count = bottles.filter(b => b.type === type).length;
+                  const isSelected = activeFilter === type;
+                  
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => setActiveFilter(type)}
+                      className={`relative px-5 py-2.5 rounded-sm text-[9px] uppercase tracking-[0.25em] transition-all whitespace-nowrap border shrink-0 flex items-center gap-2 ${
+                        isSelected
+                          ? `${typeConfig.text} ${typeConfig.border} font-bold shadow-lg`
+                          : 'border-white/5 text-ink/40 hover:text-ink'
+                      }`}
+                    >
+                      {isSelected && (
+                        <motion.div
+                          layoutId="activeFilterBg"
+                          className={`absolute inset-0 ${typeConfig.bg} -z-10 rounded-sm`}
+                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        />
+                      )}
+                      <span className="relative z-10 flex items-center gap-2">
+                        <div className={`w-1.5 h-1.5 rounded-full ${typeConfig.accent} ${isSelected ? 'opacity-100' : 'opacity-30'}`}></div>
+                        <span>{type} ({count})</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
               <motion.div 
                 variants={containerVariants}
                 initial="hidden"
                 animate="visible"
-                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10"
+                className="flex flex-col gap-6 max-w-5xl mx-auto w-full"
               >
                 <AnimatePresence mode="popLayout">
                   {filteredBottles.map(bottle => (
