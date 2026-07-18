@@ -42,3 +42,11 @@ export interface GrapeVariety {
 }
 
 export type SortOption = 'newest' | 'year' | 'name';
+
+export interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswer: string;
+  explanation: string;
+}
+

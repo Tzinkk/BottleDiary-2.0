@@ -4,6 +4,7 @@ import path from "path";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import { fileURLToPath } from "url";
+import { GoogleGenAI, Type } from "@google/genai";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,6 +31,166 @@ async function startServer() {
   // Health Check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // AI Wine Tutor - Generate a random multiple choice question
+  app.post("/api/ai/tutor/question", async (req, res) => {
+    try {
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ 
+          error: "Gemini API key is not configured. Please add GEMINI_API_KEY in the app settings." 
+        });
+      }
+
+      const ai = new GoogleGenAI({
+        apiKey: process.env.GEMINI_API_KEY,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
+        }
+      });
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: "Generate a highly engaging, unique, and informative multiple choice question about wine. Topics can include wine history, grape varieties, regions, production techniques, or food pairings. Ensure the options are plausible but only one is correct. Provide a helpful, educational 1-2 sentence 'Did you know?' style explanation.",
+        config: {
+          systemInstruction: "You are an expert sommelier and dynamic wine quiz master. Your task is to generate one high-quality multiple choice question about wine in JSON format.",
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              question: { 
+                type: Type.STRING,
+                description: "The trivia question about wine."
+              },
+              options: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+                description: "Exactly 4 options."
+              },
+              correctAnswer: {
+                type: Type.STRING,
+                description: "The correct option. Must exactly match one of the values in the options array."
+              },
+              explanation: {
+                type: Type.STRING,
+                description: "A fascinating 1-2 sentence 'Did you know?' explanation related to the question."
+              }
+            },
+            required: ["question", "options", "correctAnswer", "explanation"]
+          }
+        }
+      });
+
+      const text = response.text;
+      if (!text) {
+        throw new Error("No response generated from Gemini");
+      }
+
+      const questionData = JSON.parse(text.trim());
+      res.json(questionData);
+    } catch (error: any) {
+      console.error("Quiz generation error:", error);
+      res.status(500).json({ error: error.message || "Failed to generate wine question" });
+    }
+  });
+
+  // AI Label Analysis
+  app.post("/api/ai/analyze-label", async (req, res) => {
+    try {
+      const { imageUri } = req.body;
+      if (!imageUri) {
+        return res.status(400).json({ error: "No image URI provided" });
+      }
+
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ 
+          error: "Gemini API key is not configured. Please add GEMINI_API_KEY in the app settings." 
+        });
+      }
+
+      const ai = new GoogleGenAI({
+        apiKey: process.env.GEMINI_API_KEY,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
+        }
+      });
+
+      let base64 = "";
+      let mimeType = "image/jpeg";
+
+      if (imageUri.startsWith('data:')) {
+        const split = imageUri.split(',');
+        if (split.length > 1) {
+          base64 = split[1];
+          const match = imageUri.match(/^data:([^;]+);/);
+          if (match) mimeType = match[1];
+        } else {
+          return res.status(400).json({ error: "Malformed data URL provided" });
+        }
+      } else {
+        const imgResponse = await fetch(imageUri);
+        if (!imgResponse.ok) {
+          return res.status(400).json({ error: `Failed to fetch image from URL: ${imgResponse.statusText}` });
+        }
+        const arrayBuffer = await imgResponse.arrayBuffer();
+        base64 = Buffer.from(arrayBuffer).toString('base64');
+        mimeType = imgResponse.headers.get('content-type') || 'image/jpeg';
+      }
+
+      const systemInstruction = `You are a professional sommelier. Analyze the wine label in the image and extract information into structured JSON. 
+      Be extremely descriptive with 'tastingNotes', covering appearance, nose, and palate. 
+      Suggest 3 specific 'foodPairing' ideas that would complement this specific wine.
+      Be precise with classifications like (Red, White, Rosé, Sparkling, Orange).`;
+
+      const result = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: [
+          { text: "Identify this wine label details. Provide rich tasting notes and food pairings." },
+          {
+            inlineData: {
+              data: base64,
+              mimeType: mimeType
+            }
+          }
+        ],
+        config: {
+          systemInstruction,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING },
+              producer: { type: Type.STRING },
+              year: { type: Type.STRING },
+              type: { type: Type.STRING },
+              region: { type: Type.STRING },
+              country: { type: Type.STRING },
+              grape: { type: Type.ARRAY, items: { type: Type.STRING } },
+              tastingNotes: { type: Type.STRING },
+              appearance: { type: Type.STRING },
+              nose: { type: Type.STRING },
+              palate: { type: Type.STRING },
+              finish: { type: Type.STRING },
+              foodPairing: { type: Type.ARRAY, items: { type: Type.STRING } }
+            }
+          }
+        }
+      });
+
+      const text = result.text;
+      if (!text) {
+        return res.status(500).json({ error: "No response from AI Sommelier" });
+      }
+
+      res.json(JSON.parse(text));
+    } catch (error: any) {
+      console.error("AI label analysis error details:", error);
+      res.status(500).json({ error: error.message || "Failed to analyze wine label" });
+    }
   });
 
   // API Routes

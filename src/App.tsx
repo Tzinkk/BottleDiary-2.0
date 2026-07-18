@@ -22,8 +22,8 @@ import {
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, updateDoc, limit } from 'firebase/firestore';
 import { auth, db, signInWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
-import { WineBottle, WineType, SortOption, GrapeVariety } from './types';
-import { analyzeWineLabel } from './services/aiService';
+import { WineBottle, WineType, SortOption, GrapeVariety, QuizQuestion } from './types';
+import { analyzeWineLabel, generateQuizQuestion } from './services/aiService';
 import { WorldMap } from './components/WorldMap';
 
 // --- Configuration ---
@@ -1827,13 +1827,38 @@ export default function App() {
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
   const [selectedGrapes, setSelectedGrapes] = useState<string[]>([]);
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
-  const [view, setView] = useState<'cellar' | 'stats' | 'wine-of-the-day' | 'grapes'>('cellar');
+  const [view, setView] = useState<'cellar' | 'stats' | 'wine-of-the-day' | 'grapes' | 'tutor'>('cellar');
   const [statsSubTab, setStatsSubTab] = useState<'bottles' | 'grapes'>('bottles');
   const [selectedAnalysisCountry, setSelectedAnalysisCountry] = useState<string | null>(null);
   const [selectedAnalysisRegion, setSelectedAnalysisRegion] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'bottle' | 'grape' } | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+
+  // AI Wine Tutor States
+  const [quizQuestion, setQuizQuestion] = useState<QuizQuestion | null>(null);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [isAnswerRevealed, setIsAnswerRevealed] = useState<boolean>(false);
+  const [isQuizLoading, setIsQuizLoading] = useState<boolean>(false);
+  const [quizError, setQuizError] = useState<string | null>(null);
+  const [quizScore, setQuizScore] = useState<number>(0);
+  const [totalQuizAnswered, setTotalQuizAnswered] = useState<number>(0);
+
+  const fetchNewQuizQuestion = async () => {
+    setIsQuizLoading(true);
+    setQuizError(null);
+    setSelectedAnswer(null);
+    setIsAnswerRevealed(false);
+    try {
+      const question = await generateQuizQuestion();
+      setQuizQuestion(question);
+    } catch (err: any) {
+      console.error("Failed to generate quiz question:", err);
+      setQuizError(err.message || "Failed to generate a new quiz question. Please try again.");
+    } finally {
+      setIsQuizLoading(false);
+    }
+  };
 
   const availableGrapes = useMemo(() => {
     const fromBottles = bottles.flatMap(b => b.grape || []);
@@ -1880,6 +1905,12 @@ export default function App() {
       setSelectedGrapesForComparison([]);
     }
   }, [view]);
+
+  useEffect(() => {
+    if (view === 'tutor' && !quizQuestion) {
+      fetchNewQuizQuestion();
+    }
+  }, [view, quizQuestion]);
 
   const handleLogin = async () => {
     setAuthError(null);
@@ -2250,6 +2281,16 @@ export default function App() {
                <BarChart3 size={16} />
                Cellar Analytics
              </button>
+
+             <button
+                onClick={() => setView('tutor')}
+                className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
+                  view === 'tutor' ? 'bg-white/[0.09] backdrop-blur-sm border border-white/10 text-gold font-bold shadow-lg' : 'text-ink/50 hover:text-ink hover:bg-white/5'
+                }`}
+              >
+                <Sparkles size={16} />
+                <span>AI Wine Tutor</span>
+              </button>
            </div>
  
            <div>
@@ -2993,6 +3034,197 @@ export default function App() {
                   </motion.div>
                 )}
               </motion.div>
+            </motion.div>
+          ) : view === 'tutor' ? (
+            <motion.div
+              key="tutor"
+              initial={{ opacity: 0, scale: 0.98, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 1.02, y: -20 }}
+              transition={{ duration: 0.5, ease: "anticipate" }}
+              className="space-y-12 max-w-3xl mx-auto"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 border-b border-white/5 pb-8">
+                <div className="space-y-4">
+                  <p className="text-[10px] uppercase tracking-[0.5em] text-gold font-bold flex items-center gap-2">
+                    <span className="w-8 h-px bg-gold/30"></span>
+                    Interactive Academy
+                  </p>
+                  <h2 className="text-4xl font-serif font-light text-ink tracking-wide">AI Wine Tutor</h2>
+                  <p className="text-ink/40 text-xs font-light tracking-wide max-w-md">
+                    Expand your sommelier expertise with dynamic quizzes and educational insights curated in real-time by artificial intelligence.
+                  </p>
+                </div>
+                
+                {/* Score badge */}
+                <div className="glass-panel px-6 py-4 bg-white/[0.02] border border-white/5 rounded-sm flex items-center gap-4 self-start sm:self-auto">
+                  <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center text-gold">
+                    <Sparkle size={14} />
+                  </div>
+                  <div>
+                    <p className="text-[8px] uppercase tracking-widest text-ink/40">Intellect Score</p>
+                    <p className="text-sm font-serif text-gold font-bold">
+                      {totalQuizAnswered > 0 ? `${quizScore} / ${totalQuizAnswered}` : "0 / 0"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quiz Body */}
+              <div className="glass-panel p-8 md:p-12 bg-white/[0.01] border border-white/5 rounded-sm relative overflow-hidden shadow-2xl">
+                <AnimatePresence mode="wait">
+                  {isQuizLoading ? (
+                    <motion.div
+                      key="loading"
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -15 }}
+                      transition={{ duration: 0.3 }}
+                      className="py-24 flex flex-col items-center justify-center space-y-6"
+                    >
+                      <Loader2 size={40} className="text-gold animate-spin stroke-1" />
+                      <div className="text-center space-y-2">
+                        <p className="text-[10px] uppercase tracking-[0.4em] text-gold font-bold">Consulting the Sommelier...</p>
+                        <p className="text-ink/30 text-xs font-light">Crafting a bespoke wine question for you</p>
+                      </div>
+                    </motion.div>
+                  ) : quizError ? (
+                    <motion.div
+                      key="error"
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -15 }}
+                      transition={{ duration: 0.3 }}
+                      className="py-16 text-center space-y-6"
+                    >
+                      <p className="text-red-400 font-serif text-lg italic">{quizError}</p>
+                      <button
+                        onClick={fetchNewQuizQuestion}
+                        className="border border-gold/30 hover:border-gold hover:bg-gold/5 text-gold text-[10px] uppercase tracking-widest font-bold px-6 py-3 transition-colors"
+                      >
+                        Try Again
+                      </button>
+                    </motion.div>
+                  ) : quizQuestion ? (
+                    <motion.div
+                      key={quizQuestion.question}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.4, ease: "easeInOut" }}
+                      className="space-y-8"
+                    >
+                      <div className="space-y-4">
+                        <span className="inline-block px-3 py-1 bg-gold/5 border border-gold/10 text-gold text-[8px] uppercase tracking-[0.2em] rounded-sm font-bold">
+                          Question #{totalQuizAnswered + (isAnswerRevealed ? 0 : 1)}
+                        </span>
+                        <h3 className="text-2xl font-serif font-light text-ink leading-relaxed tracking-wide">
+                          {quizQuestion.question}
+                        </h3>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4 pt-4">
+                        {quizQuestion.options.map((option, idx) => {
+                          const isSelected = selectedAnswer === option;
+                          const isCorrectOption = option === quizQuestion.correctAnswer;
+                          
+                          let buttonStyle = "border-white/5 bg-white/[0.02] text-ink/70 hover:border-gold/30 hover:bg-white/[0.04] hover:text-ink";
+                          let iconNode = null;
+
+                          if (isAnswerRevealed) {
+                            if (isCorrectOption) {
+                              buttonStyle = "border-gold/50 bg-gold/10 text-gold font-medium";
+                              iconNode = <Check size={16} className="text-gold" />;
+                            } else if (isSelected) {
+                              buttonStyle = "border-red-500/40 bg-red-500/10 text-red-300";
+                              iconNode = <X size={16} className="text-red-400" />;
+                            } else {
+                              buttonStyle = "border-white/5 bg-white/[0.01] text-ink/30 cursor-not-allowed";
+                            }
+                          }
+
+                          return (
+                            <button
+                              key={idx}
+                              disabled={isAnswerRevealed}
+                              onClick={() => {
+                                setSelectedAnswer(option);
+                                setIsAnswerRevealed(true);
+                                setTotalQuizAnswered(prev => prev + 1);
+                                if (option === quizQuestion.correctAnswer) {
+                                  setQuizScore(prev => prev + 1);
+                                }
+                              }}
+                              className={`w-full text-left px-6 py-5 rounded-sm transition-all text-sm flex items-center justify-between border ${buttonStyle}`}
+                            >
+                              <span className="font-light tracking-wide">{option}</span>
+                              {iconNode}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Reveal feedback & educational note */}
+                      <AnimatePresence>
+                        {isAnswerRevealed && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="pt-8 border-t border-white/5 space-y-6"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className={`text-[11px] uppercase tracking-[0.4em] font-bold ${selectedAnswer === quizQuestion.correctAnswer ? 'text-gold' : 'text-red-400'}`}>
+                                {selectedAnswer === quizQuestion.correctAnswer ? 'Magnificent & Correct' : 'Fascinating, but incorrect'}
+                              </span>
+                              <span className="text-ink/10">|</span>
+                              <span className="text-xs text-ink/40 font-light">
+                                The answer is <strong className="text-gold font-serif italic">{quizQuestion.correctAnswer}</strong>
+                              </span>
+                            </div>
+
+                            <div className="p-6 bg-[#041510]/60 border-l border-gold/40 rounded-sm">
+                              <p className="text-[9px] uppercase tracking-[0.2em] text-gold/60 mb-2 font-bold flex items-center gap-2">
+                                <Info size={12} />
+                                Did you know?
+                              </p>
+                              <p className="text-ink/80 text-sm font-light leading-relaxed font-serif italic">
+                                {quizQuestion.explanation}
+                              </p>
+                            </div>
+
+                            <div className="flex justify-center pt-4">
+                              <button
+                                onClick={fetchNewQuizQuestion}
+                                className="bg-gold text-[#071F17] hover:bg-gold/90 text-[10px] uppercase tracking-[0.3em] font-bold px-8 py-4 rounded-sm transition-all shadow-xl active:scale-95 flex items-center gap-2"
+                              >
+                                <Sparkles size={14} />
+                                Next Question
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="start"
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -15 }}
+                      transition={{ duration: 0.3 }}
+                      className="py-24 text-center space-y-6"
+                    >
+                      <p className="text-ink/40 font-light">Begin your interactive wine tutorial journey.</p>
+                      <button
+                        onClick={fetchNewQuizQuestion}
+                        className="bg-gold text-[#071F17] hover:bg-gold/90 text-[10px] uppercase tracking-[0.3em] font-bold px-8 py-4 rounded-sm transition-all shadow-xl"
+                      >
+                        Start Quiz
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </motion.div>
           ) : (
             <motion.div

@@ -1,5 +1,4 @@
-import { WineBottle } from "../types";
-import { GoogleGenAI, Type } from "@google/genai";
+import { WineBottle, QuizQuestion } from "../types";
 
 export interface Recommendation {
   name: string;
@@ -11,165 +10,57 @@ export interface Recommendation {
   reason: string;
 }
 
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-
 export async function getWineRecommendations(bottles: WineBottle[]): Promise<Recommendation[]> {
   if (bottles.length === 0) return [];
-
-  // Prepare a compact representation for the AI
-  // Use recent wines for diversity
-  const sample = bottles.slice(0, 30);
-  
-  const collectionSummary = sample.map(b => ({
-    name: b.name,
-    type: b.type,
-    grapes: b.grape,
-    region: b.region,
-    notes: b.tastingNotes
-  }));
-
   try {
-    const systemInstruction = `You are a world-class sommelier and AI wine recommendation engine. 
-    Based on the user's current wine diary (provided in JSON), suggest 3 unique wines they would likely enjoy.
-    Focus on: Diversity, Specificity, Personalization, and Scale. 
-    Respond with JSON array of recommendations.`;
-
-    const result = await genAI.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [{ role: "user", parts: [{ text: `User Diary Data: ${JSON.stringify(collectionSummary)}` }] }],
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              name: { type: Type.STRING },
-              producer: { type: Type.STRING },
-              type: { type: Type.STRING },
-              region: { type: Type.STRING },
-              country: { type: Type.STRING },
-              grape: { type: Type.ARRAY, items: { type: Type.STRING } },
-              reason: { type: Type.STRING }
-            },
-            required: ["name", "producer", "type", "region", "country", "grape", "reason"]
-          }
-        }
-      }
+    const response = await fetch("/api/ai/recommendations", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ bottles }),
     });
-
-    const text = result.text;
-    if (!text) throw new Error("No response from AI Sommelier");
-    return JSON.parse(text);
-  } catch (error: any) {
-    console.error("AI recommendation error details:", error);
-    // Return empty if it's a quota or pattern error
+    if (!response.ok) return [];
+    return response.json();
+  } catch (error) {
+    console.error("Failed to fetch recommendations:", error);
     return [];
   }
 }
 
 export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBottle>> {
-  try {
-    if (!imageUri || typeof imageUri !== 'string') {
-      throw new Error("Invalid image URI provided");
-    }
-
-    // 1. Fetch image and convert to base64
-    let base64 = "";
-    let mimeType = "image/jpeg";
-
-    if (imageUri.startsWith('data:')) {
-      const split = imageUri.split(',');
-      if (split.length > 1) {
-        base64 = split[1];
-        const match = imageUri.match(/^data:([^;]+);/);
-        if (match) mimeType = match[1];
-      } else {
-        throw new Error("Malformed data URL provided. Please try another photo.");
-      }
-    } else {
-      const imgResponse = await fetch(imageUri);
-      if (!imgResponse.ok) {
-          throw new Error(`Failed to fetch image: ${imgResponse.status} ${imgResponse.statusText}. Ensure the image is accessible.`);
-      }
-      const blob = await imgResponse.blob();
-      mimeType = blob.type || "image/jpeg";
-      
-      base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const res = reader.result;
-          if (typeof res === 'string') {
-            const split = res.split(',');
-            if (split.length > 1) {
-              resolve(split[1]);
-            } else {
-              reject(new Error("Invalid image format encountered after fetch. Please try another photo."));
-            }
-          } else {
-            reject(new Error("Failed to read image data from blob."));
-          }
-        };
-        reader.onerror = () => reject(new Error("Image processing failed during reading."));
-        reader.readAsDataURL(blob);
-      });
-    }
-
-    const systemInstruction = `You are a professional sommelier. Analyze the wine label in the image and extract information into structured JSON. 
-    Be extremely descriptive with 'tastingNotes', covering appearance, nose, and palate. 
-    Suggest 3 specific 'foodPairing' ideas that would complement this specific wine.
-    Be precise with classifications like (Red, White, Rosé, Sparkling, Orange).`;
-
-    const result = await genAI.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [{
-        role: "user",
-        parts: [
-          { text: "Identify this wine label details. Provide rich tasting notes and food pairings." },
-          {
-            inlineData: {
-              data: base64,
-              mimeType: mimeType
-            }
-          }
-        ]
-      }],
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            name: { type: Type.STRING },
-            producer: { type: Type.STRING },
-            year: { type: Type.STRING },
-            type: { type: Type.STRING },
-            region: { type: Type.STRING },
-            country: { type: Type.STRING },
-            grape: { type: Type.ARRAY, items: { type: Type.STRING } },
-            tastingNotes: { type: Type.STRING },
-            appearance: { type: Type.STRING },
-            nose: { type: Type.STRING },
-            palate: { type: Type.STRING },
-            finish: { type: Type.STRING },
-            foodPairing: { type: Type.ARRAY, items: { type: Type.STRING } }
-          }
-        }
-      }
-    });
-
-    const text = result.text;
-    if (!text) return {};
-    return JSON.parse(text);
-  } catch (error: any) {
-    console.error("AI label analysis error details:", error);
-    // Better user-facing error messages
-    if (error?.message?.toLowerCase().includes("string did not match") || 
-        error?.message?.toLowerCase().includes("failed to execute 'atob'") ||
-        error?.name === "SyntaxError") {
-        throw new Error("The image format is incompatible or the file is too large. Please try another photo.");
-    }
-    throw error; 
+  if (!imageUri || typeof imageUri !== 'string') {
+    throw new Error("Invalid image URI provided");
   }
+
+  const response = await fetch("/api/ai/analyze-label", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ imageUri }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || "Failed to analyze wine label. Please try again.");
+  }
+
+  return response.json();
+}
+
+export async function generateQuizQuestion(): Promise<QuizQuestion> {
+  const response = await fetch("/api/ai/tutor/question", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || "Failed to generate wine tutor question.");
+  }
+
+  return response.json();
 }

@@ -2,5 +2,7 @@
   "name": "Bottle Diary",
   "description": "A sophisticated personal wine tracking application to log tastings and cellar details with an elegant editorial design.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
