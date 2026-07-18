@@ -5,10 +5,10 @@
   --font-serif: "Cormorant Garamond", serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 
-  --color-gold: #D4AF37;
-  --color-wine-bg: #060405;
-  --color-wine-accent: #1f040b;
-  --color-ink: #E5E1DA;
+  --color-gold: #E6C280;
+  --color-wine-bg: #0c0003;
+  --color-wine-accent: #800020;
+  --color-ink: #E6C280;
   
   --color-glass: rgba(255, 255, 255, 0.03);
   --color-glass-border: rgba(255, 255, 255, 0.08);
