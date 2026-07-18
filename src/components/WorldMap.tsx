@@ -256,7 +256,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({ bottles }) => {
 
       <div 
         ref={containerRef}
-        className="w-full relative bg-[#0F172A]/30 border border-white/5 rounded-sm flex items-center justify-center cursor-grab active:cursor-grabbing select-none h-[320px] md:h-[420px]"
+        className="w-full relative bg-[#071F17]/30 border border-white/5 rounded-sm flex items-center justify-center cursor-grab active:cursor-grabbing select-none h-[320px] md:h-[420px]"
         onMouseDown={handleMouseDown}
         onMouseMove={handleDragMove}
         onMouseUp={handleMouseUp}
@@ -327,7 +327,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({ bottles }) => {
         {/* Dynamic Tooltip */}
         {tooltip && (
           <div 
-            className="absolute z-50 pointer-events-none bg-[#0F172A] border border-[#E6C280]/30 p-2.5 rounded shadow-2xl transition-all duration-75 text-left"
+            className="absolute z-50 pointer-events-none bg-[#071F17] border border-[#E6C280]/30 p-2.5 rounded shadow-2xl transition-all duration-75 text-left"
             style={{ 
               left: `${tooltip.x}px`, 
               top: `${tooltip.y - 45}px`,

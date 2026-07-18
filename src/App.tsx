@@ -100,7 +100,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ title, message, o
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className="glass-panel p-8 max-w-sm w-full space-y-6 relative z-50 rounded-sm border-white/10 shadow-2xl bg-[#1a1414]"
+        className="glass-panel p-8 max-w-sm w-full space-y-6 relative z-50 rounded-sm border-white/10 shadow-2xl bg-[#071F17]"
       >
         <div className="space-y-4">
           <div className="w-12 h-12 bg-red-900/20 border border-red-900/30 rounded-full flex items-center justify-center text-red-500 mx-auto">
@@ -302,7 +302,7 @@ const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
   return (
     <motion.div
       initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-      className="fixed inset-y-0 right-0 w-full max-w-lg bg-[#141212] shadow-2xl z-50 overflow-y-auto border-l border-white/5"
+      className="fixed inset-y-0 right-0 w-full max-w-lg bg-[#071F17] shadow-2xl z-50 overflow-y-auto border-l border-white/5"
     >
       <div className="p-10">
         <div className="flex justify-between items-center mb-12">
@@ -510,16 +510,16 @@ const GrapeComparisonView = ({ grapes, onClose }: { grapes: GrapeVariety[], onCl
         </div>
 
         {/* Comparison Table Container */}
-        <div className="flex-1 overflow-auto bg-[#0a0808] custom-scrollbar">
+        <div className="flex-1 overflow-auto bg-[#071F17] custom-scrollbar">
           <div className="min-w-max p-6 md:p-12">
             <table className="w-full border-separate border-spacing-0 table-fixed">
               <thead>
                 <tr>
-                  <th className="w-48 md:w-64 p-6 text-left border-b border-r border-white/10 bg-[#0a0808] sticky top-0 left-0 z-50">
+                  <th className="w-48 md:w-64 p-6 text-left border-b border-r border-white/10 bg-[#071F17] sticky top-0 left-0 z-50">
                     <span className="text-[10px] uppercase tracking-[0.3em] text-gold font-bold">Attribute</span>
                   </th>
                   {grapes.map(grape => (
-                    <th key={grape.id} className="p-10 text-center border-b border-r border-white/10 bg-[#0a0808] sticky top-0 z-40 min-w-[350px]">
+                    <th key={grape.id} className="p-10 text-center border-b border-r border-white/10 bg-[#071F17] sticky top-0 z-40 min-w-[350px]">
                       <div className="space-y-4 pb-4">
                         <span className={`text-[9px] uppercase tracking-[0.3em] px-4 py-1.5 rounded-full border transition-all ${
                           grape.type === 'Red' 
@@ -540,7 +540,7 @@ const GrapeComparisonView = ({ grapes, onClose }: { grapes: GrapeVariety[], onCl
               <tbody className="divide-y divide-white/5">
                 {attributes.map((attr, idx) => (
                   <tr key={attr.key} className="group hover:bg-white/[0.02] transition-colors">
-                    <td className="p-8 border-r border-white/10 bg-[#0a0808] sticky left-0 z-30 transition-colors group-hover:bg-[#111]">
+                    <td className="p-8 border-r border-white/10 bg-[#071F17] sticky left-0 z-30 transition-colors group-hover:bg-[#113d2f]">
                       <span className="text-[10px] uppercase tracking-[0.3em] text-ink/30 font-bold group-hover:text-gold transition-colors">{attr.label}</span>
                     </td>
                     {grapes.map(grape => {
@@ -1360,7 +1360,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
       animate={{ x: 0 }}
       exit={{ x: '100%' }}
       transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-      className="fixed inset-y-0 right-0 w-full max-w-lg bg-[#141212] shadow-2xl z-50 overflow-y-auto border-l border-white/5"
+      className="fixed inset-y-0 right-0 w-full max-w-lg bg-[#071F17] shadow-2xl z-50 overflow-y-auto border-l border-white/5"
     >
       <div className="p-10">
         <div className="flex justify-between items-center mb-12">
@@ -1493,7 +1493,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
                   <Plus size={16} />
                 </button>
                 {grapeInput.trim() && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-[#1a1414] border border-white/10 rounded-sm z-50 max-h-32 overflow-y-auto shadow-2xl scroll-hide">
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-[#071F17] border border-white/10 rounded-sm z-50 max-h-32 overflow-y-auto shadow-2xl scroll-hide">
                     {/* Suggestions from Encyclopedia */}
                     {grapes
                       .filter(g => g.name.toLowerCase().includes(grapeInput.toLowerCase()) && !(formData.grape || []).includes(g.name))
@@ -2216,7 +2216,7 @@ export default function App() {
             <button
               onClick={() => setView('cellar')}
               className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
-                view === 'cellar' ? 'bg-white/10 text-gold font-bold shadow-lg' : 'text-ink/40 hover:text-ink hover:bg-white/5'
+                view === 'cellar' ? 'bg-white/[0.06] backdrop-blur-sm border border-white/5 text-gold font-bold shadow-lg' : 'text-ink/48 hover:text-ink hover:bg-white/5'
               }`}
             >
               <Wine size={16} />
@@ -2225,7 +2225,7 @@ export default function App() {
             <button
               onClick={() => setView('wine-of-the-day')}
               className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
-                view === 'wine-of-the-day' ? 'bg-gold/10 text-gold font-bold shadow-lg' : 'text-ink/40 hover:text-ink hover:bg-white/5'
+                view === 'wine-of-the-day' ? 'bg-white/[0.06] backdrop-blur-sm border border-white/5 text-gold font-bold shadow-lg' : 'text-ink/48 hover:text-ink hover:bg-white/5'
               }`}
             >
               <Star size={16} />
@@ -2234,7 +2234,7 @@ export default function App() {
             <button
               onClick={() => setView('grapes')}
               className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
-                view === 'grapes' ? 'bg-gold/10 text-gold font-bold shadow-lg' : 'text-ink/40 hover:text-ink hover:bg-white/5'
+                view === 'grapes' ? 'bg-white/[0.06] backdrop-blur-sm border border-white/5 text-gold font-bold shadow-lg' : 'text-ink/48 hover:text-ink hover:bg-white/5'
               }`}
             >
               <FlaskConical size={16} />
@@ -2244,7 +2244,7 @@ export default function App() {
             <button
                onClick={() => setView('stats')}
                className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
-                 view === 'stats' ? 'bg-white/10 text-gold font-bold shadow-lg' : 'text-ink/40 hover:text-ink hover:bg-white/5'
+                 view === 'stats' ? 'bg-white/[0.06] backdrop-blur-sm border border-white/5 text-gold font-bold shadow-lg' : 'text-ink/48 hover:text-ink hover:bg-white/5'
                }`}
              >
                <BarChart3 size={16} />
@@ -2466,7 +2466,7 @@ export default function App() {
         <div className="mt-auto pt-10 space-y-6">
           {user ? (
             <div className="space-y-4">
-              <div className="flex items-center gap-3 px-4 py-3 bg-white/5 border border-white/10 rounded-sm">
+              <div className="flex items-center gap-3 px-4 py-3 bg-black/40 backdrop-blur-md border border-white/5 rounded-sm">
                 {user.photoURL ? (
                   <img src={user.photoURL} alt={user.displayName || 'User'} className="w-8 h-8 rounded-full border border-gold/30" referrerPolicy="no-referrer" />
                 ) : (
@@ -2504,7 +2504,7 @@ export default function App() {
               </div>
             )}
 
-          <div className="glass-panel p-6 rounded-sm border-gold/10 relative overflow-hidden">
+          <div className="bg-black/40 backdrop-blur-md border border-white/5 p-6 rounded-sm shadow-xl relative overflow-hidden">
              <div className="absolute top-0 right-0 p-2 opacity-10">
                <Wine size={40} />
              </div>
@@ -2517,7 +2517,7 @@ export default function App() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 md:ml-80 p-8 md:p-16 relative">
+      <main className="flex-1 md:ml-80 p-8 md:p-16 relative bg-[#071F17] min-h-screen">
         <AnimatePresence mode="wait">
           {authLoading ? (
             <motion.div
@@ -2636,8 +2636,8 @@ export default function App() {
                             className="w-full h-full object-cover mix-blend-lighten opacity-80"
                             referrerPolicy="no-referrer"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#141212] lg:block hidden"></div>
-                          <div className="absolute inset-0 bg-gradient-to-t from-[#141212] to-transparent lg:hidden block"></div>
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#071F17] lg:block hidden"></div>
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#071F17] to-transparent lg:hidden block"></div>
                         </div>
                       )}
                       
@@ -3161,7 +3161,7 @@ export default function App() {
                                 stroke="#D4AF37" 
                                 strokeWidth={3} 
                                 dot={{ r: 4, fill: '#D4AF37', strokeWidth: 0 }}
-                                activeDot={{ r: 6, fill: '#D4AF37', strokeWidth: 2, stroke: '#1a1414' }}
+                                activeDot={{ r: 6, fill: '#D4AF37', strokeWidth: 2, stroke: '#071F17' }}
                               />
                             </LineChart>
                           </ResponsiveContainer>
