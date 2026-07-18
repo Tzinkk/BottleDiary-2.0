@@ -24,6 +24,7 @@ import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, updateDoc
 import { auth, db, signInWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
 import { WineBottle, WineType, SortOption, GrapeVariety } from './types';
 import { analyzeWineLabel } from './services/aiService';
+import { WorldMap } from './components/WorldMap';
 
 // --- Configuration ---
 
@@ -3040,6 +3041,8 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="space-y-12">
+                    <WorldMap bottles={bottles} />
+                    
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                       <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10">
                         <div>
