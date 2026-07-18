@@ -6,7 +6,7 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 
   --color-gold: #E6C280;
-  --color-wine-bg: #0c0003;
+  --color-wine-bg: #1c0006;
   --color-wine-accent: #650015;
   --color-ink: #E6C280;
   
@@ -17,7 +17,8 @@
 @layer base {
   body {
     @apply bg-wine-bg text-ink font-sans antialiased;
-    background: radial-gradient(circle at 50% 0%, var(--color-wine-accent) 0%, var(--color-wine-bg) 70%);
+    background: radial-gradient(circle at 50% 0%, var(--color-wine-accent) 0%, var(--color-wine-bg) 100%) no-repeat fixed;
+    background-size: cover;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -38,5 +39,6 @@
 }
 
 .wine-gradient {
-  background: radial-gradient(circle at 50% 0%, var(--color-wine-accent) 0%, var(--color-wine-bg) 70%);
+  background: radial-gradient(circle at 50% 0%, var(--color-wine-accent) 0%, var(--color-wine-bg) 100%) no-repeat fixed;
+  background-size: cover;
 }
