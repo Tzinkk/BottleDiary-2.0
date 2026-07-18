@@ -2216,7 +2216,7 @@ export default function App() {
             <button
               onClick={() => setView('cellar')}
               className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
-                view === 'cellar' ? 'bg-white/[0.06] backdrop-blur-sm border border-white/5 text-gold font-bold shadow-lg' : 'text-ink/48 hover:text-ink hover:bg-white/5'
+                view === 'cellar' ? 'bg-white/[0.09] backdrop-blur-sm border border-white/10 text-gold font-bold shadow-lg' : 'text-ink/50 hover:text-ink hover:bg-white/5'
               }`}
             >
               <Wine size={16} />
@@ -2225,7 +2225,7 @@ export default function App() {
             <button
               onClick={() => setView('wine-of-the-day')}
               className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
-                view === 'wine-of-the-day' ? 'bg-white/[0.06] backdrop-blur-sm border border-white/5 text-gold font-bold shadow-lg' : 'text-ink/48 hover:text-ink hover:bg-white/5'
+                view === 'wine-of-the-day' ? 'bg-white/[0.09] backdrop-blur-sm border border-white/10 text-gold font-bold shadow-lg' : 'text-ink/50 hover:text-ink hover:bg-white/5'
               }`}
             >
               <Star size={16} />
@@ -2234,7 +2234,7 @@ export default function App() {
             <button
               onClick={() => setView('grapes')}
               className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
-                view === 'grapes' ? 'bg-white/[0.06] backdrop-blur-sm border border-white/5 text-gold font-bold shadow-lg' : 'text-ink/48 hover:text-ink hover:bg-white/5'
+                view === 'grapes' ? 'bg-white/[0.09] backdrop-blur-sm border border-white/10 text-gold font-bold shadow-lg' : 'text-ink/50 hover:text-ink hover:bg-white/5'
               }`}
             >
               <FlaskConical size={16} />
@@ -2244,7 +2244,7 @@ export default function App() {
             <button
                onClick={() => setView('stats')}
                className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
-                 view === 'stats' ? 'bg-white/[0.06] backdrop-blur-sm border border-white/5 text-gold font-bold shadow-lg' : 'text-ink/48 hover:text-ink hover:bg-white/5'
+                 view === 'stats' ? 'bg-white/[0.09] backdrop-blur-sm border border-white/10 text-gold font-bold shadow-lg' : 'text-ink/50 hover:text-ink hover:bg-white/5'
                }`}
              >
                <BarChart3 size={16} />
@@ -2466,7 +2466,7 @@ export default function App() {
         <div className="mt-auto pt-10 space-y-6">
           {user ? (
             <div className="space-y-4">
-              <div className="flex items-center gap-3 px-4 py-3 bg-black/40 backdrop-blur-md border border-white/5 rounded-sm">
+              <div className="flex items-center gap-3 px-4 py-3 bg-black/20 backdrop-blur-md border border-gold/10 rounded-sm">
                 {user.photoURL ? (
                   <img src={user.photoURL} alt={user.displayName || 'User'} className="w-8 h-8 rounded-full border border-gold/30" referrerPolicy="no-referrer" />
                 ) : (
@@ -2504,7 +2504,7 @@ export default function App() {
               </div>
             )}
 
-          <div className="bg-black/40 backdrop-blur-md border border-white/5 p-6 rounded-sm shadow-xl relative overflow-hidden">
+          <div className="bg-black/20 backdrop-blur-md border border-gold/10 p-6 rounded-sm shadow-xl relative overflow-hidden">
              <div className="absolute top-0 right-0 p-2 opacity-10">
                <Wine size={40} />
              </div>
@@ -2807,7 +2807,7 @@ export default function App() {
                       placeholder="Search varieties..."
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
-                      className="w-full bg-white/5 border border-white/5 px-16 py-5 text-lg font-serif font-light outline-none focus:bg-white/10 focus:border-gold/30 transition-all rounded-sm tracking-wide text-ink"
+                      className="w-full bg-white/[0.04] border border-white/10 px-16 py-5 text-lg font-serif font-light outline-none focus:bg-white/10 focus:border-gold/30 transition-all rounded-sm tracking-wide text-ink placeholder:text-ink/65"
                     />
                   </div>
 
@@ -2816,7 +2816,7 @@ export default function App() {
                       setEditingGrape(undefined);
                       setIsGrapeFormOpen(true);
                     }}
-                    className="bg-gold text-wine-bg px-10 py-5 font-bold tracking-[0.4em] uppercase text-[10px] hover:bg-gold/90 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3 whitespace-nowrap"
+                    className="bg-gold text-[#071F17] px-10 py-5 font-extrabold tracking-[0.4em] uppercase text-[10px] hover:bg-gold/90 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3 whitespace-nowrap"
                   >
                     <Plus size={18} />
                     Register Variety
@@ -2889,7 +2889,7 @@ export default function App() {
                       placeholder="Search reserve..."
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
-                      className="w-full bg-white/5 border border-white/5 px-16 py-5 text-lg font-serif font-light outline-none focus:bg-white/10 focus:border-gold/30 transition-all rounded-sm tracking-wide text-ink"
+                      className="w-full bg-white/[0.04] border border-white/10 px-16 py-5 text-lg font-serif font-light outline-none focus:bg-white/10 focus:border-gold/30 transition-all rounded-sm tracking-wide text-ink placeholder:text-ink/65"
                     />
                   </div>
 
@@ -2898,7 +2898,7 @@ export default function App() {
                       setEditingBottle(undefined);
                       setIsFormOpen(true);
                     }}
-                    className="bg-gold text-wine-bg px-10 py-5 font-bold tracking-[0.4em] uppercase text-[10px] hover:bg-gold/90 transition-all shadow-[0_15px_40px_rgba(212,175,55,0.15)] active:scale-95 flex items-center justify-center gap-3 whitespace-nowrap"
+                    className="bg-gold text-[#071F17] px-10 py-5 font-extrabold tracking-[0.4em] uppercase text-[10px] hover:bg-gold/90 transition-all shadow-[0_15px_40px_rgba(212,175,55,0.15)] active:scale-95 flex items-center justify-center gap-3 whitespace-nowrap"
                   >
                     <Plus size={18} />
                     Add to Reserve
@@ -2912,14 +2912,14 @@ export default function App() {
                   onClick={() => setActiveFilter('All')}
                   className={`relative px-5 py-2.5 rounded-sm text-[9px] uppercase font-bold tracking-[0.25em] transition-all whitespace-nowrap border shrink-0 ${
                     activeFilter === 'All'
-                      ? 'text-wine-bg border-gold shadow-[0_5px_15px_rgba(212,175,55,0.15)] font-bold'
-                      : 'border-white/5 text-ink/40 hover:text-ink'
+                      ? 'text-gold border-gold shadow-[0_5px_15px_rgba(212,175,55,0.15)] font-bold'
+                      : 'border-white/10 text-ink/70 hover:text-ink hover:border-gold/30'
                   }`}
                 >
                   {activeFilter === 'All' && (
                     <motion.div
                       layoutId="activeFilterBg"
-                      className="absolute inset-0 bg-gold -z-10 rounded-sm"
+                      className="absolute inset-0 bg-gold/15 border border-gold/45 -z-10 rounded-sm"
                       transition={{ type: "spring", stiffness: 380, damping: 30 }}
                     />
                   )}
@@ -2938,7 +2938,7 @@ export default function App() {
                       className={`relative px-5 py-2.5 rounded-sm text-[9px] uppercase tracking-[0.25em] transition-all whitespace-nowrap border shrink-0 flex items-center gap-2 ${
                         isSelected
                           ? `${typeConfig.activeText} font-bold shadow-lg`
-                          : 'border-white/5 text-ink/40 hover:text-ink'
+                          : 'border-white/10 text-ink/70 hover:text-ink hover:border-gold/30'
                       }`}
                     >
                       {isSelected && (
@@ -3021,13 +3021,13 @@ export default function App() {
                 <div className="flex gap-1 bg-white/5 p-1 rounded-sm border border-white/5">
                   <button
                     onClick={() => setStatsSubTab('bottles')}
-                    className={`px-6 py-2 text-[10px] uppercase tracking-[0.2em] transition-all rounded-sm ${statsSubTab === 'bottles' ? 'bg-gold text-wine-bg font-bold shadow-lg' : 'text-ink/40 hover:text-ink/60'}`}
+                    className={`px-6 py-2 text-[10px] uppercase tracking-[0.2em] transition-all rounded-sm ${statsSubTab === 'bottles' ? 'bg-gold text-[#071F17] font-bold shadow-lg' : 'text-ink/70 hover:text-ink'}`}
                   >
                     Cellar
                   </button>
                   <button
                     onClick={() => setStatsSubTab('grapes')}
-                    className={`px-6 py-2 text-[10px] uppercase tracking-[0.2em] transition-all rounded-sm ${statsSubTab === 'grapes' ? 'bg-gold text-wine-bg font-bold shadow-lg' : 'text-ink/40 hover:text-ink/60'}`}
+                    className={`px-6 py-2 text-[10px] uppercase tracking-[0.2em] transition-all rounded-sm ${statsSubTab === 'grapes' ? 'bg-gold text-[#071F17] font-bold shadow-lg' : 'text-ink/70 hover:text-ink'}`}
                   >
                     Grapes
                   </button>
