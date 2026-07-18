@@ -1891,6 +1891,10 @@ export default function App() {
         setAuthError(`Domain "${window.location.hostname}" is not authorized. Please add it to "Authorized domains" in your Firebase Console Authentication settings.`);
       } else if (error.code === 'auth/popup-blocked') {
         setAuthError("Login popup was blocked by your browser. Please allow popups for this site and try again.");
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        setAuthError("The sign-in window was closed before completion. Please try again. If you continue to see this error, try opening the application in a new tab to bypass iframe pop-up limits.");
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        setAuthError("A sign-in request is already pending. Please wait a moment or refresh the page and try again.");
       } else {
         setAuthError(error.message || "An unexpected error occurred during login.");
       }
