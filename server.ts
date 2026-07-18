@@ -53,9 +53,9 @@ async function startServer() {
 
       const response = await ai.models.generateContent({
         model: "gemini-3.5-flash",
-        contents: "Generate a highly engaging, unique, and informative multiple choice question about wine. Topics can include wine history, grape varieties, regions, production techniques, or food pairings. Ensure the options are plausible but only one is correct. Provide a helpful, educational 1-2 sentence 'Did you know?' style explanation.",
+        contents: "Generate a highly engaging, unique, and informative multiple choice question about wine. Topics can include wine history, grape varieties, regions, production techniques, or food pairings. Ensure the options are plausible but only one is correct. Provide a helpful, educational 1-2 sentence 'Did you know?' style explanation. Return only raw JSON without markdown formatting, code blocks, or triple backticks.",
         config: {
-          systemInstruction: "You are an expert sommelier and dynamic wine quiz master. Your task is to generate one high-quality multiple choice question about wine in JSON format.",
+          systemInstruction: "You are an expert sommelier and dynamic wine quiz master. Your task is to generate one high-quality multiple choice question about wine in raw JSON format. Do not wrap the JSON output in markdown blocks like ```json ... ```.",
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -88,8 +88,36 @@ async function startServer() {
         throw new Error("No response generated from Gemini");
       }
 
-      const questionData = JSON.parse(text.trim());
-      res.json(questionData);
+      // Robust JSON Parsing logic
+      let cleanText = text.trim();
+      // Remove any leading/trailing markdown code block notation if present
+      if (cleanText.startsWith("```")) {
+        cleanText = cleanText.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+      }
+
+      try {
+        const questionData = JSON.parse(cleanText);
+        res.json(questionData);
+      } catch (parseError: any) {
+        console.error("Failed to parse Gemini JSON output, raw text was:", text, parseError);
+        // Direct premium fallback question generated server-side if parse fails
+        const serverFallbacks = [
+          {
+            question: "Which red grape variety is famous for being the dominant component of Bordeaux's Right Bank wines (such as Pomerol and Saint-Émilion)?",
+            options: ["Cabernet Sauvignon", "Merlot", "Syrah", "Pinot Noir"],
+            correctAnswer: "Merlot",
+            explanation: "While Cabernet Sauvignon rules the Left Bank of Bordeaux, Merlot is the star of the Right Bank, producing softer, fleshier, plum-scented wines."
+          },
+          {
+            question: "What is the primary white grape variety used in the famous French wine region of Chablis?",
+            options: ["Sauvignon Blanc", "Chardonnay", "Chenin Blanc", "Riesling"],
+            correctAnswer: "Chardonnay",
+            explanation: "All white Chablis is made from 100% Chardonnay, celebrated for its crisp acidity, mineral character, and absence of heavy oak aging."
+          }
+        ];
+        const randomFallback = serverFallbacks[Math.floor(Math.random() * serverFallbacks.length)];
+        res.json(randomFallback);
+      }
     } catch (error: any) {
       console.error("Quiz generation error:", error);
       res.status(500).json({ error: error.message || "Failed to generate wine question" });

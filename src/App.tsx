@@ -43,6 +43,42 @@ const WINE_TYPE_CONFIG: Record<string, { text: string, bg: string, border: strin
   'Sake': { text: 'text-[#f5f5f5]', bg: 'bg-[#f5f5f5]/10', border: 'border-[#f5f5f5]/20', accent: 'bg-[#f5f5f5]', hex: '#f5f5f5', activeBg: 'bg-[#f5f5f5]', activeText: 'text-wine-bg border-[#f5f5f5]' },
 };
 
+const FALLBACK_QUESTIONS: QuizQuestion[] = [
+  {
+    question: "Which Italian wine region is famous for producing Sangiovese-based wines such as Chianti Classico and Brunello di Montalcino?",
+    options: [
+      "Tuscany",
+      "Piedmont",
+      "Veneto",
+      "Sicily"
+    ],
+    correctAnswer: "Tuscany",
+    explanation: "Sangiovese is Tuscany's signature red grape variety. It forms the backbone of famous wines like Chianti, Brunello di Montalcino, and Vino Nobile di Montepulciano, prized for its high acidity, firm tannins, and savory cherry notes."
+  },
+  {
+    question: "Nebbiolo, the grape behind Barolo and Barbaresco, is renowned for which specific structural characteristics?",
+    options: [
+      "Low acidity and low tannins",
+      "High acidity and extremely high, gripping tannins",
+      "Low acidity and high tannins",
+      "High acidity and extremely low tannins"
+    ],
+    correctAnswer: "High acidity and extremely high, gripping tannins",
+    explanation: "Despite its deceptively pale ruby-orange color, Nebbiolo has massive, gripping tannins and high acidity. This powerful structure gives wines like Barolo incredible longevity and aging potential."
+  },
+  {
+    question: "Syrah (or Shiraz) wines from cool-climate regions are most classically distinguished by which of the following flavor notes?",
+    options: [
+      "Tropical pineapple and sweet vanilla",
+      "Crushed black pepper, savory olive, and dark plum",
+      "Fresh strawberry, bubblegum, and low tannin",
+      "Grapefruit pith and freshly cut grass"
+    ],
+    correctAnswer: "Crushed black pepper, savory olive, and dark plum",
+    explanation: "Cool-climate Syrah (such as Northern Rhône Hermitage or Côte-Rôtie) is highly prized for its peppery, savory, and gamey aromas, often combined with dark berry fruits, making it distinct from warm-climate versions."
+  }
+];
+
 // --- Animation Variants ---
 
 const containerVariants = {
@@ -1849,12 +1885,29 @@ export default function App() {
     setQuizError(null);
     setSelectedAnswer(null);
     setIsAnswerRevealed(false);
+
+    // 6-second timeout to seamlessly fall back if the request takes too long
+    let timeoutId: any;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error("Timeout"));
+      }, 6000);
+    });
+
     try {
-      const question = await generateQuizQuestion();
+      const fetchPromise = generateQuizQuestion();
+      const question = await Promise.race([fetchPromise, timeoutPromise]);
+      clearTimeout(timeoutId);
       setQuizQuestion(question);
     } catch (err: any) {
-      console.error("Failed to generate quiz question:", err);
-      setQuizError(err.message || "Failed to generate a new quiz question. Please try again.");
+      console.warn("Failed to generate or load quiz question, using fallback:", err);
+      clearTimeout(timeoutId);
+      
+      // Select a random premium fallback question different from the current one if possible
+      const filtered = FALLBACK_QUESTIONS.filter(q => q.question !== quizQuestion?.question);
+      const candidates = filtered.length > 0 ? filtered : FALLBACK_QUESTIONS;
+      const randomQuestion = candidates[Math.floor(Math.random() * candidates.length)];
+      setQuizQuestion(randomQuestion);
     } finally {
       setIsQuizLoading(false);
     }
