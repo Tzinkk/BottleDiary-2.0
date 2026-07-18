@@ -30,11 +30,11 @@ import { analyzeWineLabel } from './services/aiService';
 const WINE_TYPES: WineType[] = ['Red', 'White', 'Rosé', 'Sparkling', 'Natural Red', 'Natural White', 'Pet Nat', 'Orange', 'Sato', 'Sake'];
 
 const WINE_TYPE_CONFIG: Record<string, { text: string, bg: string, border: string, accent: string, hex: string, activeBg: string, activeText: string }> = {
-  'Red': { text: 'text-[#ff4d4d]', bg: 'bg-[#ff4d4d]/10', border: 'border-[#ff4d4d]/20', accent: 'bg-[#ff4d4d]', hex: '#ff4d4d', activeBg: 'bg-[#ff4d4d]', activeText: 'text-wine-bg border-[#ff4d4d]' },
+  'Red': { text: 'text-[#ff99ac]', bg: 'bg-[#650015]/30', border: 'border-[#650015]/50', accent: 'bg-[#650015]', hex: '#650015', activeBg: 'bg-[#650015]', activeText: 'text-[#E6C280] border-[#650015]' },
   'White': { text: 'text-[#f0e68c]', bg: 'bg-[#f0e68c]/10', border: 'border-[#f0e68c]/20', accent: 'bg-[#f0e68c]', hex: '#f0e68c', activeBg: 'bg-[#f0e68c]', activeText: 'text-wine-bg border-[#f0e68c]' },
   'Rosé': { text: 'text-[#ffb6c1]', bg: 'bg-[#ffb6c1]/10', border: 'border-[#ffb6c1]/20', accent: 'bg-[#ffb6c1]', hex: '#ffb6c1', activeBg: 'bg-[#ffb6c1]', activeText: 'text-wine-bg border-[#ffb6c1]' },
   'Sparkling': { text: 'text-[#e0ffff]', bg: 'bg-[#e0ffff]/10', border: 'border-[#e0ffff]/20', accent: 'bg-[#e0ffff]', hex: '#e0ffff', activeBg: 'bg-[#e0ffff]', activeText: 'text-wine-bg border-[#e0ffff]' },
-  'Natural Red': { text: 'text-[#8b0000]', bg: 'bg-[#8b0000]/10', border: 'border-[#8b0000]/20', accent: 'bg-[#8b0000]', hex: '#8b0000', activeBg: 'bg-[#8b0000]', activeText: 'text-white border-[#8b0000]' },
+  'Natural Red': { text: 'text-[#ff8095]', bg: 'bg-[#4a000e]/30', border: 'border-[#4a000e]/50', accent: 'bg-[#4a000e]', hex: '#4a000e', activeBg: 'bg-[#4a000e]', activeText: 'text-[#E6C280] border-[#4a000e]' },
   'Natural White': { text: 'text-[#fafad2]', bg: 'bg-[#fafad2]/10', border: 'border-[#fafad2]/20', accent: 'bg-[#fafad2]', hex: '#fafad2', activeBg: 'bg-[#fafad2]', activeText: 'text-wine-bg border-[#fafad2]' },
   'Pet Nat': { text: 'text-[#ffe4b5]', bg: 'bg-[#ffe4b5]/10', border: 'border-[#ffe4b5]/20', accent: 'bg-[#ffe4b5]', hex: '#ffe4b5', activeBg: 'bg-[#ffe4b5]', activeText: 'text-wine-bg border-[#ffe4b5]' },
   'Orange': { text: 'text-[#ffa500]', bg: 'bg-[#ffa500]/10', border: 'border-[#ffa500]/20', accent: 'bg-[#ffa500]', hex: '#ffa500', activeBg: 'bg-[#ffa500]', activeText: 'text-wine-bg border-[#ffa500]' },
