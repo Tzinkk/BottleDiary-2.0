@@ -223,7 +223,18 @@ async function startServer() {
         return res.status(500).json({ error: "No response from AI Sommelier" });
       }
 
-      res.json(JSON.parse(text));
+      let cleanText = text.trim();
+      if (cleanText.startsWith("```")) {
+        cleanText = cleanText.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+      }
+
+      try {
+        const parsedData = JSON.parse(cleanText);
+        res.json(parsedData);
+      } catch (parseError: any) {
+        console.error("Failed to parse AI Sommelier JSON output, raw text was:", text, parseError);
+        res.status(500).json({ error: "AI Sommelier response was invalid or failed to parse. Please try again." });
+      }
     } catch (error: any) {
       console.error("AI label analysis error details:", error);
       res.status(500).json({ error: error.message || "Failed to analyze wine label" });

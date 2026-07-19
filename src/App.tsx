@@ -1209,7 +1209,28 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     setIsAnalyzing(true);
     setUploadError(null);
     try {
-      const analysis = await analyzeWineLabel(imageUrl);
+      let targetUrl = imageUrl;
+      
+      // If the URL is not a base64 data URI, and we have the raw file, use the compressed base64 of the file
+      if (!targetUrl.startsWith('data:') && lastSelectedFileRef.current) {
+        try {
+          targetUrl = await compressImage(lastSelectedFileRef.current);
+        } catch (compressErr) {
+          console.warn("Failed to compress image for scan, trying raw FileReader:", compressErr);
+          try {
+            targetUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = () => reject(new Error("Failed to read file"));
+              reader.readAsDataURL(lastSelectedFileRef.current!);
+            });
+          } catch (readErr) {
+            console.error("Failed to read raw file as fallback:", readErr);
+          }
+        }
+      }
+
+      const analysis = await analyzeWineLabel(targetUrl);
       setFormData(prev => ({
         ...prev,
         name: analysis.name || prev.name,
