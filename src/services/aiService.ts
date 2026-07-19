@@ -28,7 +28,7 @@ export async function getWineRecommendations(bottles: WineBottle[]): Promise<Rec
   }
 }
 
-export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBottle>> {
+export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBottle> & { mainTastingNotes?: string }> {
   if (!imageUri || typeof imageUri !== 'string') {
     throw new Error("Invalid image URI provided");
   }

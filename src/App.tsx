@@ -1212,8 +1212,6 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
       const analysis = await analyzeWineLabel(imageUrl);
       setFormData(prev => ({
         ...prev,
-        ...analysis,
-        // Preserve values if analysis returns strings
         name: analysis.name || prev.name,
         producer: analysis.producer || prev.producer,
         year: analysis.year ? String(analysis.year) : prev.year,
@@ -1221,6 +1219,11 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
         region: analysis.region || prev.region,
         country: analysis.country || prev.country,
         grape: Array.isArray(analysis.grape) ? [...new Set([...(prev.grape || []), ...analysis.grape])] : (prev.grape || []),
+        appearance: analysis.appearance || prev.appearance,
+        nose: analysis.nose || prev.nose,
+        palate: analysis.palate || prev.palate,
+        finish: analysis.finish || prev.finish,
+        tastingNotes: analysis.mainTastingNotes || analysis.tastingNotes || prev.tastingNotes,
       }));
       setAnalysisSuccess(true);
     } catch (err: any) {

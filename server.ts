@@ -169,8 +169,14 @@ async function startServer() {
         mimeType = imgResponse.headers.get('content-type') || 'image/jpeg';
       }
 
-      const systemInstruction = `You are a professional sommelier. Analyze the wine label in the image and extract information into structured JSON. 
-      Be extremely descriptive with 'tastingNotes', covering appearance, nose, and palate. 
+      const systemInstruction = `You are a professional sommelier. Analyze the wine label in the image and extract information into structured JSON.
+      Be extremely descriptive and precise with the analytical profile fields:
+      - appearance: Describe the appearance, clarity, intensity, and specific color hue.
+      - nose: Describe the nose/aromatics (primary fruit characters, secondary fermentation or oak notes, tertiary notes).
+      - palate: Describe the palate and structure (body, acidity level, tannin strength, alcohol heat, taste profiles).
+      - finish: Describe the finish (length, persistence, and lingering flavors).
+      - mainTastingNotes: A concise, poetic 1-2 sentence professional sommelier tasting summary/quote suitable for a list view.
+      
       Suggest 3 specific 'foodPairing' ideas that would complement this specific wine.
       Be precise with classifications like (Red, White, Rosé, Sparkling, Orange).`;
 
@@ -198,11 +204,12 @@ async function startServer() {
               region: { type: Type.STRING },
               country: { type: Type.STRING },
               grape: { type: Type.ARRAY, items: { type: Type.STRING } },
-              tastingNotes: { type: Type.STRING },
-              appearance: { type: Type.STRING },
-              nose: { type: Type.STRING },
-              palate: { type: Type.STRING },
-              finish: { type: Type.STRING },
+              tastingNotes: { type: Type.STRING, description: "Detailed tasting notes (alternative/legacy field)" },
+              appearance: { type: Type.STRING, description: "Detailed Appearance & Hue of the wine" },
+              nose: { type: Type.STRING, description: "The Nose / Aromatics description of the wine" },
+              palate: { type: Type.STRING, description: "Palate & Structure description of the wine" },
+              finish: { type: Type.STRING, description: "The Finish / persistence description of the wine" },
+              mainTastingNotes: { type: Type.STRING, description: "Concise 1-2 sentence professional sommelier tasting summary" },
               foodPairing: { type: Type.ARRAY, items: { type: Type.STRING } }
             }
           }
