@@ -1228,7 +1228,8 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
       setAnalysisSuccess(true);
     } catch (err: any) {
       console.error("AI Analysis failed:", err);
-      setUploadError("AI label analysis timed out or failed, but your photo is uploaded successfully. You can enter details manually.");
+      const errMsg = err?.message || "AI label analysis timed out or failed";
+      setUploadError(`${errMsg}. Note: your photo is uploaded successfully, so you can still save the wine manually.`);
     } finally {
       setIsAnalyzing(false);
     }

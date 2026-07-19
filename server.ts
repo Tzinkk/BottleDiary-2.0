@@ -182,15 +182,17 @@ async function startServer() {
 
       const result = await ai.models.generateContent({
         model: "gemini-3.5-flash",
-        contents: [
-          { text: "Identify this wine label details. Provide rich tasting notes and food pairings." },
-          {
-            inlineData: {
-              data: base64,
-              mimeType: mimeType
+        contents: {
+          parts: [
+            { text: "Identify this wine label details. Provide rich tasting notes and food pairings." },
+            {
+              inlineData: {
+                data: base64,
+                mimeType: mimeType
+              }
             }
-          }
-        ],
+          ]
+        },
         config: {
           systemInstruction,
           responseMimeType: "application/json",
