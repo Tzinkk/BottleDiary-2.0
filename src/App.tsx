@@ -1228,7 +1228,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
       setAnalysisSuccess(true);
     } catch (err: any) {
       console.error("AI Analysis failed:", err);
-      // Don't show total failure to user if upload was okay, just log it
+      setUploadError("AI label analysis timed out or failed, but your photo is uploaded successfully. You can enter details manually.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -1264,8 +1264,13 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     const localUrl = URL.createObjectURL(file);
     setFormData(prev => ({ ...prev, imageUrl: localUrl }));
     
-    // Start scan and upload in parallel
-    handleAIScan(localUrl);
+    // Start scan and upload in parallel. Pass compressed base64 to AI scan as local blob URLs cannot be fetched by server.
+    compressImage(file).then(base64Url => {
+      handleAIScan(base64Url);
+    }).catch(err => {
+      console.error("Failed to compress image for preview scan:", err);
+      handleAIScan(localUrl);
+    });
     
     const task = uploadFile(file);
     uploadTaskRef.current = task;
