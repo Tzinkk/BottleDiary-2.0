@@ -125,7 +125,7 @@ async function startServer() {
   });
 
   // AI Label Analysis
-  app.post("/api/ai/analyze-label", async (req, res) => {
+  app.post("/api/scan-wine", async (req, res) => {
     try {
       const { imageUri } = req.body;
       if (!imageUri) {

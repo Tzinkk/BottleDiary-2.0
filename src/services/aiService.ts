@@ -33,7 +33,7 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
     throw new Error("Invalid image URI provided");
   }
 
-  const response = await fetch("/api/ai/analyze-label", {
+  const response = await fetch("/api/scan-wine", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
