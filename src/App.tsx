@@ -1257,17 +1257,8 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
   };
 
   const uploadFile = async (file: File): Promise<string> => {
-    const formDataUpload = new FormData();
-    formDataUpload.append('image', file);
-
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      body: formDataUpload,
-    });
-
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Failed to upload image');
-    return result.url;
+    // Compress and return the base64 URL directly for client-side storage
+    return compressImage(file);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
