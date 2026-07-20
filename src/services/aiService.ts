@@ -256,3 +256,95 @@ export async function getWineRecommendations(bottles: WineBottle[]): Promise<Rec
     return [];
   }
 }
+
+/**
+ * Rewrites raw bullet-point or rough tasting notes into a professional, elegant paragraph suitable for an editorial diary.
+ */
+export async function refineTastingNotes(rawNotes: string): Promise<string> {
+  if (!rawNotes || !rawNotes.trim()) {
+    throw new Error("No notes provided to refine");
+  }
+  console.log("[AI Service] Client-side refining tasting notes using gemini-3.5-flash...");
+  try {
+    const ai = getAI();
+    const prompt = `Rewrite the following rough, raw bullet-point wine tasting notes into a single, cohesive, professional, and elegant paragraph suitable for an editorial wine diary. Do not add any conversational text or explanation; return only the refined paragraph.
+
+Rough notes:
+${rawNotes}`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+    });
+
+    const text = response.text;
+    if (!text) {
+      throw new Error("No response from AI");
+    }
+    return text.trim();
+  } catch (error) {
+    console.error("[AI Service] Failed to refine tasting notes:", error);
+    throw error;
+  }
+}
+
+/**
+ * Generates tasting notes and analytical profile for a bottle that has no detailed notes.
+ */
+export async function generateTastingNotesForBottle(bottle: WineBottle): Promise<Partial<WineBottle>> {
+  console.log(`[AI Service] Generating detailed notes for ${bottle.name} using gemini-3.5-flash...`);
+  const ai = getAI();
+  const prompt = `You are an expert sommelier. Based on the following wine details, generate a comprehensive tasting profile including tasting notes, appearance, nose, palate, finish, food pairing, and additional elegant serving notes:
+  - Name: ${bottle.name}
+  - Producer: ${bottle.producer}
+  - Vintage: ${bottle.year}
+  - Type: ${bottle.type}
+  - Region: ${bottle.region}
+  - Country: ${bottle.country}
+  - Grape Varieties: ${bottle.grape ? (Array.isArray(bottle.grape) ? bottle.grape.join(', ') : bottle.grape) : 'Unknown'}`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3.5-flash",
+    contents: prompt,
+    config: {
+      systemInstruction: "You are an expert sommelier. Generate detailed wine tasting profiles in raw JSON format.",
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          tastingNotes: { type: Type.STRING },
+          appearance: { type: Type.STRING },
+          nose: { type: Type.STRING },
+          palate: { type: Type.STRING },
+          finish: { type: Type.STRING },
+          foodPairing: { type: Type.ARRAY, items: { type: Type.STRING } },
+          additionalNote: { type: Type.STRING },
+        },
+        required: ["tastingNotes", "appearance", "nose", "palate", "finish"],
+      }
+    }
+  });
+
+  const text = response.text;
+  if (!text) {
+    throw new Error("No response from AI");
+  }
+
+  let cleanText = text.trim();
+  if (cleanText.startsWith("```")) {
+    cleanText = cleanText.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  }
+
+  const parsed = JSON.parse(cleanText);
+  return {
+    tastingNotes: parsed.tastingNotes || "",
+    appearance: parsed.appearance || "",
+    nose: parsed.nose || "",
+    palate: parsed.palate || "",
+    finish: parsed.finish || "",
+    foodPairing: parsed.foodPairing || [],
+    additionalNote: parsed.additionalNote || "",
+  };
+}
+
+

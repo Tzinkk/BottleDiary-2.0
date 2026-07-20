@@ -23,7 +23,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, updateDoc, limit } from 'firebase/firestore';
 import { auth, db, signInWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
 import { WineBottle, WineType, SortOption, GrapeVariety, QuizQuestion } from './types';
-import { analyzeWineLabel, generateQuizQuestion } from './services/aiService';
+import { analyzeWineLabel, generateQuizQuestion, refineTastingNotes, generateTastingNotesForBottle } from './services/aiService';
 import { WorldMap } from './components/WorldMap';
 
 // --- Configuration ---
@@ -631,12 +631,16 @@ interface WineCardProps {
   bottle: WineBottle;
   onEdit: (bottle: WineBottle) => void;
   onDelete: (id: string) => void;
+  isBatchMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
-const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
+const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete, isBatchMode, isSelected, onToggleSelect }) => {
   const typeConfig = WINE_TYPE_CONFIG[bottle.type] || { text: 'text-gray-400', bg: 'bg-gray-900/40', border: 'border-gray-800/50', accent: 'bg-gray-500' };
   const [expansionState, setExpansionState] = useState<'collapsed' | 'basic' | 'full'>('collapsed');
   const [isImageOpen, setIsImageOpen] = useState(false);
+  const isMissingNotes = !bottle.appearance || !bottle.nose || !bottle.palate || !bottle.finish || !bottle.tastingNotes;
 
   return (
     <>
@@ -691,14 +695,24 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
         animate="visible"
         exit="exit"
         onClick={() => {
+          if (isBatchMode) {
+            onToggleSelect?.(bottle.id);
+            return;
+          }
           if (expansionState === 'collapsed') {
             setExpansionState('basic');
           } else if (expansionState === 'basic') {
             setExpansionState('full');
           }
         }}
-        whileHover={expansionState === 'collapsed' ? { y: -3, scale: 1.002, transition: { duration: 0.2 } } : undefined}
-        className={`glass-panel flex flex-col group transition-all duration-500 rounded-sm overflow-hidden border-l border-white/5 md:border-l-4 ${typeConfig.border.replace('border-', 'border-l-')} shadow-2xl hover:border-gold/30 mb-6 relative ${expansionState === 'collapsed' ? 'cursor-pointer hover:bg-white/[0.01]' : ''}`}
+        whileHover={expansionState === 'collapsed' || isBatchMode ? { y: -3, scale: 1.002, transition: { duration: 0.2 } } : undefined}
+        className={`glass-panel flex flex-col group transition-all duration-500 rounded-sm overflow-hidden border-l border-white/5 md:border-l-4 ${typeConfig.border.replace('border-', 'border-l-')} shadow-2xl hover:border-gold/30 mb-6 relative ${
+          isSelected 
+            ? 'border-gold/60 bg-gold/[0.02] shadow-[0_0_20px_rgba(212,175,55,0.05)]' 
+            : expansionState === 'collapsed' || isBatchMode 
+              ? 'cursor-pointer hover:bg-white/[0.01]' 
+              : ''
+        }`}
       >
         <AnimatePresence mode="wait" initial={false}>
           {expansionState === 'collapsed' ? (
@@ -713,6 +727,22 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
             >
               {/* Left: Thumbnail & Main Info */}
               <div className="flex items-center gap-4 min-w-0 flex-1">
+                {isBatchMode && (
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleSelect?.(bottle.id);
+                    }}
+                    className={`w-5 h-5 rounded border flex items-center justify-center cursor-pointer transition-all shrink-0 ${
+                      isSelected
+                        ? 'bg-gold border-gold text-[#071F17]'
+                        : 'border-white/20 hover:border-gold/50 bg-white/[0.02]'
+                    }`}
+                  >
+                    {isSelected && <Check size={12} strokeWidth={3} />}
+                  </div>
+                )}
+
                 {/* "Icon" Thumbnail Image */}
                 <motion.div
                   layoutId={`bottle-image-${bottle.id}`}
@@ -738,13 +768,19 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
 
                 {/* Title & Producer */}
                 <div className="min-w-0 flex-1 pr-2">
-                  <div className="flex flex-wrap items-baseline gap-x-2">
+                  <div className="flex flex-wrap items-center gap-x-2">
                     <h3 className="font-serif text-lg md:text-xl font-bold text-gold tracking-tight truncate line-clamp-1">
                       {bottle.name}
                     </h3>
                     <span className="italic font-normal text-gold/80 text-sm md:text-base shrink-0">
                       {bottle.year || 'NV'}
                     </span>
+                    {isMissingNotes && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm bg-gold/10 border border-gold/20 text-gold/80 text-[8px] uppercase tracking-wider font-extrabold font-sans">
+                        <Sparkle size={7} className="animate-pulse text-gold" />
+                        Draft
+                      </span>
+                    )}
                   </div>
                   <p className="font-sans text-[10px] text-ink/40 uppercase tracking-[0.2em] truncate mt-0.5">
                     {bottle.producer || 'Unknown Producer'}
@@ -1147,6 +1183,23 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
   const lastSelectedFileRef = useRef<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisSuccess, setAnalysisSuccess] = useState(false);
+  const [isRefiningNotes, setIsRefiningNotes] = useState(false);
+  const [refineError, setRefineError] = useState<string | null>(null);
+
+  const handleRefineNotes = async () => {
+    if (!formData.tastingNotes.trim()) return;
+    setIsRefiningNotes(true);
+    setRefineError(null);
+    try {
+      const refined = await refineTastingNotes(formData.tastingNotes);
+      setFormData(prev => ({ ...prev, tastingNotes: refined }));
+    } catch (err: any) {
+      console.error("Failed to refine notes:", err);
+      setRefineError(err.message || "Failed to refine notes. Please try again.");
+    } finally {
+      setIsRefiningNotes(false);
+    }
+  };
 
   // Helper to compress image for Firestore fallback (max 1MB)
   const compressImage = async (file: File): Promise<string> => {
@@ -1743,14 +1796,38 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[9px] uppercase tracking-widest text-gold font-black ml-1">Main Tasting Notes (List View Quote)</label>
+                <div className="flex items-center justify-between ml-1">
+                  <label className="text-[9px] uppercase tracking-widest text-gold font-black">Main Tasting Notes (List View Quote)</label>
+                  <button
+                    type="button"
+                    disabled={isRefiningNotes || !formData.tastingNotes.trim()}
+                    onClick={handleRefineNotes}
+                    className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-gold hover:text-gold/80 disabled:text-ink/30 transition-colors cursor-pointer disabled:cursor-not-allowed"
+                    title="Rewrite bullet-points or rough text into a professional editorial paragraph"
+                  >
+                    {isRefiningNotes ? (
+                      <>
+                        <Loader2 size={11} className="animate-spin text-gold" />
+                        <span>Refining...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={11} className="text-gold" />
+                        <span>Refine Notes</span>
+                      </>
+                    )}
+                  </button>
+                </div>
                 <textarea
                   rows={3}
                   value={formData.tastingNotes}
                   onChange={e => setFormData({ ...formData, tastingNotes: e.target.value })}
                   className="w-full bg-gold/5 border border-gold/20 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink font-medium italic"
-                  placeholder="The primary descriptive notes that will appear on the main card..."
+                  placeholder="The primary descriptive notes that will appear on the main card. Write raw thoughts or bullets, then click 'Refine Notes' to polish them..."
                 />
+                {refineError && (
+                  <p className="text-[10px] text-red-400 mt-1">{refineError}</p>
+                )}
               </div>
             </div>
             
@@ -1893,6 +1970,66 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'bottle' | 'grape' } | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+
+  // Batch processing states
+  const [selectedBottleIds, setSelectedBottleIds] = useState<string[]>([]);
+  const [isBatchMode, setIsBatchMode] = useState<boolean>(false);
+  const [isBatchAnalyzing, setIsBatchAnalyzing] = useState<boolean>(false);
+  const [batchAnalysisProgress, setBatchAnalysisProgress] = useState<{ current: number, total: number, wineName: string } | null>(null);
+  const [batchAnalysisError, setBatchAnalysisError] = useState<string | null>(null);
+
+  const needingNotesCount = useMemo(() => {
+    return bottles.filter(b => !b.appearance || !b.nose || !b.palate || !b.finish || !b.tastingNotes).length;
+  }, [bottles]);
+
+  const handleSelectAllNeedingNotes = () => {
+    const lackingIds = bottles
+      .filter(b => !b.appearance || !b.nose || !b.palate || !b.finish || !b.tastingNotes)
+      .map(b => b.id);
+    setSelectedBottleIds(lackingIds);
+  };
+
+  const handleRunBatchAnalysis = async () => {
+    if (selectedBottleIds.length === 0) return;
+    setIsBatchAnalyzing(true);
+    setBatchAnalysisError(null);
+    setBatchAnalysisProgress({ current: 0, total: selectedBottleIds.length, wineName: '' });
+
+    try {
+      for (let i = 0; i < selectedBottleIds.length; i++) {
+        const bottleId = selectedBottleIds[i];
+        const bottle = bottles.find(b => b.id === bottleId);
+        if (!bottle) continue;
+
+        setBatchAnalysisProgress({
+          current: i + 1,
+          total: selectedBottleIds.length,
+          wineName: bottle.name
+        });
+
+        // Generate tasting notes
+        const generatedNotes = await generateTastingNotesForBottle(bottle);
+
+        // Update in Firestore
+        const bottleRef = doc(db, 'bottles', bottleId);
+        await updateDoc(bottleRef, {
+          ...generatedNotes,
+          lastUpdated: Date.now()
+        });
+      }
+
+      setIsBatchMode(false);
+      setSelectedBottleIds([]);
+      setBatchAnalysisProgress(null);
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 4000);
+    } catch (err: any) {
+      console.error("Batch analysis error:", err);
+      setBatchAnalysisError(err.message || "Failed to complete batch analysis. Progress saved for completed items.");
+    } finally {
+      setIsBatchAnalyzing(false);
+    }
+  };
 
   // AI Wine Tutor States
   const [quizQuestion, setQuizQuestion] = useState<QuizQuestion | null>(null);
@@ -3020,6 +3157,21 @@ export default function App() {
                     <Plus size={18} />
                     Add to Reserve
                   </button>
+
+                  <button
+                    onClick={() => {
+                      setIsBatchMode(!isBatchMode);
+                      setSelectedBottleIds([]);
+                    }}
+                    className={`px-8 py-5 font-extrabold tracking-[0.4em] uppercase text-[10px] transition-all active:scale-95 flex items-center justify-center gap-3 whitespace-nowrap border rounded-sm ${
+                      isBatchMode
+                        ? 'bg-gold/25 border-gold text-gold shadow-lg shadow-gold/10 font-bold'
+                        : 'bg-white/[0.04] border-white/10 hover:border-gold/30 text-ink/80 hover:text-ink'
+                    }`}
+                  >
+                    <Sparkles size={16} className={isBatchMode ? "animate-pulse" : ""} />
+                    {isBatchMode ? 'Cancel Batch' : 'Batch AI'}
+                  </button>
                 </div>
               </div>
 
@@ -3090,6 +3242,15 @@ export default function App() {
                         setIsFormOpen(true);
                       }}
                       onDelete={handleDeleteBottle}
+                      isBatchMode={isBatchMode}
+                      isSelected={selectedBottleIds.includes(bottle.id)}
+                      onToggleSelect={(id) => {
+                        if (selectedBottleIds.includes(id)) {
+                          setSelectedBottleIds(prev => prev.filter(bId => bId !== id));
+                        } else {
+                          setSelectedBottleIds(prev => [...prev, id]);
+                        }
+                      }}
                     />
                   ))}
                 </AnimatePresence>
@@ -3110,6 +3271,140 @@ export default function App() {
                   </motion.div>
                 )}
               </motion.div>
+
+              {/* Batch Processing Floating Action Bar */}
+              <AnimatePresence>
+                {isBatchMode && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 50 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 50 }}
+                    className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[45] glass-panel px-6 py-4 rounded-sm border border-white/10 shadow-2xl bg-[#071F17]/95 backdrop-blur-md max-w-2xl w-[calc(100%-2rem)] flex flex-col md:flex-row items-center justify-between gap-4"
+                  >
+                    <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left">
+                      <span className="text-[10px] uppercase tracking-widest text-gold font-bold">
+                        {selectedBottleIds.length} Selected
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleSelectAllNeedingNotes}
+                          className="text-[10px] uppercase tracking-wider text-gold/80 hover:text-gold transition-all"
+                        >
+                          Select Needing Notes ({filteredBottles.filter(b => !b.appearance || !b.nose || !b.palate || !b.finish || !b.tastingNotes).length})
+                        </button>
+                        <span className="text-white/10">|</span>
+                        <button
+                          onClick={() => setSelectedBottleIds([])}
+                          className="text-[10px] uppercase tracking-wider text-ink/50 hover:text-ink transition-all"
+                        >
+                          Deselect All
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+                      <button
+                        onClick={() => {
+                          setIsBatchMode(false);
+                          setSelectedBottleIds([]);
+                        }}
+                        className="px-4 py-2 border border-white/10 hover:border-white/20 text-ink/70 hover:text-ink text-[10px] uppercase tracking-wider rounded-sm transition-all"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        disabled={selectedBottleIds.length === 0 || isBatchAnalyzing}
+                        onClick={handleRunBatchAnalysis}
+                        className="bg-gold text-[#071F17] px-5 py-2 font-black tracking-widest uppercase text-[10px] hover:bg-gold/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 rounded-sm"
+                      >
+                        {isBatchAnalyzing ? (
+                          <>
+                            <Loader2 size={12} className="animate-spin" />
+                            <span>Analyzing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles size={12} />
+                            <span>Generate Tasting Notes</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Batch Analysis Progress Overlay */}
+              <AnimatePresence>
+                {batchAnalysisProgress && (
+                  <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="fixed inset-0 bg-black/80 backdrop-blur-md z-40"
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                      className="glass-panel p-8 max-w-md w-full space-y-6 relative z-50 rounded-sm border-white/10 shadow-2xl bg-[#071F17]"
+                    >
+                      <div className="space-y-4 text-center">
+                        <div className="relative w-16 h-16 mx-auto flex items-center justify-center">
+                          <Loader2 size={40} className="text-gold animate-spin absolute" />
+                          <Sparkles size={20} className="text-gold/80 animate-pulse" />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <h3 className="text-lg font-serif text-ink uppercase tracking-widest">
+                            AI Sommelier at Work
+                          </h3>
+                          <p className="text-[10px] text-ink/40 uppercase tracking-[0.2em]">
+                            Analyzing and generating sensory profiles...
+                          </p>
+                        </div>
+
+                        {/* Custom Progress Bar */}
+                        <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden border border-white/10 mt-4">
+                          <motion.div 
+                            className="bg-gold h-full"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${(batchAnalysisProgress.current / batchAnalysisProgress.total) * 100}%` }}
+                            transition={{ duration: 0.3 }}
+                          />
+                        </div>
+
+                        <div className="flex justify-between text-[10px] uppercase tracking-wider text-ink/50 px-1">
+                          <span>Bottle {batchAnalysisProgress.current} of {batchAnalysisProgress.total}</span>
+                          <span>{Math.round((batchAnalysisProgress.current / batchAnalysisProgress.total) * 100)}%</span>
+                        </div>
+
+                        {batchAnalysisProgress.wineName && (
+                          <p className="text-xs font-serif italic text-gold font-medium truncate mt-2 bg-white/[0.02] py-2 px-4 border border-white/5 rounded-sm">
+                            "{batchAnalysisProgress.wineName}"
+                          </p>
+                        )}
+
+                        {batchAnalysisError && (
+                          <div className="bg-red-950/20 border border-red-500/20 p-4 rounded text-left mt-4">
+                            <p className="text-xs text-red-400 font-medium">{batchAnalysisError}</p>
+                            <button
+                              onClick={() => {
+                                setBatchAnalysisProgress(null);
+                                setBatchAnalysisError(null);
+                              }}
+                              className="mt-2 text-[10px] uppercase tracking-wider text-gold hover:underline"
+                            >
+                              Close
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  </div>
+                )}
+              </AnimatePresence>
             </motion.div>
           ) : view === 'tutor' ? (
             <motion.div
