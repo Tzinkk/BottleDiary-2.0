@@ -24,6 +24,34 @@ function getAIClient() {
   });
 }
 
+// Robust fallback mechanism for model execution
+async function generateContentWithFallback(ai: any, options: {
+  model: string;
+  contents: any;
+  config?: any;
+}) {
+  // Always try the requested model first, then fall back to the ultra-reliable gemini-3.1-flash-lite
+  const modelsToTry = [options.model, "gemini-3.1-flash-lite", "gemini-1.5-flash", "gemini-2.0-flash-lite"];
+  const uniqueModels = Array.from(new Set(modelsToTry));
+
+  let lastError: any = null;
+  for (const model of uniqueModels) {
+    try {
+      console.log(`[Gemini API] Requesting generation using model: ${model}`);
+      const result = await ai.models.generateContent({
+        ...options,
+        model,
+      });
+      console.log(`[Gemini API] Success using model: ${model}`);
+      return result;
+    } catch (err: any) {
+      console.warn(`[Gemini API] Model ${model} failed: ${err.message || err}`);
+      lastError = err;
+    }
+  }
+  throw lastError || new Error("All fallback Gemini models failed to generate content.");
+}
+
 // API Routes FIRST
 
 // Endpoint 1: Analyze label image
@@ -80,7 +108,7 @@ app.post("/api/gemini/analyze-label", async (req, res) => {
   - foodPairing: Array of 2-4 perfect food pairing dishes or components.
   - additionalNote: A short, elegant note with serving recommendation, potential cellaring time, or background details.`;
 
-    const result = await ai.models.generateContent({
+    const result = await generateContentWithFallback(ai, {
       model: "gemini-3.5-flash",
       contents: [
         "Identify this wine label details. Provide rich tasting notes and food pairings.",
@@ -140,7 +168,7 @@ app.post("/api/gemini/analyze-label", async (req, res) => {
 app.post("/api/gemini/generate-quiz", async (req, res) => {
   try {
     const ai = getAIClient();
-    const response = await ai.models.generateContent({
+    const response = await generateContentWithFallback(ai, {
       model: "gemini-3.5-flash",
       contents: "Generate a highly engaging, unique, and informative multiple choice question about wine. Topics can include wine history, grape varieties, regions, production techniques, or food pairings. Ensure the options are plausible but only one is correct. Provide a helpful, educational 1-2 sentence 'Did you know?' style explanation.",
       config: {
@@ -191,7 +219,7 @@ app.post("/api/gemini/recommendations", async (req, res) => {
       bottles
     )}, suggest 3 wine recommendations that I would love. For each recommendation, provide name, producer, type, region, country, grape varieties, and a concise reason.`;
 
-    const response = await ai.models.generateContent({
+    const response = await generateContentWithFallback(ai, {
       model: "gemini-3.5-flash",
       contents: prompt,
       config: {
@@ -248,7 +276,7 @@ app.post("/api/gemini/refine-notes", async (req, res) => {
 Rough notes:
 ${rawNotes}`;
 
-    const response = await ai.models.generateContent({
+    const response = await generateContentWithFallback(ai, {
       model: "gemini-3.5-flash",
       contents: prompt,
     });
@@ -284,7 +312,7 @@ app.post("/api/gemini/generate-notes", async (req, res) => {
   - Country: ${bottle.country}
   - Grape Varieties: ${bottle.grape ? (Array.isArray(bottle.grape) ? bottle.grape.join(', ') : bottle.grape) : 'Unknown'}`;
 
-    const response = await ai.models.generateContent({
+    const response = await generateContentWithFallback(ai, {
       model: "gemini-3.5-flash",
       contents: prompt,
       config: {
