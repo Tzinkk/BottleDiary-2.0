@@ -89,7 +89,9 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
   - appearance: Detailed appearance and color.
   - nose: The nose/aromatics description.
   - palate: Palate and structural profile.
-  - finish: The finish and persistence.`;
+  - finish: The finish and persistence.
+  - foodPairing: Array of 2-4 perfect food pairing dishes or components.
+  - additionalNote: A short, elegant note with serving recommendation, potential cellaring time, or background details.`;
 
   const result = await ai.models.generateContent({
     model: "gemini-3.5-flash",
@@ -120,6 +122,8 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
           nose: { type: Type.STRING },
           palate: { type: Type.STRING },
           finish: { type: Type.STRING },
+          foodPairing: { type: Type.ARRAY, items: { type: Type.STRING } },
+          additionalNote: { type: Type.STRING },
         },
         required: ["wineName", "producer", "vintage", "region", "grapeVarieties", "tastingNotes"],
       },
@@ -154,6 +158,8 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
       nose: parsedData.nose || "",
       palate: parsedData.palate || "",
       finish: parsedData.finish || "",
+      foodPairing: parsedData.foodPairing || [],
+      additionalNote: parsedData.additionalNote || "",
       mainTastingNotes: parsedData.tastingNotes || "",
     };
   } catch (parseError: any) {

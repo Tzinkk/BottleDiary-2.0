@@ -1244,6 +1244,8 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
         nose: analysis.nose || prev.nose,
         palate: analysis.palate || prev.palate,
         finish: analysis.finish || prev.finish,
+        foodPairing: Array.isArray(analysis.foodPairing) ? [...new Set([...(prev.foodPairing || []), ...analysis.foodPairing])] : (prev.foodPairing || []),
+        additionalNote: analysis.additionalNote || prev.additionalNote,
         tastingNotes: analysis.mainTastingNotes || analysis.tastingNotes || prev.tastingNotes,
       }));
       setAnalysisSuccess(true);
