@@ -1,12 +1,32 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 
 const app = express();
 const PORT = 3000;
 
+// Log helper to write to a log file
+function writeLog(message: string) {
+  const logMsg = `[${new Date().toISOString()}] ${message}\n`;
+  console.log(logMsg.trim());
+  try {
+    fs.appendFileSync(path.join(process.cwd(), "server.log"), logMsg);
+  } catch (err) {
+    // Ignore log write errors
+  }
+}
+
 app.use(express.json({ limit: "50mb" }));
+
+// Middleware to log all incoming API requests
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/")) {
+    writeLog(`Incoming ${req.method} ${req.path} - size: ${JSON.stringify(req.body).length} bytes`);
+  }
+  next();
+});
 
 // Lazy initializer for GoogleGenAI to prevent crashing on startup if key is missing
 function getAIClient() {
@@ -30,22 +50,28 @@ async function generateContentWithFallback(ai: any, options: {
   contents: any;
   config?: any;
 }) {
-  // Always try the requested model first, then fall back to the ultra-reliable gemini-3.1-flash-lite
-  const modelsToTry = [options.model, "gemini-3.1-flash-lite", "gemini-1.5-flash", "gemini-2.0-flash-lite"];
+  // Always try the requested model first, then try the most reliable and fast model fallback list
+  const modelsToTry = [
+    options.model,
+    "gemini-3.1-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash-lite-001"
+  ];
   const uniqueModels = Array.from(new Set(modelsToTry));
 
   let lastError: any = null;
   for (const model of uniqueModels) {
     try {
-      console.log(`[Gemini API] Requesting generation using model: ${model}`);
+      writeLog(`[Gemini API] Requesting generation using model: ${model}`);
       const result = await ai.models.generateContent({
         ...options,
         model,
       });
-      console.log(`[Gemini API] Success using model: ${model}`);
+      writeLog(`[Gemini API] Success using model: ${model}`);
       return result;
     } catch (err: any) {
-      console.warn(`[Gemini API] Model ${model} failed: ${err.message || err}`);
+      const errorMsg = err.message || JSON.stringify(err) || String(err);
+      writeLog(`[Gemini API] Model ${model} failed: ${errorMsg}`);
       lastError = err;
     }
   }
@@ -159,8 +185,9 @@ app.post("/api/gemini/analyze-label", async (req, res) => {
     const parsedData = JSON.parse(cleanText);
     res.json(parsedData);
   } catch (error: any) {
-    console.error("Analyze label error:", error);
-    res.status(500).json({ error: error.message || "Label analysis failed" });
+    const errorMsg = error.message || JSON.stringify(error) || String(error);
+    writeLog(`[API Error] /api/gemini/analyze-label failed: ${errorMsg}`);
+    res.status(500).json({ error: errorMsg || "Label analysis failed" });
   }
 });
 

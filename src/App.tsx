@@ -1320,6 +1320,12 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const isHeic = file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif') || file.type === 'image/heic' || file.type === 'image/heif';
+    if (isHeic) {
+      setUploadError('HEIC/HEIF images are not natively supported by browsers. Please select a JPEG, PNG, or WebP image.');
+      return;
+    }
+
     if (!file.type.startsWith('image/')) {
       setUploadError('Please select a valid image file');
       return;

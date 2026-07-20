@@ -31,7 +31,7 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `Failed to analyze label: ${response.statusText}`);
+    throw new Error(errorData.error || `Failed to analyze label (HTTP ${response.status}): ${response.statusText || 'Unknown Error'}`);
   }
 
   const parsedData = await response.json();
@@ -70,7 +70,7 @@ export async function generateQuizQuestion(): Promise<QuizQuestion> {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `Failed to generate quiz: ${response.statusText}`);
+    throw new Error(errorData.error || `Failed to generate quiz (HTTP ${response.status}): ${response.statusText || 'Unknown Error'}`);
   }
 
   return response.json();
@@ -93,7 +93,7 @@ export async function getWineRecommendations(bottles: WineBottle[]): Promise<Rec
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `Failed to fetch recommendations: ${response.statusText}`);
+      throw new Error(errorData.error || `Failed to fetch recommendations (HTTP ${response.status}): ${response.statusText || 'Unknown Error'}`);
     }
 
     return response.json();
@@ -121,7 +121,7 @@ export async function refineTastingNotes(rawNotes: string): Promise<string> {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `Failed to refine tasting notes: ${response.statusText}`);
+    throw new Error(errorData.error || `Failed to refine tasting notes (HTTP ${response.status}): ${response.statusText || 'Unknown Error'}`);
   }
 
   const data = await response.json();
@@ -143,7 +143,7 @@ export async function generateTastingNotesForBottle(bottle: WineBottle): Promise
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `Failed to generate notes: ${response.statusText}`);
+    throw new Error(errorData.error || `Failed to generate notes (HTTP ${response.status}): ${response.statusText || 'Unknown Error'}`);
   }
 
   return response.json();
