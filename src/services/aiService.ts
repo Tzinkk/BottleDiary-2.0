@@ -32,11 +32,11 @@ function getAI() {
 }
 
 /**
- * Analyzes the wine label image directly from the client side using the gemini-2.0-flash model.
+ * Analyzes the wine label image directly from the client side using the gemini-1.5-flash model.
  * @param imageUri base64 Data URI or blob/remote URL
  */
 export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBottle> & { mainTastingNotes?: string }> {
-  console.log("[AI Service] Client-side starting label scan using gemini-2.0-flash...");
+  console.log("[AI Service] Client-side starting label scan using gemini-1.5-flash...");
   if (!imageUri || typeof imageUri !== "string") {
     console.error("[AI Service] Error: Invalid image URI provided to analyzeWineLabel.");
     throw new Error("Invalid image URI provided");
@@ -92,7 +92,7 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
   - finish: The finish and persistence.`;
 
   const result = await ai.models.generateContent({
-    model: "gemini-2.0-flash",
+    model: "gemini-1.5-flash",
     contents: [
       "Identify this wine label details. Provide rich tasting notes and food pairings.",
       {
@@ -163,13 +163,13 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
 }
 
 /**
- * Generates a random multiple choice question client-side using gemini-2.0-flash.
+ * Generates a random multiple choice question client-side using gemini-1.5-flash.
  */
 export async function generateQuizQuestion(): Promise<QuizQuestion> {
-  console.log("[AI Service] Client-side generating quiz question using gemini-2.0-flash...");
+  console.log("[AI Service] Client-side generating quiz question using gemini-1.5-flash...");
   const ai = getAI();
   const response = await ai.models.generateContent({
-    model: "gemini-2.0-flash",
+    model: "gemini-1.5-flash",
     contents: "Generate a highly engaging, unique, and informative multiple choice question about wine. Topics can include wine history, grape varieties, regions, production techniques, or food pairings. Ensure the options are plausible but only one is correct. Provide a helpful, educational 1-2 sentence 'Did you know?' style explanation.",
     config: {
       systemInstruction: "You are an expert sommelier and dynamic wine quiz master. Your task is to generate one high-quality multiple choice question about wine in raw JSON format.",
@@ -213,7 +213,7 @@ export async function getWineRecommendations(bottles: WineBottle[]): Promise<Rec
     )}, suggest 3 wine recommendations that I would love. For each recommendation, provide name, producer, type, region, country, grape varieties, and a concise reason.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-1.5-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",

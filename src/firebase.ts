@@ -13,21 +13,11 @@ import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with a more robust cache strategy to handle environment-specific IndexedDB issues
-// This help solve "Connection to Indexed Database server lost" errors common in iframe/multi-tab previews
-let dbInstance;
-try {
-  dbInstance = initializeFirestore(app, {
-    localCache: persistentLocalCache({
-      tabManager: persistentMultipleTabManager(),
-    }),
-  }, firebaseConfig.firestoreDatabaseId);
-} catch (error) {
-  console.warn("Failed to initialize persistent cache, falling back to memory cache:", error);
-  dbInstance = initializeFirestore(app, {
-    localCache: memoryLocalCache(),
-  }, firebaseConfig.firestoreDatabaseId);
-}
+// Initialize Firestore with a robust memory cache strategy by default to prevent cross-origin iframe IndexedDB issues.
+// This avoids the 10-second IndexedDB timeout/hang in sandboxed/iframe environments.
+const dbInstance = initializeFirestore(app, {
+  localCache: memoryLocalCache(),
+}, firebaseConfig.firestoreDatabaseId);
 
 export const db = dbInstance;
 export const auth = getAuth(app);
@@ -41,8 +31,10 @@ async function testConnection() {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration.");
+    if (error instanceof Error && (error.message.includes('the client is offline') || error.message.includes('reach Cloud Firestore backend'))) {
+      console.warn("Please check your Firebase configuration. Running in offline/cached mode.");
+    } else {
+      console.warn("Firestore connection check warning:", error);
     }
   }
 }
