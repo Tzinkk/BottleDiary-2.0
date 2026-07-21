@@ -89,14 +89,14 @@ Be extremely descriptive and precise with the analytical profile fields:
 - vintage: The harvest year (e.g., '2020') or 'NV' if Non-Vintage.
 - region: The wine region (e.g., 'Napa Valley', 'Bordeaux').
 - grapeVarieties: List of grape varieties (e.g., ['Cabernet Sauvignon', 'Merlot']).
-- tastingNotes: A rich, poetic 1-2 sentence professional sommelier tasting summary/quote.
 - type: Guessed wine classification (Red, White, Rosé, Sparkling, Orange, Natural Red, Natural White, Pet Nat).
 - country: The country of origin.
-- appearance: Detailed appearance and color.
-- nose: The nose/aromatics description.
-- palate: Palate and structural profile.
-- finish: The finish and persistence.
-- foodPairing: Array of 2-4 perfect food pairing dishes or components.
+- appearance: Detailed appearance and color (e.g., color, robe, clarity, intensity).
+- aromatics: The Nose description (primary fruits, fermentation notes, herbs, etc.).
+- palate: Palate & Structure profile (body, acidity, tannins, alcohol, balance).
+- finish: The Finish description (length, persistence, final impressions).
+- foodPairings: Array of string suggestions based on the wine style.
+- notes: The main summary/editorial note.
 - additionalNote: A short, elegant note with serving recommendation, potential cellaring time, or background details.`;
 
   const response = await ai.models.generateContent({
@@ -121,17 +121,17 @@ Be extremely descriptive and precise with the analytical profile fields:
           vintage: { type: Type.STRING },
           region: { type: Type.STRING },
           grapeVarieties: { type: Type.ARRAY, items: { type: Type.STRING } },
-          tastingNotes: { type: Type.STRING },
           type: { type: Type.STRING },
           country: { type: Type.STRING },
           appearance: { type: Type.STRING },
-          nose: { type: Type.STRING },
+          aromatics: { type: Type.STRING },
           palate: { type: Type.STRING },
           finish: { type: Type.STRING },
-          foodPairing: { type: Type.ARRAY, items: { type: Type.STRING } },
+          foodPairings: { type: Type.ARRAY, items: { type: Type.STRING } },
+          notes: { type: Type.STRING },
           additionalNote: { type: Type.STRING },
         },
-        required: ["wineName", "producer", "vintage", "region", "grapeVarieties", "tastingNotes"],
+        required: ["wineName", "producer", "vintage", "region", "grapeVarieties", "notes"],
       },
     },
   });
@@ -154,16 +154,16 @@ Be extremely descriptive and precise with the analytical profile fields:
     year: parsedData.vintage ? String(parsedData.vintage) : "NV",
     region: parsedData.region || "",
     grape: parsedData.grapeVarieties || [],
-    tastingNotes: parsedData.tastingNotes || "",
+    tastingNotes: parsedData.notes || "",
     type: parsedData.type || "Red",
     country: parsedData.country || "",
     appearance: parsedData.appearance || "",
-    nose: parsedData.nose || "",
+    nose: parsedData.aromatics || "",
     palate: parsedData.palate || "",
     finish: parsedData.finish || "",
-    foodPairing: parsedData.foodPairing || [],
+    foodPairing: parsedData.foodPairings || [],
     additionalNote: parsedData.additionalNote || "",
-    mainTastingNotes: parsedData.tastingNotes || "",
+    mainTastingNotes: parsedData.notes || "",
   };
 }
 
