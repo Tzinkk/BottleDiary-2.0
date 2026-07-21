@@ -16,26 +16,17 @@ export interface Recommendation {
  * Checks import.meta.env (for Vite client-side) and process.env (for Node-like test runs).
  */
 function getApiKey(): string {
-  if (typeof import.meta !== "undefined" && import.meta) {
-    const meta = import.meta as any;
-    if (meta.env) {
-      if (meta.env.VITE_GEMINI_API_KEY) {
-        return meta.env.VITE_GEMINI_API_KEY;
-      }
-      if (meta.env.GEMINI_API_KEY) {
-        return meta.env.GEMINI_API_KEY;
-      }
-    }
-  }
-  if (typeof process !== "undefined" && process.env) {
-    if (process.env.GEMINI_API_KEY) {
-      return process.env.GEMINI_API_KEY;
-    }
-    if (process.env.VITE_GEMINI_API_KEY) {
-      return process.env.VITE_GEMINI_API_KEY;
-    }
-  }
-  return "";
+  const metaEnv = (typeof import.meta !== "undefined" && (import.meta as any).env) || {};
+  const processEnv = (typeof process !== "undefined" && process.env) || {};
+
+  const apiKey = 
+    metaEnv.VITE_GEMINI_API_KEY || 
+    metaEnv.GEMINI_API_KEY || 
+    processEnv.GEMINI_API_KEY || 
+    processEnv.VITE_GEMINI_API_KEY ||
+    "";
+
+  return apiKey;
 }
 
 /**
