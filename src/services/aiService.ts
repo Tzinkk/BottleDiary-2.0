@@ -69,11 +69,73 @@ async function imageUriToData(imageUri: string): Promise<{ base64: string; mimeT
 }
 
 /**
+ * Generates content using Gemini API with automatic retry and model fallbacks for 503 / high demand errors.
+ */
+async function generateWithRetryAndFallback(
+  ai: GoogleGenAI,
+  options: {
+    model?: string;
+    contents: any;
+    config?: any;
+  }
+) {
+  const modelsToTry = [
+    options.model || "gemini-3.5-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash-lite-001",
+  ];
+  const uniqueModels = Array.from(new Set(modelsToTry));
+
+  let lastError: any = null;
+
+  for (const model of uniqueModels) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`[AI Service] Calling Gemini API (${model}, attempt ${attempt})...`);
+        const result = await ai.models.generateContent({
+          ...options,
+          model,
+        });
+        return result;
+      } catch (err: any) {
+        lastError = err;
+        const errStr = String(err?.message || JSON.stringify(err) || err);
+        const isTransient =
+          errStr.includes("503") ||
+          errStr.includes("HIGH DEMAND") ||
+          errStr.includes("429") ||
+          errStr.includes("UNAVAILABLE") ||
+          errStr.includes("RESOURCE_EXHAUSTED") ||
+          errStr.includes("TEMPORARY");
+
+        console.warn(`[AI Service] Model ${model} attempt ${attempt} failed:`, errStr);
+
+        if (isTransient && attempt < 3) {
+          // Wait before retrying (1.5s, 3.0s)
+          await new Promise((resolve) => setTimeout(resolve, 1500 * attempt));
+        } else {
+          // If max attempts reached for this model or non-transient error, try next model
+          break;
+        }
+      }
+    }
+  }
+
+  const lastMsg = String(lastError?.message || JSON.stringify(lastError) || lastError);
+  if (lastMsg.includes("503") || lastMsg.includes("HIGH DEMAND") || lastMsg.includes("UNAVAILABLE")) {
+    throw new Error("Gemini AI ၏ Server အသုံးပြုမှု များနေသောကြောင့် ယာယီ မအားလပ်ပါ (High Demand 503 Error)။ ခဏစောင့်ပြီး ပြန်လည် စမ်းသပ်ပေးပါ။");
+  }
+
+  throw lastError || new Error("Gemini AI ဖြင့် ချိတ်ဆက်ရာတွင် အမှားအယွင်း ဖြစ်ပေါ်ခဲ့ပါသည်။");
+}
+
+/**
  * Analyzes the wine label image directly using Google Gen AI client.
  * @param imageUri base64 Data URI or blob/remote URL
  */
 export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBottle> & { mainTastingNotes?: string }> {
-  console.log("[AI Service] Scanning label directly with gemini-3.5-flash...");
+  console.log("[AI Service] Scanning label directly with Gemini...");
   if (!imageUri || typeof imageUri !== "string") {
     console.error("[AI Service] Error: Invalid image URI provided to analyzeWineLabel.");
     throw new Error("Invalid image URI provided");
@@ -96,10 +158,12 @@ Be extremely descriptive and precise with the analytical profile fields:
 - palate: Palate & Structure profile (body, acidity, tannins, alcohol, balance).
 - finish: The Finish description (length, persistence, final impressions).
 - foodPairings: Array of string suggestions based on the wine style.
+- winemakingPhilosophy: Winemaking approach or philosophy (e.g. organic, natural, biodynamic, oak aging, minimal intervention, wild yeast, etc.).
+- viticulture: Viticulture and vineyard details (e.g. organic/biodynamic farming, soil type, vine age, climate, elevation).
 - notes: The main summary/editorial note.
 - additionalNote: A short, elegant note with serving recommendation, potential cellaring time, or background details.`;
 
-  const response = await ai.models.generateContent({
+  const response = await generateWithRetryAndFallback(ai, {
     model: "gemini-3.5-flash",
     contents: [
       "Identify this wine label details. Provide rich tasting notes and food pairings.",
@@ -128,6 +192,8 @@ Be extremely descriptive and precise with the analytical profile fields:
           palate: { type: Type.STRING },
           finish: { type: Type.STRING },
           foodPairings: { type: Type.ARRAY, items: { type: Type.STRING } },
+          winemakingPhilosophy: { type: Type.STRING },
+          viticulture: { type: Type.STRING },
           notes: { type: Type.STRING },
           additionalNote: { type: Type.STRING },
         },
@@ -161,6 +227,8 @@ Be extremely descriptive and precise with the analytical profile fields:
     nose: parsedData.aromatics || "",
     palate: parsedData.palate || "",
     finish: parsedData.finish || "",
+    winemakingPhilosophy: parsedData.winemakingPhilosophy || "",
+    viticulture: parsedData.viticulture || "",
     foodPairing: parsedData.foodPairings || [],
     additionalNote: parsedData.additionalNote || "",
     mainTastingNotes: parsedData.notes || "",
@@ -171,10 +239,10 @@ Be extremely descriptive and precise with the analytical profile fields:
  * Generates a random multiple choice question directly using gemini-3.5-flash.
  */
 export async function generateQuizQuestion(): Promise<QuizQuestion> {
-  console.log("[AI Service] Generating quiz question directly with gemini-3.5-flash...");
+  console.log("[AI Service] Generating quiz question...");
   const ai = getAIClient();
 
-  const response = await ai.models.generateContent({
+  const response = await generateWithRetryAndFallback(ai, {
     model: "gemini-3.5-flash",
     contents: "Generate a highly engaging, unique, and informative multiple choice question about wine. Topics can include wine history, grape varieties, regions, production techniques, or food pairings. Ensure the options are plausible but only one is correct. Provide a helpful, educational 1-2 sentence 'Did you know?' style explanation.",
     config: {
@@ -211,14 +279,14 @@ export async function generateQuizQuestion(): Promise<QuizQuestion> {
  */
 export async function getWineRecommendations(bottles: WineBottle[]): Promise<Recommendation[]> {
   if (bottles.length === 0) return [];
-  console.log("[AI Service] Generating wine recommendations directly with gemini-3.5-flash for", bottles.length, "bottles.");
+  console.log("[AI Service] Generating wine recommendations for", bottles.length, "bottles.");
   try {
     const ai = getAIClient();
     const prompt = `Based on my current wine diary containing these bottles: ${JSON.stringify(
       bottles
     )}, suggest 3 wine recommendations that I would love. For each recommendation, provide name, producer, type, region, country, grape varieties, and a concise reason.`;
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetryAndFallback(ai, {
       model: "gemini-3.5-flash",
       contents: prompt,
       config: {
@@ -266,14 +334,14 @@ export async function refineTastingNotes(rawNotes: string): Promise<string> {
   if (!rawNotes || !rawNotes.trim()) {
     throw new Error("No notes provided to refine");
   }
-  console.log("[AI Service] Refining tasting notes directly with gemini-3.5-flash...");
+  console.log("[AI Service] Refining tasting notes...");
   const ai = getAIClient();
   const prompt = `Rewrite the following rough, raw bullet-point wine tasting notes into a single, cohesive, professional, and elegant paragraph suitable for an editorial wine diary. Do not add any conversational text or explanation; return only the refined paragraph.
 
 Rough notes:
 ${rawNotes}`;
 
-  const response = await ai.models.generateContent({
+  const response = await generateWithRetryAndFallback(ai, {
     model: "gemini-3.5-flash",
     contents: prompt,
   });
@@ -290,9 +358,9 @@ ${rawNotes}`;
  * Generates tasting notes and analytical profile for a bottle that has no detailed notes using gemini-3.5-flash.
  */
 export async function generateTastingNotesForBottle(bottle: WineBottle): Promise<Partial<WineBottle>> {
-  console.log(`[AI Service] Generating tasting notes directly with gemini-3.5-flash for ${bottle.name}...`);
+  console.log(`[AI Service] Generating tasting notes for ${bottle.name}...`);
   const ai = getAIClient();
-  const prompt = `You are an expert sommelier. Based on the following wine details, generate a comprehensive tasting profile including tasting notes, appearance, nose, palate, finish, food pairing, and additional elegant serving notes:
+  const prompt = `You are an expert sommelier. Based on the following wine details, generate a comprehensive tasting profile including tasting notes, appearance, nose, palate, finish, viticulture (farming/vineyard practices), winemaking philosophy (fermentation/aging style), food pairing, and additional elegant serving notes:
   - Name: ${bottle.name}
   - Producer: ${bottle.producer}
   - Vintage: ${bottle.year}
@@ -301,7 +369,7 @@ export async function generateTastingNotesForBottle(bottle: WineBottle): Promise
   - Country: ${bottle.country}
   - Grape Varieties: ${bottle.grape ? (Array.isArray(bottle.grape) ? bottle.grape.join(', ') : bottle.grape) : 'Unknown'}`;
 
-  const response = await ai.models.generateContent({
+  const response = await generateWithRetryAndFallback(ai, {
     model: "gemini-3.5-flash",
     contents: prompt,
     config: {
@@ -315,6 +383,8 @@ export async function generateTastingNotesForBottle(bottle: WineBottle): Promise
           nose: { type: Type.STRING },
           palate: { type: Type.STRING },
           finish: { type: Type.STRING },
+          winemakingPhilosophy: { type: Type.STRING },
+          viticulture: { type: Type.STRING },
           foodPairing: { type: Type.ARRAY, items: { type: Type.STRING } },
           additionalNote: { type: Type.STRING },
         },

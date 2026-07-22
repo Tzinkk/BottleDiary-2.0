@@ -14,6 +14,8 @@ export interface WineBottle {
   nose?: string;
   palate?: string;
   finish?: string;
+  winemakingPhilosophy?: string;
+  viticulture?: string;
   additionalNote?: string;
   locationPurchased?: string;
   price?: number;

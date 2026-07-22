@@ -1043,6 +1043,34 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
                     </div>
                   </div>
 
+                  {/* Section 3.5: TERROIR & WINEMAKING */}
+                  {(bottle.viticulture || bottle.winemakingPhilosophy) && (
+                    <div className="space-y-4">
+                      <h4 className="text-[10px] uppercase tracking-[0.35em] text-gold font-black flex items-center gap-2">
+                        <span className="w-4 h-[1px] bg-gold/30"></span>
+                        Terroir & Viticulture
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {bottle.viticulture && (
+                          <div className="bg-black/25 p-4 rounded-sm border border-white/5 shadow-inner">
+                            <span className="text-[8px] uppercase tracking-[0.25em] text-gold/50 font-black mb-1.5 block">Viticulture & Vineyard</span>
+                            <p className="font-serif text-xs text-ink/70 leading-relaxed italic last:mb-0">
+                              {bottle.viticulture}
+                            </p>
+                          </div>
+                        )}
+                        {bottle.winemakingPhilosophy && (
+                          <div className="bg-black/25 p-4 rounded-sm border border-white/5 shadow-inner">
+                            <span className="text-[8px] uppercase tracking-[0.25em] text-gold/50 font-black mb-1.5 block">Winemaking Philosophy</span>
+                            <p className="font-serif text-xs text-ink/70 leading-relaxed italic last:mb-0">
+                              {bottle.winemakingPhilosophy}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Section 4: SUMMARY & SECURE NOTES */}
                   {bottle.additionalNote && (
                     <div className="bg-gold/[0.01] p-6 rounded-sm border border-gold/5 relative overflow-hidden">
@@ -1142,6 +1170,8 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     nose: bottle?.nose || '',
     palate: bottle?.palate || '',
     finish: bottle?.finish || '',
+    winemakingPhilosophy: bottle?.winemakingPhilosophy || '',
+    viticulture: bottle?.viticulture || '',
     foodPairing: Array.isArray(bottle?.foodPairing) ? bottle.foodPairing : [],
     additionalNote: bottle?.additionalNote || '',
     price: bottle?.price || 0,
@@ -1273,6 +1303,8 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
         nose: analysis.nose || prev.nose,
         palate: analysis.palate || prev.palate,
         finish: analysis.finish || prev.finish,
+        winemakingPhilosophy: analysis.winemakingPhilosophy || prev.winemakingPhilosophy,
+        viticulture: analysis.viticulture || prev.viticulture,
         foodPairing: Array.isArray(analysis.foodPairing) ? [...new Set([...(prev.foodPairing || []), ...analysis.foodPairing])] : (prev.foodPairing || []),
         additionalNote: analysis.additionalNote || prev.additionalNote,
         tastingNotes: analysis.mainTastingNotes || analysis.tastingNotes || prev.tastingNotes,
@@ -1774,6 +1806,28 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
                   onChange={e => setFormData({ ...formData, finish: e.target.value })}
                   className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
                   placeholder="Length, persistence, and final impressions..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[9px] uppercase tracking-widest text-gold/60 font-black ml-1">Viticulture & Vineyard</label>
+                <textarea
+                  rows={2}
+                  value={formData.viticulture}
+                  onChange={e => setFormData({ ...formData, viticulture: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
+                  placeholder="Farming practices, soil type, vine age, elevation, organic/biodynamic..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[9px] uppercase tracking-widest text-gold/60 font-black ml-1">Wine Making Philosophy</label>
+                <textarea
+                  rows={2}
+                  value={formData.winemakingPhilosophy}
+                  onChange={e => setFormData({ ...formData, winemakingPhilosophy: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
+                  placeholder="Fermentation method, oak aging, minimal intervention, wild yeast..."
                 />
               </div>
 

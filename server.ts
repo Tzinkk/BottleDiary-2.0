@@ -44,13 +44,13 @@ function getAIClient() {
   });
 }
 
-// Robust fallback mechanism for model execution
+// Robust fallback mechanism for model execution with retries
 async function generateContentWithFallback(ai: any, options: {
   model: string;
   contents: any;
   config?: any;
 }) {
-  // Always try the requested model first, then try the most reliable and fast model fallback list
+  // Try requested model first, followed by reliable fallbacks
   const modelsToTry = [
     options.model,
     "gemini-3.1-flash-lite",
@@ -61,18 +61,34 @@ async function generateContentWithFallback(ai: any, options: {
 
   let lastError: any = null;
   for (const model of uniqueModels) {
-    try {
-      writeLog(`[Gemini API] Requesting generation using model: ${model}`);
-      const result = await ai.models.generateContent({
-        ...options,
-        model,
-      });
-      writeLog(`[Gemini API] Success using model: ${model}`);
-      return result;
-    } catch (err: any) {
-      const errorMsg = err.message || JSON.stringify(err) || String(err);
-      writeLog(`[Gemini API] Model ${model} failed: ${errorMsg}`);
-      lastError = err;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        writeLog(`[Gemini API] Requesting generation using model: ${model} (attempt ${attempt})`);
+        const result = await ai.models.generateContent({
+          ...options,
+          model,
+        });
+        writeLog(`[Gemini API] Success using model: ${model}`);
+        return result;
+      } catch (err: any) {
+        const errorMsg = err?.message || JSON.stringify(err) || String(err);
+        writeLog(`[Gemini API] Model ${model} attempt ${attempt} failed: ${errorMsg}`);
+        lastError = err;
+
+        const isTransient =
+          errorMsg.includes("503") ||
+          errorMsg.includes("HIGH DEMAND") ||
+          errorMsg.includes("429") ||
+          errorMsg.includes("UNAVAILABLE") ||
+          errorMsg.includes("RESOURCE_EXHAUSTED") ||
+          errorMsg.includes("TEMPORARY");
+
+        if (isTransient && attempt < 3) {
+          await new Promise((resolve) => setTimeout(resolve, 1500 * attempt));
+        } else {
+          break;
+        }
+      }
     }
   }
   throw lastError || new Error("All fallback Gemini models failed to generate content.");
