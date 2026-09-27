@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Plus, Search, Filter, Wine, Trash2, Edit2, Star, X, Info, Globe, Banknote, ChevronDown, ChevronUp, ChevronRight, ArrowRight, Upload, Camera, Loader2, Sparkles, Sparkle, BarChart3, LogIn, LogOut, User as UserIcon, Droplets, FlaskConical, Leaf, Utensils, Check, Home as HomeIcon, Compass, Bookmark } from 'lucide-react';
+import { Plus, Search, Filter, Wine, Trash2, Edit2, Star, X, Info, Globe, Banknote, ChevronDown, ChevronUp, ChevronRight, ArrowRight, Upload, Camera, Loader2, Sparkles, Sparkle, BarChart3, LogIn, LogOut, User as UserIcon, Droplets, FlaskConical, Leaf, Utensils, Check, Home as HomeIcon, Compass, Bookmark, Grid2X2, List } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   PieChart, 
@@ -14,9 +14,9 @@ import {
   LineChart, 
   Line, 
   CartesianGrid, 
-  Legend,
-  ScatterChart,
-  Scatter,
+  Legend, 
+  ScatterChart, 
+  Scatter, 
   ZAxis
 } from 'recharts';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -32,6 +32,8 @@ import { BottomNavBar, MainNavTab } from './components/BottomNavBar';
 import { NavigationDrawer } from './components/NavigationDrawer';
 import { ProfileView } from './components/ProfileView';
 import { ExploreView } from './components/ExploreView';
+import { WineGridCard } from './components/WineGridCard';
+import { WineDetailModal } from './components/WineDetailModal';
 
 // --- Configuration ---
 
@@ -2139,6 +2141,8 @@ export default function App() {
   const [selectedGrapesForComparison, setSelectedGrapesForComparison] = useState<string[]>([]);
   const [isComparingGrapes, setIsComparingGrapes] = useState(false);
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedBottleForDetail, setSelectedBottleForDetail] = useState<WineBottle | null>(null);
 
   const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 100000 });
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
@@ -2156,14 +2160,14 @@ export default function App() {
 
   // Prevent background scrolling while modal or sheet is open
   useEffect(() => {
-    if (isFormOpen || isGrapeFormOpen || itemToDelete) {
+    if (isFormOpen || isGrapeFormOpen || itemToDelete || selectedBottleForDetail) {
       const prevOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       return () => {
         document.body.style.overflow = prevOverflow;
       };
     }
-  }, [isFormOpen, isGrapeFormOpen, itemToDelete]);
+  }, [isFormOpen, isGrapeFormOpen, itemToDelete, selectedBottleForDetail]);
 
   // AI Wine Tutor States
   const [quizQuestion, setQuizQuestion] = useState<QuizQuestion | null>(null);
@@ -3113,7 +3117,7 @@ export default function App() {
                       {filteredBottles.length} of {bottles.length} Bottles
                     </span>
                   </div>
-                  <h1 className="text-3xl md:text-4xl font-serif font-bold text-stone-900 tracking-tight">My Wines</h1>
+                  <h1 className="text-3xl md:text-4xl font-serif font-bold text-[#5A1E24] tracking-tight">My Wines</h1>
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-xl">
@@ -3128,12 +3132,44 @@ export default function App() {
                     />
                   </div>
 
+                  {/* View Toggle: 2-Column Grid ⊞ vs List ☰ */}
+                  <div className="flex items-center bg-[#F2EFE9] p-1 rounded-xl border border-[#E6DFD5] shadow-xs shrink-0 self-start sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('grid')}
+                      title="2-Column Grid View"
+                      aria-label="2-Column Grid View"
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold tracking-wider transition-all cursor-pointer ${
+                        viewMode === 'grid'
+                          ? 'bg-[#722F37] text-white shadow-xs font-bold'
+                          : 'text-stone-600 hover:text-stone-900 hover:bg-white/60'
+                      }`}
+                    >
+                      <Grid2X2 size={15} strokeWidth={2.2} />
+                      <span className="font-sans">Grid</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('list')}
+                      title="List View"
+                      aria-label="List View"
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold tracking-wider transition-all cursor-pointer ${
+                        viewMode === 'list'
+                          ? 'bg-[#722F37] text-white shadow-xs font-bold'
+                          : 'text-stone-600 hover:text-stone-900 hover:bg-white/60'
+                      }`}
+                    >
+                      <List size={15} strokeWidth={2.2} />
+                      <span className="font-sans">List</span>
+                    </button>
+                  </div>
+
                   <button
                     onClick={() => {
                       setEditingBottle(undefined);
                       setIsFormOpen(true);
                     }}
-                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#722F37] hover:bg-[#5c242c] text-white rounded-xl text-xs font-semibold uppercase tracking-wider transition-all shadow-sm active:scale-[0.98] whitespace-nowrap cursor-pointer"
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#722F37] hover:bg-[#5c242c] text-white rounded-xl text-xs font-semibold uppercase tracking-wider transition-all shadow-sm active:scale-[0.98] whitespace-nowrap cursor-pointer shrink-0"
                   >
                     <Plus size={15} />
                     <span>Add Wine</span>
@@ -3174,42 +3210,77 @@ export default function App() {
                 })}
               </div>
 
-              <motion.div 
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                className="flex flex-col gap-5 max-w-5xl mx-auto w-full"
-              >
-                <AnimatePresence mode="popLayout">
-                  {filteredBottles.map(bottle => (
-                    <WineCard
-                      key={bottle.id}
-                      bottle={bottle}
-                      onEdit={(b) => {
-                        setEditingBottle(b);
-                        setIsFormOpen(true);
-                      }}
-                      onDelete={handleDeleteBottle}
-                    />
-                  ))}
-                </AnimatePresence>
-                
-                {filteredBottles.length === 0 && (
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="py-20 bg-white border border-dashed border-[#EBE7DF] rounded-3xl flex flex-col items-center text-center space-y-4 shadow-sm"
-                  >
-                    <div className="w-16 h-16 bg-[#722F37]/10 border border-[#722F37]/20 rounded-2xl flex items-center justify-center text-[#722F37]">
-                      <Search size={28} />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="font-serif text-2xl text-stone-900 font-bold">No bottles match your filters</p>
-                      <p className="text-xs uppercase tracking-wider text-stone-500 font-medium">Try resetting or adjusting your search criteria</p>
-                    </div>
-                  </motion.div>
-                )}
-              </motion.div>
+              {viewMode === 'grid' ? (
+                <div className="max-w-5xl mx-auto w-full">
+                  <div className="grid grid-cols-2 gap-3.5 px-3 py-2">
+                    {filteredBottles.map(bottle => (
+                      <WineGridCard
+                        key={bottle.id}
+                        bottle={bottle}
+                        onSelect={(b) => setSelectedBottleForDetail(b)}
+                        onEdit={(b) => {
+                          setEditingBottle(b);
+                          setIsFormOpen(true);
+                        }}
+                        onDelete={handleDeleteBottle}
+                      />
+                    ))}
+                  </div>
+
+                  {filteredBottles.length === 0 && (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="py-20 bg-white border border-dashed border-[#EBE7DF] rounded-3xl flex flex-col items-center text-center space-y-4 shadow-sm"
+                    >
+                      <div className="w-16 h-16 bg-[#722F37]/10 border border-[#722F37]/20 rounded-2xl flex items-center justify-center text-[#722F37]">
+                        <Search size={28} />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="font-serif text-2xl text-stone-900 font-bold">No bottles match your filters</p>
+                        <p className="text-xs uppercase tracking-wider text-stone-500 font-medium">Try resetting or adjusting your search criteria</p>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              ) : (
+                <motion.div 
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  className="flex flex-col gap-5 max-w-5xl mx-auto w-full"
+                >
+                  <AnimatePresence mode="popLayout">
+                    {filteredBottles.map(bottle => (
+                      <WineCard
+                        key={bottle.id}
+                        bottle={bottle}
+                        onEdit={(b) => {
+                          setEditingBottle(b);
+                          setIsFormOpen(true);
+                        }}
+                        onDelete={handleDeleteBottle}
+                      />
+                    ))}
+                  </AnimatePresence>
+                  
+                  {filteredBottles.length === 0 && (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="py-20 bg-white border border-dashed border-[#EBE7DF] rounded-3xl flex flex-col items-center text-center space-y-4 shadow-sm"
+                    >
+                      <div className="w-16 h-16 bg-[#722F37]/10 border border-[#722F37]/20 rounded-2xl flex items-center justify-center text-[#722F37]">
+                        <Search size={28} />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="font-serif text-2xl text-stone-900 font-bold">No bottles match your filters</p>
+                        <p className="text-xs uppercase tracking-wider text-stone-500 font-medium">Try resetting or adjusting your search criteria</p>
+                      </div>
+                    </motion.div>
+                  )}
+                </motion.div>
+              )}
             </motion.div>
           ) : (view === 'explore' || view === 'grapes' || view === 'tutor') ? (
             <ExploreView
@@ -3387,6 +3458,22 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+
+      {/* Wine Detail Inspection Modal for Grid View (and quick views) */}
+      <WineDetailModal
+        bottle={selectedBottleForDetail}
+        isOpen={!!selectedBottleForDetail}
+        onClose={() => setSelectedBottleForDetail(null)}
+        onEdit={(bottle) => {
+          setSelectedBottleForDetail(null);
+          setEditingBottle(bottle);
+          setIsFormOpen(true);
+        }}
+        onDelete={(id) => {
+          setSelectedBottleForDetail(null);
+          handleDeleteBottle(id);
+        }}
+      />
 
       <footer className="p-8 border-t border-[#EBE7DF] bg-[#FAF8F5] text-center mt-auto pb-24 md:pb-8">
         <div className="flex flex-col items-center gap-1">
