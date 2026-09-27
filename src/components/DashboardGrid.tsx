@@ -7,6 +7,7 @@ interface DashboardGridProps {
   grapeCount: number;
   favoriteCount: number;
   onSelectCategory: (category: 'cellar' | 'regions' | 'grapes' | 'favorites') => void;
+  isLoading?: boolean;
 }
 
 export const DashboardGrid: React.FC<DashboardGridProps> = ({
@@ -14,7 +15,8 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
   regionCount,
   grapeCount,
   favoriteCount,
-  onSelectCategory
+  onSelectCategory,
+  isLoading = false
 }) => {
   const cards = [
     {
@@ -82,9 +84,13 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
               </span>
             </div>
             <div>
-              <p className="text-2xl md:text-3xl font-serif font-bold text-stone-900 leading-none">
-                {card.count}
-              </p>
+              {isLoading && card.count === 0 ? (
+                <div className="h-7 w-12 bg-stone-200/80 rounded-md animate-pulse my-0.5" />
+              ) : (
+                <p className="text-2xl md:text-3xl font-serif font-bold text-stone-900 leading-none">
+                  {card.count}
+                </p>
+              )}
               <p className="text-xs font-semibold text-stone-600 mt-1 font-sans">
                 {card.label}
               </p>

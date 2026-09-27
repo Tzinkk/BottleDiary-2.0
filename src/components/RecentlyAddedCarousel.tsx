@@ -7,13 +7,15 @@ interface RecentlyAddedCarouselProps {
   onSelectBottle: (bottle: WineBottle) => void;
   onViewAll: () => void;
   typeConfigMap?: Record<string, { text: string; bg: string; border: string }>;
+  isLoading?: boolean;
 }
 
 export const RecentlyAddedCarousel: React.FC<RecentlyAddedCarouselProps> = ({
   bottles,
   onSelectBottle,
   onViewAll,
-  typeConfigMap = WINE_TYPE_CONFIG
+  typeConfigMap = WINE_TYPE_CONFIG,
+  isLoading = false
 }) => {
   const recentBottles = [...bottles]
     .sort((a, b) => (b.dateAdded || 0) - (a.dateAdded || 0))
@@ -107,11 +109,31 @@ export const RecentlyAddedCarousel: React.FC<RecentlyAddedCarouselProps> = ({
           );
         })}
 
-        {recentBottles.length === 0 && (
+        {isLoading && recentBottles.length === 0 ? (
+          Array.from({ length: 4 }).map((_, idx) => (
+            <div
+              key={`skeleton-${idx}`}
+              className="w-[195px] min-w-[195px] max-w-[210px] bg-white border border-[#E6DFD5] rounded-2xl p-3.5 shadow-xs shrink-0 flex flex-col justify-between animate-pulse"
+            >
+              <div className="w-full h-44 rounded-xl bg-stone-100/90 mb-3 flex items-center justify-center">
+                <Wine size={32} className="text-stone-200" />
+              </div>
+              <div className="space-y-2 flex-1">
+                <div className="h-4 bg-stone-200/70 rounded-md w-3/4" />
+                <div className="h-3 bg-stone-100 rounded-md w-1/2" />
+                <div className="h-2.5 bg-stone-100 rounded-md w-2/3" />
+              </div>
+              <div className="mt-3 pt-2.5 border-t border-[#F2EFE9] flex items-center justify-between">
+                <div className="h-3.5 bg-stone-200/70 rounded-md w-14" />
+                <div className="h-3 bg-stone-100 rounded-md w-10" />
+              </div>
+            </div>
+          ))
+        ) : recentBottles.length === 0 ? (
           <div className="w-full py-8 text-center text-stone-400 text-xs italic bg-white border border-dashed border-[#EBE7DF] rounded-2xl">
             No bottles in cellar yet. Tap '+' to register your first bottle.
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

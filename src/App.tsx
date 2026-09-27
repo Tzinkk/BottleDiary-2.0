@@ -2057,16 +2057,68 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
   );
 };
 
+// --- Cache Helpers for Stale-While-Revalidate Instant Loading ---
+const BOTTLES_CACHE_KEY = 'bottle_diary_active_bottles_cache';
+const GRAPES_CACHE_KEY = 'bottle_diary_active_grapes_cache';
+const LAST_UID_KEY = 'bottle_diary_last_uid';
+const USER_BOTTLES_KEY_PREFIX = 'bottle_diary_user_bottles_';
+const USER_GRAPES_KEY_PREFIX = 'bottle_diary_user_grapes_';
+const GUEST_BOTTLES_KEY = 'bottle_diary_guest_bottles';
+const GUEST_GRAPES_KEY = 'bottle_diary_guest_grapes';
+
+const loadCachedBottles = (uid?: string | null): WineBottle[] => {
+  try {
+    if (uid) {
+      const userCached = localStorage.getItem(`${USER_BOTTLES_KEY_PREFIX}${uid}`);
+      if (userCached) return JSON.parse(userCached);
+    }
+    const lastUid = typeof window !== 'undefined' ? localStorage.getItem(LAST_UID_KEY) : null;
+    if (lastUid) {
+      const userCached = localStorage.getItem(`${USER_BOTTLES_KEY_PREFIX}${lastUid}`);
+      if (userCached) return JSON.parse(userCached);
+    }
+    const activeCached = typeof window !== 'undefined' ? localStorage.getItem(BOTTLES_CACHE_KEY) : null;
+    if (activeCached) return JSON.parse(activeCached);
+    const guestCached = typeof window !== 'undefined' ? localStorage.getItem(GUEST_BOTTLES_KEY) : null;
+    if (guestCached) return JSON.parse(guestCached);
+    return DEMO_BOTTLES;
+  } catch {
+    return DEMO_BOTTLES;
+  }
+};
+
+const loadCachedGrapes = (uid?: string | null): GrapeVariety[] => {
+  try {
+    if (uid) {
+      const userCached = localStorage.getItem(`${USER_GRAPES_KEY_PREFIX}${uid}`);
+      if (userCached) return JSON.parse(userCached);
+    }
+    const lastUid = typeof window !== 'undefined' ? localStorage.getItem(LAST_UID_KEY) : null;
+    if (lastUid) {
+      const userCached = localStorage.getItem(`${USER_GRAPES_KEY_PREFIX}${lastUid}`);
+      if (userCached) return JSON.parse(userCached);
+    }
+    const activeCached = typeof window !== 'undefined' ? localStorage.getItem(GRAPES_CACHE_KEY) : null;
+    if (activeCached) return JSON.parse(activeCached);
+    const guestCached = typeof window !== 'undefined' ? localStorage.getItem(GUEST_GRAPES_KEY) : null;
+    if (guestCached) return JSON.parse(guestCached);
+    return DEMO_GRAPES;
+  } catch {
+    return DEMO_GRAPES;
+  }
+};
+
 // --- Main App ---
 
 export default function App() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => auth.currentUser);
   const [authLoading, setAuthLoading] = useState(true);
+  const [isCloudSyncLoading, setIsCloudSyncLoading] = useState(false);
   
   // Local guest reserve state so unauthenticated or cookie-blocked users can fully explore the app
   const [guestBottles, setGuestBottles] = useState<WineBottle[]>(() => {
     try {
-      const saved = localStorage.getItem('bottle_diary_guest_bottles');
+      const saved = localStorage.getItem(GUEST_BOTTLES_KEY);
       return saved ? JSON.parse(saved) : DEMO_BOTTLES;
     } catch {
       return DEMO_BOTTLES;
@@ -2075,34 +2127,62 @@ export default function App() {
 
   const [guestGrapes, setGuestGrapes] = useState<GrapeVariety[]>(() => {
     try {
-      const saved = localStorage.getItem('bottle_diary_guest_grapes');
+      const saved = localStorage.getItem(GUEST_GRAPES_KEY);
       return saved ? JSON.parse(saved) : DEMO_GRAPES;
     } catch {
       return DEMO_GRAPES;
     }
   });
 
-  const [firestoreBottles, setFirestoreBottles] = useState<WineBottle[]>([]);
-  const [firestoreGrapes, setFirestoreGrapes] = useState<GrapeVariety[]>([]);
+  // Pre-initialize firestoreBottles with cached data from localStorage so cards & numbers render with 0ms delay
+  const [firestoreBottles, setFirestoreBottles] = useState<WineBottle[]>(() => {
+    const lastUid = typeof window !== 'undefined' ? localStorage.getItem(LAST_UID_KEY) : null;
+    return loadCachedBottles(lastUid);
+  });
+  const [firestoreGrapes, setFirestoreGrapes] = useState<GrapeVariety[]>(() => {
+    const lastUid = typeof window !== 'undefined' ? localStorage.getItem(LAST_UID_KEY) : null;
+    return loadCachedGrapes(lastUid);
+  });
 
   // Seamlessly switch: if user is signed in, use their private Firestore collection. Otherwise, use guest bottles.
   const bottles = user ? firestoreBottles : guestBottles;
   const grapes = user ? firestoreGrapes : guestGrapes;
 
+  // Stale-While-Revalidate loading check: only true if data is still fetching AND cache is empty
+  const isDataLoading = (authLoading || (!!user && isCloudSyncLoading)) && bottles.length === 0;
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setAuthLoading(false);
+      if (u) {
+        try {
+          localStorage.setItem(LAST_UID_KEY, u.uid);
+          const cachedBottles = loadCachedBottles(u.uid);
+          if (cachedBottles && cachedBottles.length > 0) {
+            setFirestoreBottles(cachedBottles);
+          }
+          const cachedGrapes = loadCachedGrapes(u.uid);
+          if (cachedGrapes && cachedGrapes.length > 0) {
+            setFirestoreGrapes(cachedGrapes);
+          }
+        } catch {}
+      } else {
+        try {
+          localStorage.removeItem(LAST_UID_KEY);
+        } catch {}
+      }
     });
     return () => unsubscribe();
   }, []);
 
   useEffect(() => {
     if (!user) {
-      setFirestoreBottles([]);
-      setFirestoreGrapes([]);
+      setIsCloudSyncLoading(false);
       return;
     }
+
+    setIsCloudSyncLoading(true);
 
     const qBottles = query(
       collection(db, 'bottles'),
@@ -2117,11 +2197,25 @@ export default function App() {
     );
 
     const unsubBottles = onSnapshot(qBottles, (snapshot) => {
-      setFirestoreBottles(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as WineBottle[]);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'bottles'));
+      const freshBottles = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as WineBottle[];
+      setFirestoreBottles(freshBottles);
+      setIsCloudSyncLoading(false);
+      try {
+        localStorage.setItem(`${USER_BOTTLES_KEY_PREFIX}${user.uid}`, JSON.stringify(freshBottles));
+        localStorage.setItem(BOTTLES_CACHE_KEY, JSON.stringify(freshBottles));
+      } catch {}
+    }, (error) => {
+      setIsCloudSyncLoading(false);
+      handleFirestoreError(error, OperationType.LIST, 'bottles');
+    });
 
     const unsubGrapes = onSnapshot(qGrapes, (snapshot) => {
-      setFirestoreGrapes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as GrapeVariety[]);
+      const freshGrapes = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as GrapeVariety[];
+      setFirestoreGrapes(freshGrapes);
+      try {
+        localStorage.setItem(`${USER_GRAPES_KEY_PREFIX}${user.uid}`, JSON.stringify(freshGrapes));
+        localStorage.setItem(GRAPES_CACHE_KEY, JSON.stringify(freshGrapes));
+      } catch {}
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'grapes'));
 
     return () => {
@@ -2330,7 +2424,10 @@ export default function App() {
       if (editingBottle) {
         setGuestBottles(prev => {
           const updated = prev.map(b => b.id === editingBottle.id ? { ...b, ...data } : b);
-          try { localStorage.setItem('bottle_diary_guest_bottles', JSON.stringify(updated)); } catch {}
+          try {
+            localStorage.setItem('bottle_diary_guest_bottles', JSON.stringify(updated));
+            localStorage.setItem(BOTTLES_CACHE_KEY, JSON.stringify(updated));
+          } catch {}
           return updated;
         });
       } else {
@@ -2342,7 +2439,10 @@ export default function App() {
         };
         setGuestBottles(prev => {
           const updated = [newBottle, ...prev];
-          try { localStorage.setItem('bottle_diary_guest_bottles', JSON.stringify(updated)); } catch {}
+          try {
+            localStorage.setItem('bottle_diary_guest_bottles', JSON.stringify(updated));
+            localStorage.setItem(BOTTLES_CACHE_KEY, JSON.stringify(updated));
+          } catch {}
           return updated;
         });
       }
@@ -2445,13 +2545,19 @@ export default function App() {
       if (type === 'bottle') {
         setGuestBottles(prev => {
           const updated = prev.filter(b => b.id !== id);
-          try { localStorage.setItem('bottle_diary_guest_bottles', JSON.stringify(updated)); } catch {}
+          try {
+            localStorage.setItem('bottle_diary_guest_bottles', JSON.stringify(updated));
+            localStorage.setItem(BOTTLES_CACHE_KEY, JSON.stringify(updated));
+          } catch {}
           return updated;
         });
       } else {
         setGuestGrapes(prev => {
           const updated = prev.filter(g => g.id !== id);
-          try { localStorage.setItem('bottle_diary_guest_grapes', JSON.stringify(updated)); } catch {}
+          try {
+            localStorage.setItem('bottle_diary_guest_grapes', JSON.stringify(updated));
+            localStorage.setItem(GRAPES_CACHE_KEY, JSON.stringify(updated));
+          } catch {}
           return updated;
         });
       }
@@ -2819,7 +2925,7 @@ export default function App() {
         )}
 
         <AnimatePresence mode="wait">
-          {authLoading ? (
+          {authLoading && bottles.length === 0 ? (
             <motion.div
               key="loading"
               initial={{ opacity: 0 }}
@@ -2851,6 +2957,7 @@ export default function App() {
                 regionCount={distinctRegionsCount}
                 grapeCount={availableGrapes.length}
                 favoriteCount={favoritesCount}
+                isLoading={isDataLoading}
                 onSelectCategory={(category) => {
                   if (category === 'cellar' || (category as any) === 'bottles') {
                     setView('cellar');
@@ -2876,6 +2983,7 @@ export default function App() {
                 }}
                 onViewAll={() => setView('cellar')}
                 typeConfigMap={WINE_TYPE_CONFIG}
+                isLoading={isDataLoading}
               />
 
               {/* Wine of the Day Highlight Section in Warm Light Card */}
@@ -2953,7 +3061,24 @@ export default function App() {
                 </button>
               </div>
 
-              {!wineOfTheDay ? (
+              {!wineOfTheDay && isDataLoading ? (
+                <div className="max-w-4xl mx-auto bg-white border border-[#E6DFD5] rounded-3xl p-8 animate-pulse shadow-xs">
+                  <div className="flex flex-col lg:flex-row gap-8 items-center">
+                    <div className="w-full lg:w-1/2 h-72 bg-stone-100 rounded-2xl flex items-center justify-center">
+                      <Wine size={48} className="text-stone-200" />
+                    </div>
+                    <div className="w-full lg:w-1/2 space-y-4">
+                      <div className="h-6 bg-stone-200/70 rounded-md w-1/3" />
+                      <div className="h-8 bg-stone-200/80 rounded-md w-3/4" />
+                      <div className="h-4 bg-stone-100 rounded-md w-1/2" />
+                      <div className="space-y-2 pt-4">
+                        <div className="h-3 bg-stone-100 rounded w-full" />
+                        <div className="h-3 bg-stone-100 rounded w-5/6" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : !wineOfTheDay ? (
                 <div className="py-20 bg-white border border-dashed border-[#E6DFD5] rounded-3xl flex flex-col items-center justify-center text-center p-8 shadow-sm">
                   <Wine size={48} className="text-stone-300 mb-4" />
                   <h3 className="font-serif font-bold text-2xl text-[#5A1E24] mb-1">No Bottles Found</h3>
@@ -3114,7 +3239,11 @@ export default function App() {
                       Cellar Inventory
                     </span>
                     <span className="text-xs text-stone-500 font-medium font-mono">
-                      {filteredBottles.length} of {bottles.length} Bottles
+                      {isDataLoading && bottles.length === 0 ? (
+                        <span className="inline-block w-24 h-3.5 bg-stone-200/80 rounded animate-pulse align-middle" />
+                      ) : (
+                        `${filteredBottles.length} of ${bottles.length} Bottles`
+                      )}
                     </span>
                   </div>
                   <h1 className="text-3xl md:text-4xl font-serif font-bold text-[#5A1E24] tracking-tight">My Wines</h1>
@@ -3187,7 +3316,11 @@ export default function App() {
                       : 'bg-white border-[#EBE7DF] text-stone-600 hover:text-stone-900 hover:bg-stone-50'
                   }`}
                 >
-                  All ({bottles.length})
+                  All {isDataLoading && bottles.length === 0 ? (
+                    <span className="inline-block w-4 h-3 bg-stone-200/80 rounded animate-pulse align-middle ml-1" />
+                  ) : (
+                    `(${bottles.length})`
+                  )}
                 </button>
                 
                 {WINE_TYPES.map(type => {
@@ -3212,35 +3345,61 @@ export default function App() {
 
               {viewMode === 'grid' ? (
                 <div className="max-w-5xl mx-auto w-full">
-                  <div className="grid grid-cols-2 gap-3.5 px-3 py-2">
-                    {filteredBottles.map(bottle => (
-                      <WineGridCard
-                        key={bottle.id}
-                        bottle={bottle}
-                        onSelect={(b) => setSelectedBottleForDetail(b)}
-                        onEdit={(b) => {
-                          setEditingBottle(b);
-                          setIsFormOpen(true);
-                        }}
-                        onDelete={handleDeleteBottle}
-                      />
-                    ))}
-                  </div>
+                  {isDataLoading && filteredBottles.length === 0 ? (
+                    <div className="grid grid-cols-2 gap-3.5 px-3 py-2">
+                      {Array.from({ length: 6 }).map((_, idx) => (
+                        <div
+                          key={`skeleton-grid-${idx}`}
+                          className="bg-white border border-[#E6DFD5] rounded-2xl p-3 sm:p-3.5 shadow-xs flex flex-col justify-between animate-pulse"
+                        >
+                          <div className="w-full aspect-[3/4] rounded-xl bg-stone-100 mb-3 flex items-center justify-center">
+                            <Wine size={40} className="text-stone-200" strokeWidth={1.2} />
+                          </div>
+                          <div className="space-y-2 flex-1">
+                            <div className="h-4 bg-stone-200/70 rounded-md w-3/4" />
+                            <div className="h-3 bg-stone-100 rounded-md w-1/2" />
+                            <div className="h-2.5 bg-stone-100 rounded-md w-2/3" />
+                          </div>
+                          <div className="mt-3 pt-2.5 border-t border-[#F2EFE9] flex items-center justify-between">
+                            <div className="h-3.5 bg-stone-200/70 rounded-md w-14" />
+                            <div className="h-3 bg-stone-100 rounded-md w-10" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-3.5 px-3 py-2">
+                        {filteredBottles.map(bottle => (
+                          <WineGridCard
+                            key={bottle.id}
+                            bottle={bottle}
+                            onSelect={(b) => setSelectedBottleForDetail(b)}
+                            onEdit={(b) => {
+                              setEditingBottle(b);
+                              setIsFormOpen(true);
+                            }}
+                            onDelete={handleDeleteBottle}
+                          />
+                        ))}
+                      </div>
 
-                  {filteredBottles.length === 0 && (
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="py-20 bg-white border border-dashed border-[#EBE7DF] rounded-3xl flex flex-col items-center text-center space-y-4 shadow-sm"
-                    >
-                      <div className="w-16 h-16 bg-[#722F37]/10 border border-[#722F37]/20 rounded-2xl flex items-center justify-center text-[#722F37]">
-                        <Search size={28} />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="font-serif text-2xl text-stone-900 font-bold">No bottles match your filters</p>
-                        <p className="text-xs uppercase tracking-wider text-stone-500 font-medium">Try resetting or adjusting your search criteria</p>
-                      </div>
-                    </motion.div>
+                      {filteredBottles.length === 0 && (
+                        <motion.div 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="py-20 bg-white border border-dashed border-[#EBE7DF] rounded-3xl flex flex-col items-center text-center space-y-4 shadow-sm"
+                        >
+                          <div className="w-16 h-16 bg-[#722F37]/10 border border-[#722F37]/20 rounded-2xl flex items-center justify-center text-[#722F37]">
+                            <Search size={28} />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="font-serif text-2xl text-stone-900 font-bold">No bottles match your filters</p>
+                            <p className="text-xs uppercase tracking-wider text-stone-500 font-medium">Try resetting or adjusting your search criteria</p>
+                          </div>
+                        </motion.div>
+                      )}
+                    </>
                   )}
                 </div>
               ) : (
@@ -3250,34 +3409,55 @@ export default function App() {
                   animate="visible"
                   className="flex flex-col gap-5 max-w-5xl mx-auto w-full"
                 >
-                  <AnimatePresence mode="popLayout">
-                    {filteredBottles.map(bottle => (
-                      <WineCard
-                        key={bottle.id}
-                        bottle={bottle}
-                        onEdit={(b) => {
-                          setEditingBottle(b);
-                          setIsFormOpen(true);
-                        }}
-                        onDelete={handleDeleteBottle}
-                      />
-                    ))}
-                  </AnimatePresence>
-                  
-                  {filteredBottles.length === 0 && (
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="py-20 bg-white border border-dashed border-[#EBE7DF] rounded-3xl flex flex-col items-center text-center space-y-4 shadow-sm"
-                    >
-                      <div className="w-16 h-16 bg-[#722F37]/10 border border-[#722F37]/20 rounded-2xl flex items-center justify-center text-[#722F37]">
-                        <Search size={28} />
+                  {isDataLoading && filteredBottles.length === 0 ? (
+                    Array.from({ length: 4 }).map((_, idx) => (
+                      <div
+                        key={`skeleton-list-${idx}`}
+                        className="bg-white border border-[#E6DFD5] rounded-2xl p-4 shadow-xs flex gap-4 items-center animate-pulse"
+                      >
+                        <div className="w-16 h-24 rounded-xl bg-stone-100 flex items-center justify-center shrink-0">
+                          <Wine size={28} className="text-stone-200" strokeWidth={1.2} />
+                        </div>
+                        <div className="flex-1 space-y-2.5">
+                          <div className="h-4 bg-stone-200/70 rounded-md w-1/2" />
+                          <div className="h-3 bg-stone-100 rounded-md w-1/3" />
+                          <div className="h-2.5 bg-stone-100 rounded-md w-1/4" />
+                        </div>
+                        <div className="w-16 h-5 bg-stone-100 rounded shrink-0 hidden sm:block" />
                       </div>
-                      <div className="space-y-1">
-                        <p className="font-serif text-2xl text-stone-900 font-bold">No bottles match your filters</p>
-                        <p className="text-xs uppercase tracking-wider text-stone-500 font-medium">Try resetting or adjusting your search criteria</p>
-                      </div>
-                    </motion.div>
+                    ))
+                  ) : (
+                    <>
+                      <AnimatePresence mode="popLayout">
+                        {filteredBottles.map(bottle => (
+                          <WineCard
+                            key={bottle.id}
+                            bottle={bottle}
+                            onEdit={(b) => {
+                              setEditingBottle(b);
+                              setIsFormOpen(true);
+                            }}
+                            onDelete={handleDeleteBottle}
+                          />
+                        ))}
+                      </AnimatePresence>
+                      
+                      {filteredBottles.length === 0 && (
+                        <motion.div 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="py-20 bg-white border border-dashed border-[#EBE7DF] rounded-3xl flex flex-col items-center text-center space-y-4 shadow-sm"
+                        >
+                          <div className="w-16 h-16 bg-[#722F37]/10 border border-[#722F37]/20 rounded-2xl flex items-center justify-center text-[#722F37]">
+                            <Search size={28} />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="font-serif text-2xl text-stone-900 font-bold">No bottles match your filters</p>
+                            <p className="text-xs uppercase tracking-wider text-stone-500 font-medium">Try resetting or adjusting your search criteria</p>
+                          </div>
+                        </motion.div>
+                      )}
+                    </>
                   )}
                 </motion.div>
               )}
