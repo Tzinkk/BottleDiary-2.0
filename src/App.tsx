@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Plus, Search, Filter, Wine, Trash2, Edit2, Star, X, Info, Globe, Banknote, ChevronDown, Upload, Camera, Loader2, Sparkles, Sparkle, BarChart3, LogIn, LogOut, User as UserIcon, Droplets, FlaskConical, Leaf, Utensils, Check } from 'lucide-react';
+import { Plus, Search, Filter, Wine, Trash2, Edit2, Star, X, Info, Globe, Banknote, ChevronDown, ChevronUp, ChevronRight, ArrowRight, Upload, Camera, Loader2, Sparkles, Sparkle, BarChart3, LogIn, LogOut, User as UserIcon, Droplets, FlaskConical, Leaf, Utensils, Check, Home as HomeIcon, Compass, Bookmark } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   PieChart, 
@@ -22,26 +22,18 @@ import {
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, updateDoc, limit } from 'firebase/firestore';
 import { auth, db, signInWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
-import { WineBottle, WineType, SortOption, GrapeVariety, QuizQuestion } from './types';
+import { WineBottle, WineType, SortOption, GrapeVariety, QuizQuestion, WINE_TYPES, WINE_TYPE_CONFIG } from './types';
 import { analyzeWineLabel, generateQuizQuestion, refineTastingNotes, generateTastingNotesForBottle } from './services/aiService';
 import { WorldMap } from './components/WorldMap';
+import { TopHeader } from './components/TopHeader';
+import { DashboardGrid } from './components/DashboardGrid';
+import { RecentlyAddedCarousel } from './components/RecentlyAddedCarousel';
+import { BottomNavBar, MainNavTab } from './components/BottomNavBar';
+import { NavigationDrawer } from './components/NavigationDrawer';
+import { ProfileView } from './components/ProfileView';
+import { ExploreView } from './components/ExploreView';
 
 // --- Configuration ---
-
-const WINE_TYPES: WineType[] = ['Red', 'White', 'Rosé', 'Sparkling', 'Natural Red', 'Natural White', 'Pet Nat', 'Orange', 'Sato', 'Sake'];
-
-const WINE_TYPE_CONFIG: Record<string, { text: string, bg: string, border: string, accent: string, hex: string, activeBg: string, activeText: string }> = {
-  'Red': { text: 'text-[#ff99ac]', bg: 'bg-[#650015]/30', border: 'border-[#650015]/50', accent: 'bg-[#650015]', hex: '#650015', activeBg: 'bg-[#650015]', activeText: 'text-[#E6C280] border-[#650015]' },
-  'White': { text: 'text-[#f0e68c]', bg: 'bg-[#f0e68c]/10', border: 'border-[#f0e68c]/20', accent: 'bg-[#f0e68c]', hex: '#f0e68c', activeBg: 'bg-[#f0e68c]', activeText: 'text-wine-bg border-[#f0e68c]' },
-  'Rosé': { text: 'text-[#ffb6c1]', bg: 'bg-[#ffb6c1]/10', border: 'border-[#ffb6c1]/20', accent: 'bg-[#ffb6c1]', hex: '#ffb6c1', activeBg: 'bg-[#ffb6c1]', activeText: 'text-wine-bg border-[#ffb6c1]' },
-  'Sparkling': { text: 'text-[#e0ffff]', bg: 'bg-[#e0ffff]/10', border: 'border-[#e0ffff]/20', accent: 'bg-[#e0ffff]', hex: '#e0ffff', activeBg: 'bg-[#e0ffff]', activeText: 'text-wine-bg border-[#e0ffff]' },
-  'Natural Red': { text: 'text-[#ff8095]', bg: 'bg-[#4a000e]/30', border: 'border-[#4a000e]/50', accent: 'bg-[#4a000e]', hex: '#4a000e', activeBg: 'bg-[#4a000e]', activeText: 'text-[#E6C280] border-[#4a000e]' },
-  'Natural White': { text: 'text-[#fafad2]', bg: 'bg-[#fafad2]/10', border: 'border-[#fafad2]/20', accent: 'bg-[#fafad2]', hex: '#fafad2', activeBg: 'bg-[#fafad2]', activeText: 'text-wine-bg border-[#fafad2]' },
-  'Pet Nat': { text: 'text-[#ffe4b5]', bg: 'bg-[#ffe4b5]/10', border: 'border-[#ffe4b5]/20', accent: 'bg-[#ffe4b5]', hex: '#ffe4b5', activeBg: 'bg-[#ffe4b5]', activeText: 'text-wine-bg border-[#ffe4b5]' },
-  'Orange': { text: 'text-[#ffa500]', bg: 'bg-[#ffa500]/10', border: 'border-[#ffa500]/20', accent: 'bg-[#ffa500]', hex: '#ffa500', activeBg: 'bg-[#ffa500]', activeText: 'text-wine-bg border-[#ffa500]' },
-  'Sato': { text: 'text-[#fffaf0]', bg: 'bg-[#fffaf0]/10', border: 'border-[#fffaf0]/20', accent: 'bg-[#fffaf0]', hex: '#fffaf0', activeBg: 'bg-[#fffaf0]', activeText: 'text-wine-bg border-[#fffaf0]' },
-  'Sake': { text: 'text-[#f5f5f5]', bg: 'bg-[#f5f5f5]/10', border: 'border-[#f5f5f5]/20', accent: 'bg-[#f5f5f5]', hex: '#f5f5f5', activeBg: 'bg-[#f5f5f5]', activeText: 'text-wine-bg border-[#f5f5f5]' },
-};
 
 const FALLBACK_QUESTIONS: QuizQuestion[] = [
   {
@@ -79,6 +71,151 @@ const FALLBACK_QUESTIONS: QuizQuestion[] = [
   }
 ];
 
+const DEMO_BOTTLES: WineBottle[] = [
+  {
+    id: 'demo-1',
+    name: 'Barolo Bricco Rocche',
+    producer: 'Ceretto',
+    year: '2016',
+    type: 'Red',
+    region: 'Piedmont',
+    country: 'Italy',
+    grape: ['Nebbiolo'],
+    price: 6500,
+    imageUrl: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800&auto=format&fit=crop&q=80',
+    tastingNotes: 'A majestic expression of Castiglione Falletto with ethereal dried rose petal, tar, crushed cranberry, and white truffle aromas. Gripping, velvety tannins with extraordinary persistence.',
+    appearance: 'Luminous garnet with delicate orange rim reflexes',
+    nose: 'Intense bouquet of violet, wild strawberry, tobacco leaf, and forest floor',
+    palate: 'Silky yet powerful structural backbone, vibrant acidity, and notes of blood orange and spice',
+    finish: 'Tremendously long, mineral-driven finish with lingering savory nuances',
+    winemakingPhilosophy: 'Organic and biodynamic farming, aged in French oak tonneaux followed by traditional large casks',
+    viticulture: 'Single-vineyard amphitheater at 370m altitude with calcareous marl soil',
+    foodPairing: ['Truffle Tagliolini', 'Slow-braised Osso Buco', 'Aged Parmigiano-Reggiano'],
+    dateAdded: Date.now() - 86400000 * 14,
+    userId: 'demo'
+  },
+  {
+    id: 'demo-2',
+    name: 'Château Margaux Premier Grand Cru Classé',
+    producer: 'Château Margaux',
+    year: '2015',
+    type: 'Red',
+    region: 'Bordeaux',
+    country: 'France',
+    grape: ['Cabernet Sauvignon', 'Merlot', 'Petit Verdot', 'Cabernet Franc'],
+    price: 32000,
+    imageUrl: 'https://images.unsplash.com/photo-1553361371-9b22f78e8b1d?w=800&auto=format&fit=crop&q=80',
+    tastingNotes: 'Aristocratic elegance with sublime balance. Explosive violets, pure cassis, cedar box, and graphite leading into a seamless, satin-textured palate.',
+    appearance: 'Deep, brooding opaque ruby with violet highlights',
+    nose: 'Fresh blackcurrant, lilac blossoms, cedarwood, and graphite mineral core',
+    palate: 'Multi-dimensional depth, ultra-fine cashmere tannins, fresh acidity, and pure dark fruit',
+    finish: 'Endless harmonic persistence with delicate savory and floral echoes',
+    winemakingPhilosophy: 'Traditional vinification in oak vats followed by 24 months in 100% new French oak',
+    viticulture: 'Deep gravel soils overlying clay and limestone in the Margaux commune',
+    foodPairing: ['Roasted Squab with Cherry Jus', 'Wagyu Ribeye Steak', 'Duck Breast with Plum Reduction'],
+    dateAdded: Date.now() - 86400000 * 25,
+    userId: 'demo'
+  },
+  {
+    id: 'demo-3',
+    name: 'Montée de Tonnerre Chablis Premier Cru',
+    producer: 'Domaine François Raveneau',
+    year: '2020',
+    type: 'White',
+    region: 'Burgundy',
+    country: 'France',
+    grape: ['Chardonnay'],
+    price: 11500,
+    imageUrl: 'https://images.unsplash.com/photo-1569919659476-f0852f6834b7?w=800&auto=format&fit=crop&q=80',
+    tastingNotes: 'Pristine saline precision with gunflint, lemon oil, crisp green pear, and wet limestone. Tension and crystalline purity in every drop.',
+    appearance: 'Pale straw gold with brilliant crystalline green shimmers',
+    nose: 'Crushed oyster shell, citrus blossom, lemon zest, and white peach',
+    palate: 'Chiseled minerality, laser-focused acidity, with a dense, mouthwatering saline core',
+    finish: 'Vibrant, electrifying finish that cleanses the palate with stony persistence',
+    winemakingPhilosophy: 'Spontaneous fermentation, aged in neutral used feuillettes to respect terroir',
+    viticulture: 'Kimmeridgian limestone rich in fossilized Exogyra virgula shells',
+    foodPairing: ['Fresh Belon Oysters', 'Pan-seared Dover Sole Meunière', 'Raw Scallop Carpaccio'],
+    dateAdded: Date.now() - 86400000 * 5,
+    userId: 'demo'
+  },
+  {
+    id: 'demo-4',
+    name: 'Dom Pérignon Vintage',
+    producer: 'Moët & Chandon',
+    year: '2013',
+    type: 'Sparkling',
+    region: 'Champagne',
+    country: 'France',
+    grape: ['Chardonnay', 'Pinot Noir'],
+    price: 9200,
+    imageUrl: 'https://images.unsplash.com/photo-1594488518001-094191d830b4?w=800&auto=format&fit=crop&q=80',
+    tastingNotes: 'Luminous effervescence with toasted brioche, candied citrus, smoky flint, and white flowers. Creamy yet vibrant on the palate with aristocratic poise.',
+    appearance: 'Luminous pale gold with a fine, continuous bead of effervescent bubbles',
+    nose: 'Eucalyptus, mint, mirabelle plum, toasted hazelnut, and cardamom spice',
+    palate: 'Energetic and tactile, balancing ripe stone fruit with saline minerality and silky mousse',
+    finish: 'Long, vibrating finish with smoky elegance and lingering saline tension',
+    winemakingPhilosophy: 'Only produced in exceptional vintage years, aged on lees for almost a decade',
+    viticulture: 'Premier and Grand Cru vineyard selections across the Montagne de Reims and Côte des Blancs',
+    foodPairing: ['Caviar with Blinis', 'Butter-poached Maine Lobster', 'Langoustine Tartare'],
+    dateAdded: Date.now() - 86400000 * 30,
+    userId: 'demo'
+  }
+];
+
+const DEMO_GRAPES: GrapeVariety[] = [
+  {
+    id: 'demo-grape-1',
+    name: 'Nebbiolo',
+    type: 'Red',
+    skin: 'Thin, translucent garnet-red skin with high natural bloom and high anthocyanin sensitivity',
+    locations: ['Piedmont / Italy', 'Lombardy (Valtellina) / Italy'],
+    body: 'Medium-Full',
+    acidity: 'High',
+    tannin: 'Very High',
+    sweetness: 'Dry',
+    aromaFlavor: 'Tar, dried roses, sour cherry, leather, clay, anise, and white truffle',
+    otherNotes: 'One of the most noble grape varieties on Earth. Requires long aging to soften its fierce tannin structure.',
+    foodPairing: ['White Truffle Risotto', 'Braised Beef in Barolo', 'Aged Castelmagno Cheese'],
+    additionalNotes: 'Derives its name from "nebbia", the Italian word for fog that blankets the Langhe hills during late autumn harvest.',
+    userId: 'demo',
+    dateAdded: Date.now() - 86400000 * 20
+  },
+  {
+    id: 'demo-grape-2',
+    name: 'Chardonnay',
+    type: 'White',
+    skin: 'Golden-green delicate skin with high terroir reflectivity and phenolic malleability',
+    locations: ['Burgundy / France', 'Champagne / France', 'Napa Valley / United States', 'Margaret River / Australia'],
+    body: 'Medium to Full',
+    acidity: 'Medium to High',
+    tannin: 'None',
+    sweetness: 'Dry',
+    aromaFlavor: 'Green apple, lemon curd, flint, chalk, butter, toasted hazelnut, and brioche',
+    otherNotes: 'A stylistic chameleon capable of crystalline mineral expression in Chablis or opulent richness in Meursault.',
+    foodPairing: ['Roasted Turbot', 'Roast Chicken with Morel Cream', 'Lobster Thermidor'],
+    additionalNotes: 'Naturally neutral grape variety that serves as the ultimate transparent canvas for soil and winemaking choices.',
+    userId: 'demo',
+    dateAdded: Date.now() - 86400000 * 18
+  },
+  {
+    id: 'demo-grape-3',
+    name: 'Cabernet Sauvignon',
+    type: 'Red',
+    skin: 'Thick, dark-blue skin with high tannin and pigment density, exceptionally resilient',
+    locations: ['Bordeaux (Left Bank) / France', 'Napa Valley / United States', 'Coonawarra / Australia', 'Tuscany / Italy'],
+    body: 'Full',
+    acidity: 'Medium-High',
+    tannin: 'High',
+    sweetness: 'Dry',
+    aromaFlavor: 'Blackcurrant (cassis), cedar, graphite, black pepper, tobacco, and dark chocolate',
+    otherNotes: 'The world’s most widely planted and revered fine wine grape, naturally resistant to rot and cold.',
+    foodPairing: ['Dry-aged Prime Ribeye', 'Roasted Lamb with Rosemary', 'Venison with Blackberry Sauce'],
+    additionalNotes: 'A natural genetic crossing between Cabernet Franc and Sauvignon Blanc discovered in 17th-century France.',
+    userId: 'demo',
+    dateAdded: Date.now() - 86400000 * 22
+  }
+];
+
 // --- Animation Variants ---
 
 const containerVariants = {
@@ -86,28 +223,25 @@ const containerVariants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.2
+      duration: 0.15
     }
   }
 };
 
 const cardVariants = {
-  hidden: { opacity: 0, y: 20, scale: 0.95 },
+  hidden: { opacity: 0, scale: 0.98 },
   visible: { 
     opacity: 1, 
-    y: 0, 
     scale: 1,
     transition: { 
-      type: "spring", 
-      stiffness: 100, 
-      damping: 15 
+      duration: 0.15,
+      ease: [0.16, 1, 0.3, 1]
     }
   },
   exit: { 
     opacity: 0, 
-    scale: 0.9, 
-    transition: { duration: 0.2 } 
+    scale: 0.98, 
+    transition: { duration: 0.1 } 
   }
 };
 
@@ -130,28 +264,28 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ title, message, o
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="fixed inset-0 bg-[#000]/80 backdrop-blur-md z-40"
+        className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40"
       />
       <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        initial={{ opacity: 0, scale: 0.95, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className="glass-panel p-8 max-w-sm w-full space-y-6 relative z-50 rounded-sm border-white/10 shadow-2xl bg-[#071F17]"
+        exit={{ opacity: 0, scale: 0.95, y: 15 }}
+        className="bg-white p-7 max-w-sm w-full space-y-6 relative z-50 rounded-2xl border border-[#EBE7DF] shadow-[0_20px_60px_rgba(28,25,23,0.15)] text-stone-900"
       >
         <div className="space-y-4">
-          <div className="w-12 h-12 bg-red-900/20 border border-red-900/30 rounded-full flex items-center justify-center text-red-500 mx-auto">
-            <Trash2 size={24} strokeWidth={1.5} />
+          <div className="w-12 h-12 bg-[#FDF2F4] border border-[#F5C2CB] rounded-xl flex items-center justify-center text-[#722F37] mx-auto shadow-xs">
+            <Trash2 size={22} strokeWidth={2} />
           </div>
-          <div className="text-center space-y-2">
-            <h3 className="text-lg font-serif text-ink uppercase tracking-widest">{title}</h3>
-            <p className="text-[10px] text-ink/40 uppercase tracking-[0.2em] leading-relaxed">{message}</p>
+          <div className="text-center space-y-1.5">
+            <h3 className="text-lg font-serif font-bold text-stone-900 tracking-normal">{title}</h3>
+            <p className="text-xs text-stone-600 font-normal leading-relaxed">{message}</p>
           </div>
         </div>
         
-        <div className="flex gap-4 pt-2">
+        <div className="flex gap-3 pt-1">
           <button
             onClick={onClose}
-            className="flex-1 px-6 py-4 border border-white/10 text-[10px] uppercase tracking-widest text-ink/60 hover:bg-white/5 transition-all rounded-sm font-bold active:scale-95"
+            className="flex-1 py-2.5 border border-[#E5E0D8] bg-[#F7F5F0] hover:bg-[#EBE7DF] text-stone-700 text-xs tracking-wider font-semibold rounded-xl transition-all cursor-pointer"
           >
             Cancel
           </button>
@@ -160,7 +294,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ title, message, o
               onConfirm();
               onClose();
             }}
-            className={`flex-1 px-6 py-4 ${isDanger ? 'bg-red-700/80 text-[#f8f4ed] hover:bg-red-600' : 'bg-gold text-wine-bg hover:bg-gold/90'} text-[10px] uppercase tracking-widest transition-all rounded-sm font-bold shadow-lg shadow-black/40 active:scale-95`}
+            className={`flex-1 py-2.5 rounded-xl border ${isDanger ? 'border-[#722F37] bg-[#722F37] hover:bg-[#5C242C] shadow-sm' : 'border-[#CA8A04] bg-[#CA8A04] hover:bg-[#A16207] shadow-sm'} text-white text-xs tracking-wider font-semibold transition-all cursor-pointer`}
           >
             {confirmText}
           </button>
@@ -181,102 +315,110 @@ interface GrapeCardProps {
 const GrapeCard: React.FC<GrapeCardProps> = ({ grape, onEdit, onDelete, isComparing, onToggleCompare }) => {
   return (
     <motion.div
-      layout
       variants={cardVariants}
       initial="hidden"
       animate="visible"
       exit="exit"
-      whileHover={{ y: -8, transition: { duration: 0.2 } }}
-      className={`glass-panel p-6 flex flex-col h-full group relative transition-all duration-300 rounded-sm overflow-hidden border-l-2 ${grape.type === 'Red' ? 'border-red-900/50' : 'border-yellow-800/30'}`}
+      whileHover={{ scale: 1.01, transition: { duration: 0.15, ease: "easeOut" } }}
+      whileTap={{ scale: 0.99 }}
+      style={{ willChange: "transform, opacity" }}
+      className={`bg-white border border-[#EBE7DF] hover:border-[#D6CFBF] p-6 flex flex-col h-full group relative transition-all duration-200 ease-out rounded-2xl shadow-[0_2px_12px_rgba(28,25,23,0.04)] hover:shadow-[0_6px_24px_rgba(28,25,23,0.08)] ${grape.type === 'Red' ? 'border-l-4 border-l-[#800020]' : 'border-l-4 border-l-[#CA8A04]'}`}
     >
-      <div className="flex justify-between items-start mb-6">
-        <div className="flex items-center gap-3">
+      <div className="flex justify-between items-start mb-5">
+        <div className="flex items-center gap-2.5">
           <button 
             onClick={() => onToggleCompare(grape.id)}
-            className={`w-5 h-5 rounded-sm border flex items-center justify-center transition-all ${
+            className={`w-7 h-7 rounded-lg border flex items-center justify-center transition-all cursor-pointer ${
               isComparing 
-                ? 'bg-gold border-gold text-wine-bg shadow-[0_0_10px_rgba(212,175,55,0.4)]' 
-                : 'bg-white/5 border-white/10 text-transparent hover:border-gold/40'
+                ? 'bg-[#722F37] text-white border-[#722F37] shadow-sm' 
+                : 'border-[#E5E0D8] bg-[#F7F5F0] hover:bg-[#EBE7DF] text-stone-600 hover:text-stone-900'
             }`}
+            title={isComparing ? 'Remove from comparison' : 'Add to comparison'}
           >
-            <Plus size={12} strokeWidth={3} className={isComparing ? 'transform rotate-45' : ''} />
+            <Plus size={14} strokeWidth={2.5} className={isComparing ? 'transform rotate-45' : ''} />
           </button>
-          <span className={`text-[9px] uppercase tracking-[0.2em] font-bold px-3 py-1 rounded-full border ${grape.type === 'Red' ? 'text-red-400 bg-red-950/40 border-red-900/50' : 'text-yellow-100 bg-yellow-950/30 border-yellow-800/30'}`}>
+          <span className={`text-[10px] uppercase tracking-wider font-semibold px-2.5 py-0.5 rounded-full border ${grape.type === 'Red' ? 'bg-[#FDF2F4] text-[#800020] border-[#F5C2CB]' : 'bg-[#FEFCE8] text-[#854D0E] border-[#FEF08A]'}`}>
             {grape.type}
           </span>
         </div>
-        <div className="flex space-x-1">
-          <button onClick={() => onEdit(grape)} className="p-1.5 text-ink/40 hover:text-gold transition-colors">
-            <Edit2 size={14} />
+        <div className="flex space-x-1.5">
+          <button 
+            onClick={() => onEdit(grape)} 
+            className="p-2 rounded-lg border border-[#E5E0D8] bg-[#F7F5F0] hover:bg-[#EBE7DF] text-stone-700 hover:text-stone-900 transition-all cursor-pointer"
+            title="Edit Variety"
+          >
+            <Edit2 size={13} />
           </button>
-          <button onClick={() => onDelete(grape.id)} className="p-1.5 text-ink/40 hover:text-red-500 transition-colors">
-            <Trash2 size={14} />
+          <button 
+            onClick={() => onDelete(grape.id)} 
+            className="p-2 rounded-lg border border-[#F5C2CB] bg-[#FDF2F4] hover:bg-[#FEE2E2] text-[#800020] transition-all cursor-pointer"
+            title="Delete Variety"
+          >
+            <Trash2 size={13} />
           </button>
         </div>
       </div>
 
-      <div className="mb-6">
-        <h3 className="font-serif text-2xl font-light text-ink tracking-wide leading-tight">{grape.name}</h3>
-        <div className="flex flex-wrap gap-x-2 gap-y-1 mt-1">
+      <div className="mb-5">
+        <h3 className="font-serif text-2xl font-bold text-stone-900 tracking-tight leading-tight">{grape.name}</h3>
+        <div className="flex flex-wrap gap-1.5 mt-2">
           {(grape.locations || []).map((loc, i) => (
-            <span key={i} className="text-[10px] text-gold/60 uppercase tracking-widest">
-              {loc}{i < (grape.locations || []).length - 1 ? ' • ' : ''}
+            <span key={i} className="text-xs bg-[#F7F5F0] border border-[#EBE7DF] font-medium px-2 py-0.5 rounded-md text-stone-700">
+              {loc}
             </span>
           ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-6 pt-4 border-t border-white/5">
-        <div className="space-y-1">
-          <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold">Skin</p>
-          <p className="text-xs text-ink/80">{grape.skin || '—'}</p>
+      <div className="grid grid-cols-2 gap-2.5 mb-5 p-3.5 bg-[#FAF8F3] border border-[#EBE7DF] rounded-xl">
+        <div className="space-y-0.5">
+          <p className="text-[9px] text-stone-400 uppercase tracking-wider font-semibold">Skin</p>
+          <p className="text-xs font-semibold text-stone-800">{grape.skin || '—'}</p>
         </div>
-        <div className="space-y-1">
-          <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold">Body</p>
-          <p className="text-xs text-ink/80">{grape.body || '—'}</p>
+        <div className="space-y-0.5">
+          <p className="text-[9px] text-stone-400 uppercase tracking-wider font-semibold">Body</p>
+          <p className="text-xs font-semibold text-stone-800">{grape.body || '—'}</p>
         </div>
-        <div className="space-y-1">
-          <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold">Acidity</p>
-          <p className="text-xs text-ink/80">{grape.acidity || '—'}</p>
+        <div className="space-y-0.5">
+          <p className="text-[9px] text-stone-400 uppercase tracking-wider font-semibold">Acidity</p>
+          <p className="text-xs font-semibold text-stone-800">{grape.acidity || '—'}</p>
         </div>
-        <div className="space-y-1">
-          <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold">Tannin</p>
-          <p className="text-xs text-ink/80">{grape.tannin || '—'}</p>
+        <div className="space-y-0.5">
+          <p className="text-[9px] text-stone-400 uppercase tracking-wider font-semibold">Tannin</p>
+          <p className="text-xs font-semibold text-stone-800">{grape.tannin || '—'}</p>
         </div>
       </div>
 
-      <div className="space-y-4">
-        <div>
-          <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold mb-1">Aroma & Flavor</p>
-          <p className="text-xs italic text-ink/60 line-clamp-2">{grape.aromaFlavor || '—'}</p>
-        </div>
-        <div>
-          <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold mb-1">Other Notes</p>
-          <p className="text-xs text-ink/60 line-clamp-2">{grape.otherNotes || '—'}</p>
-        </div>
-        <div>
-          <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold mb-1">Additional Notes</p>
-          <p className="text-xs text-ink/60 line-clamp-2">{grape.additionalNotes || '—'}</p>
-        </div>
-        <div>
-          <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold mb-1">Food Pairing</p>
-        {Array.isArray(grape.foodPairing) && grape.foodPairing.length > 0 ? (
-          <p className="text-[10px] text-gold/60 font-serif italic flex flex-wrap gap-x-2">
-            {grape.foodPairing.map((fp, i) => (
-              <span key={i}>
-                {fp}{i < grape.foodPairing.length - 1 ? ' • ' : ''}
-              </span>
-            ))}
-          </p>
-        ) : (
-          <p className="text-xs text-gold/60 line-clamp-2 font-serif italic">—</p>
+      <div className="space-y-3 flex-1 text-stone-700">
+        {grape.aromaFlavor && (
+          <div>
+            <p className="text-[9px] text-stone-400 uppercase tracking-wider font-semibold mb-0.5">Aroma & Flavor</p>
+            <p className="text-xs font-normal italic text-stone-700 line-clamp-2 leading-relaxed">{grape.aromaFlavor}</p>
+          </div>
         )}
-        </div>
+        {grape.otherNotes && (
+          <div>
+            <p className="text-[9px] text-stone-400 uppercase tracking-wider font-semibold mb-0.5">Other Notes</p>
+            <p className="text-xs font-normal text-stone-500 line-clamp-2 leading-relaxed">{grape.otherNotes}</p>
+          </div>
+        )}
+        {Array.isArray(grape.foodPairing) && grape.foodPairing.length > 0 && (
+          <div>
+            <p className="text-[9px] text-stone-400 uppercase tracking-wider font-semibold mb-1">Food Pairing</p>
+            <div className="flex flex-wrap gap-1">
+              {grape.foodPairing.map((fp, i) => (
+                <span key={i} className="text-[10px] bg-[#FDF2F4] border border-[#F5C2CB] text-[#800020] px-2 py-0.5 rounded-md font-medium">
+                  {fp}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <button 
         onClick={() => onEdit(grape)}
-        className="mt-6 w-full py-2 border border-gold/20 text-gold hover:bg-gold/5 text-[9px] uppercase tracking-[0.3em] transition-all rounded-sm"
+        className="mt-6 w-full py-2.5 bg-[#F7F5F0] hover:bg-[#722F37] hover:text-white border border-[#E5E0D8] rounded-xl text-stone-800 font-medium text-xs tracking-wider transition-all duration-200 cursor-pointer"
       >
         View Details
       </button>
@@ -338,61 +480,75 @@ const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
   return (
     <motion.div
       initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-      className="fixed inset-y-0 right-0 w-full max-w-lg bg-[#071F17] shadow-2xl z-50 overflow-y-auto border-l border-white/5"
+      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+      className="fixed inset-y-0 right-0 w-full max-w-lg bg-[#FBF9F5] shadow-[-16px_0px_48px_rgba(28,25,23,0.15)] z-[60] overflow-y-auto border-l border-[#EBE7DF] text-stone-900 pointer-events-auto"
     >
-      <div className="p-10">
-        <div className="flex justify-between items-center mb-12">
+      <div className="p-8 md:p-10">
+        <div className="flex justify-between items-center mb-8 border-b border-[#EBE7DF] pb-4">
           <div>
-            <h2 className="font-serif text-4xl text-ink font-light tracking-wide">{grape ? 'Edit Variety' : 'New Variety'}</h2>
-            <p className="text-[10px] uppercase tracking-[0.3em] text-gold/60 mt-2">Grape Encyclopedia</p>
+            <h2 className="font-serif text-2xl md:text-3xl text-[#5A1E24] font-bold tracking-tight">{grape ? 'Edit Variety' : 'New Variety'}</h2>
+            <p className="text-xs uppercase tracking-wider font-semibold text-[#722F37] mt-1">Grape Encyclopedia</p>
           </div>
-          <button onClick={onClose} className="p-3 bg-white/5 rounded-full border border-white/5"><X size={20} /></button>
+          <button 
+            type="button"
+            onClick={onClose} 
+            className="p-2.5 bg-white hover:bg-[#F7F5F0] rounded-xl border border-[#E5E0D8] text-stone-600 hover:text-stone-900 transition-all cursor-pointer shadow-xs"
+            aria-label="Close variety form"
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Variety Name</label>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Variety Name</label>
             <input
               required value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
-              className="w-full bg-transparent border-b border-white/10 py-3 text-2xl font-serif text-ink"
+              className="w-full bg-white border border-[#E5E0D8] rounded-xl px-4 py-2.5 text-stone-900 font-semibold text-lg focus:outline-none focus:border-[#722F37] focus:ring-1 focus:ring-[#722F37]/30 transition-all placeholder:text-stone-400"
               placeholder="e.g. Pinot Noir"
             />
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex gap-3">
             {['Red', 'White'].map(t => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setFormData({ ...formData, type: t as any })}
-                className={`px-6 py-2 text-[10px] uppercase tracking-widest border transition-all rounded-sm ${formData.type === t ? 'bg-gold/10 border-gold text-gold font-bold' : 'border-white/10 text-ink/60'}`}
+                className={`flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider rounded-xl border transition-all cursor-pointer ${
+                  formData.type === t 
+                    ? t === 'Red' 
+                      ? 'bg-[#FDF2F4] text-[#800020] border-[#F5C2CB] shadow-xs' 
+                      : 'bg-[#FEFCE8] text-[#854D0E] border-[#FEF08A] shadow-xs'
+                    : 'bg-white text-stone-600 border-[#E5E0D8] hover:bg-[#F7F5F0]'
+                }`}
               >
                 {t} Grape
               </button>
             ))}
           </div>
 
-          <div className="grid grid-cols-2 gap-8">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Skin</label>
-              <input value={formData.skin} onChange={e => setFormData({ ...formData, skin: e.target.value })} className="w-full bg-transparent border-b border-white/10 py-2 text-ink" placeholder="Thick/Thin" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Skin</label>
+              <input value={formData.skin} onChange={e => setFormData({ ...formData, skin: e.target.value })} className="w-full bg-white border border-[#E5E0D8] rounded-xl px-3.5 py-2 text-stone-900 font-medium focus:outline-none focus:border-[#722F37] transition-all text-xs" placeholder="Thick/Thin" />
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Body</label>
-              <input value={formData.body} onChange={e => setFormData({ ...formData, body: e.target.value })} className="w-full bg-transparent border-b border-white/10 py-2 text-ink" placeholder="Light/Medium/Full" />
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Body</label>
+              <input value={formData.body} onChange={e => setFormData({ ...formData, body: e.target.value })} className="w-full bg-white border border-[#E5E0D8] rounded-xl px-3.5 py-2 text-stone-900 font-medium focus:outline-none focus:border-[#722F37] transition-all text-xs" placeholder="Light/Medium/Full" />
             </div>
           </div>
 
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Geography (Region / Country)</label>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Geography (Region / Country)</label>
               <div className="flex flex-wrap gap-2 mb-2 min-h-[32px]">
                 {formData.locations.map((loc, i) => (
-                  <span key={i} className="flex items-center gap-1 px-3 py-1 bg-gold/5 border border-gold/10 rounded-full text-[10px] text-gold">
+                  <span key={i} className="flex items-center gap-1.5 px-3 py-1 bg-[#FAF8F3] border border-[#EBE7DF] rounded-lg text-xs font-medium text-stone-700">
                     {loc}
-                    <button type="button" onClick={() => removeLocation(i)} className="hover:text-red-500 transition-colors">
-                      <X size={10} />
+                    <button type="button" onClick={() => removeLocation(i)} className="hover:text-[#722F37] cursor-pointer">
+                      <X size={12} />
                     </button>
                   </span>
                 ))}
@@ -402,58 +558,58 @@ const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
                   value={locationInput} 
                   onChange={e => setLocationInput(e.target.value)} 
                   onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addLocation())}
-                  className="flex-1 bg-transparent border-b border-white/10 py-2 text-ink text-sm font-light italic" 
+                  className="flex-1 bg-white border border-[#E5E0D8] rounded-xl px-3.5 py-2 text-stone-900 text-xs font-medium focus:outline-none focus:border-[#722F37] transition-all" 
                   placeholder="e.g. Piedmont / Italy"
                 />
-                <button type="button" onClick={addLocation} className="p-2 border border-white/10 rounded hover:bg-white/5 transition-colors text-gold">
-                  <Plus size={14} />
+                <button type="button" onClick={addLocation} className="px-3 rounded-xl border border-[#E5E0D8] bg-[#F7F5F0] hover:bg-[#EBE7DF] text-stone-700 font-semibold cursor-pointer">
+                  <Plus size={16} />
                 </button>
               </div>
-              <p className="text-[8px] text-white/20 italic">Format: Region / Country (e.g., Bordeaux / France)</p>
+              <p className="text-[10px] text-stone-400 font-medium">Format: Region / Country (e.g., Bordeaux / France)</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-ink/30">Acidity</label>
-              <input value={formData.acidity} onChange={e => setFormData({ ...formData, acidity: e.target.value })} className="w-full bg-transparent border-b border-white/10 py-2 text-xs text-ink" />
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="text-[10px] font-semibold uppercase tracking-wider text-stone-500">Acidity</label>
+              <input value={formData.acidity} onChange={e => setFormData({ ...formData, acidity: e.target.value })} className="w-full bg-white border border-[#E5E0D8] rounded-lg px-2.5 py-1.5 text-xs text-stone-900 font-medium focus:outline-none focus:border-[#722F37]" />
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-ink/30">Tannin</label>
-              <input value={formData.tannin} onChange={e => setFormData({ ...formData, tannin: e.target.value })} className="w-full bg-transparent border-b border-white/10 py-2 text-xs text-ink" />
+            <div className="space-y-1">
+              <label className="text-[10px] font-semibold uppercase tracking-wider text-stone-500">Tannin</label>
+              <input value={formData.tannin} onChange={e => setFormData({ ...formData, tannin: e.target.value })} className="w-full bg-white border border-[#E5E0D8] rounded-lg px-2.5 py-1.5 text-xs text-stone-900 font-medium focus:outline-none focus:border-[#722F37]" />
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-ink/30">Sweetness</label>
-              <input value={formData.sweetness} onChange={e => setFormData({ ...formData, sweetness: e.target.value })} className="w-full bg-transparent border-b border-white/10 py-2 text-xs text-ink" />
+            <div className="space-y-1">
+              <label className="text-[10px] font-semibold uppercase tracking-wider text-stone-500">Sweetness</label>
+              <input value={formData.sweetness} onChange={e => setFormData({ ...formData, sweetness: e.target.value })} className="w-full bg-white border border-[#E5E0D8] rounded-lg px-2.5 py-1.5 text-xs text-stone-900 font-medium focus:outline-none focus:border-[#722F37]" />
             </div>
           </div>
 
           <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Aroma & Flavor</label>
-              <textarea rows={2} value={formData.aromaFlavor} onChange={e => setFormData({ ...formData, aromaFlavor: e.target.value })} className="w-full bg-white/5 border border-white/10 p-4 rounded text-sm text-ink italic" placeholder="Red fruits, spice, earthy..." />
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Aroma & Flavor</label>
+              <textarea rows={2} value={formData.aromaFlavor} onChange={e => setFormData({ ...formData, aromaFlavor: e.target.value })} className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 font-medium focus:outline-none focus:border-[#722F37] transition-all" placeholder="Red fruits, spice, earthy..." />
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Other Notes</label>
-              <textarea rows={2} value={formData.otherNotes} onChange={e => setFormData({ ...formData, otherNotes: e.target.value })} className="w-full bg-white/5 border border-white/10 p-4 rounded text-sm text-ink" />
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Other Notes</label>
+              <textarea rows={2} value={formData.otherNotes} onChange={e => setFormData({ ...formData, otherNotes: e.target.value })} className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 font-medium focus:outline-none focus:border-[#722F37] transition-all" />
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Additional Notes</label>
-              <textarea rows={2} value={formData.additionalNotes} onChange={e => setFormData({ ...formData, additionalNotes: e.target.value })} className="w-full bg-white/5 border border-white/10 p-4 rounded text-sm text-ink" />
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Additional Notes</label>
+              <textarea rows={2} value={formData.additionalNotes} onChange={e => setFormData({ ...formData, additionalNotes: e.target.value })} className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 font-medium focus:outline-none focus:border-[#722F37] transition-all" />
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Food Pairing</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Food Pairing</label>
               <div className="flex flex-wrap gap-2 mb-2 min-h-[32px]">
                 {formData.foodPairing.map((p, i) => (
-                  <span key={i} className="flex items-center gap-1.5 px-3 py-1 bg-gold/10 border border-gold/20 rounded-full text-[10px] text-gold/80 italic">
+                  <span key={i} className="flex items-center gap-1.5 px-3 py-1 bg-[#FDF2F4] border border-[#F5C2CB] rounded-lg text-xs font-medium text-[#722F37]">
                     {p}
-                    <button type="button" onClick={() => setFormData({ ...formData, foodPairing: formData.foodPairing.filter((_, idx) => idx !== i) })} className="hover:text-red-400 transition-colors">
-                      <X size={10} />
+                    <button type="button" onClick={() => setFormData({ ...formData, foodPairing: formData.foodPairing.filter((_, idx) => idx !== i) })} className="hover:text-red-700 cursor-pointer">
+                      <X size={12} />
                     </button>
                   </span>
                 ))}
               </div>
-              <div className="relative">
+              <div className="relative flex gap-2">
                 <input
                   value={pairingInput}
                   onChange={e => setPairingInput(e.target.value)}
@@ -466,7 +622,7 @@ const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
                       }
                     }
                   }}
-                  className="w-full bg-transparent border-b border-white/10 py-2 transition-all text-ink font-light pr-10 text-xs italic"
+                  className="flex-1 bg-white border border-[#E5E0D8] rounded-xl px-3.5 py-2 text-stone-900 font-medium text-xs focus:outline-none focus:border-[#722F37] transition-all"
                   placeholder="e.g. Grilled Salmon (Enter to add)"
                 />
                 <button
@@ -477,7 +633,7 @@ const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
                       setPairingInput('');
                     }
                   }}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-gold/50 hover:text-gold transition-colors"
+                  className="px-3 rounded-xl border border-[#E5E0D8] bg-[#F7F5F0] hover:bg-[#EBE7DF] text-stone-700 font-semibold cursor-pointer"
                 >
                   <Plus size={16} />
                 </button>
@@ -485,7 +641,7 @@ const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
             </div>
           </div>
 
-          <button type="submit" className="w-full bg-gold text-wine-bg py-5 font-bold tracking-[0.3em] uppercase text-xs hover:bg-gold/90 transition-all shadow-2xl">
+          <button type="submit" className="w-full bg-[#722F37] hover:bg-[#5C242C] text-white rounded-xl py-3.5 font-semibold tracking-wider uppercase text-xs cursor-pointer shadow-md transition-all active:scale-98">
             Register Variety
           </button>
         </form>
@@ -508,13 +664,12 @@ const GrapeComparisonView = ({ grapes, onClose }: { grapes: GrapeVariety[], onCl
   ];
 
   const getWeightClass = (attr: string, value: string) => {
-    // Simple logic to check if this value is unique among the compared set
     const values = grapes.map(g => {
       const val = (g as any)[attr];
       return Array.isArray(val) ? val.join(', ') : val;
     });
     const occurrences = values.filter(v => v === value).length;
-    return occurrences === 1 ? 'text-gold font-bold italic' : 'text-ink/60';
+    return occurrences === 1 ? 'text-[#722F37] font-bold bg-[#FDF2F4] border-[#F5C2CB]' : 'text-stone-700';
   };
 
   return (
@@ -522,82 +677,71 @@ const GrapeComparisonView = ({ grapes, onClose }: { grapes: GrapeVariety[], onCl
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[60] flex flex-col bg-wine-bg"
+      className="fixed inset-0 z-[60] flex flex-col bg-[#FBF9F5] text-stone-900"
     >
       <div className="flex flex-col h-full w-full overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-6 md:px-12 md:py-10 border-b border-white/5 flex justify-between items-center bg-black/40 backdrop-blur-xl shrink-0">
+        <div className="px-6 py-5 md:px-10 border-b border-[#EBE7DF] flex justify-between items-center bg-white shrink-0 shadow-sm">
           <div className="space-y-1">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-sm bg-gold/10 border border-gold/30 flex items-center justify-center text-gold">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#722F37]/10 border border-[#722F37]/20 flex items-center justify-center text-[#722F37]">
                 <BarChart3 size={20} />
               </div>
-              <h2 className="text-3xl md:text-4xl font-serif text-ink tracking-tight">Varietal Comparison</h2>
+              <h2 className="text-2xl md:text-3xl font-serif font-bold text-stone-900 tracking-tight">Varietal Comparison</h2>
             </div>
-            <p className="text-[10px] uppercase tracking-[0.5em] text-ink/30 pl-14">Side-by-side analytical contrast ({grapes.length} varieties)</p>
+            <p className="text-xs uppercase tracking-wider text-stone-500 font-medium">Side-by-side analytical contrast ({grapes.length} varieties)</p>
           </div>
           <button 
             onClick={onClose}
-            className="group flex items-center gap-4 px-6 py-3 border border-white/10 text-ink/60 hover:text-ink hover:border-gold/40 transition-all rounded-sm uppercase tracking-[0.3em] text-[10px] bg-white/5"
+            className="flex items-center gap-2 px-4 py-2 border border-[#EBE7DF] bg-white hover:bg-stone-50 rounded-xl uppercase tracking-wider text-xs font-semibold text-stone-700 transition-all cursor-pointer shadow-sm"
           >
-            <span>Close Comparison</span>
-            <X size={18} className="group-hover:text-gold transition-colors" />
+            <span>Close</span>
+            <X size={16} />
           </button>
         </div>
 
         {/* Comparison Table Container */}
-        <div className="flex-1 overflow-auto bg-[#071F17] custom-scrollbar">
-          <div className="min-w-max p-6 md:p-12">
-            <table className="w-full border-separate border-spacing-0 table-fixed">
+        <div className="flex-1 overflow-auto bg-[#FBF9F5] p-6 md:p-10 custom-scrollbar">
+          <div className="min-w-max bg-white border border-[#EBE7DF] rounded-2xl shadow-sm overflow-hidden">
+            <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  <th className="w-48 md:w-64 p-6 text-left border-b border-r border-white/10 bg-[#071F17] sticky top-0 left-0 z-50">
-                    <span className="text-[10px] uppercase tracking-[0.3em] text-gold font-bold">Attribute</span>
+                  <th className="w-48 md:w-64 p-5 text-left border-b border-r border-[#EBE7DF] bg-[#FAF8F5] sticky top-0 left-0 z-50">
+                    <span className="text-xs uppercase tracking-wider text-stone-700 font-bold">Attribute</span>
                   </th>
                   {grapes.map(grape => (
-                    <th key={grape.id} className="p-10 text-center border-b border-r border-white/10 bg-[#071F17] sticky top-0 z-40 min-w-[350px]">
-                      <div className="space-y-4 pb-4">
-                        <span className={`text-[9px] uppercase tracking-[0.3em] px-4 py-1.5 rounded-full border transition-all ${
+                    <th key={grape.id} className="p-6 text-center border-b border-r border-[#EBE7DF] bg-white sticky top-0 z-40 min-w-[280px]">
+                      <div className="space-y-2">
+                        <span className={`text-[10px] uppercase tracking-wider px-3 py-0.5 rounded-full border font-semibold ${
                           grape.type === 'Red' 
-                            ? 'text-red-400 border-red-950/50 bg-red-950/20 shadow-[0_0_15px_rgba(153,27,27,0.1)]' 
-                            : 'text-gold border-gold/40 bg-gold/5 shadow-[0_0_15px_rgba(212,175,55,0.05)]'
+                            ? 'bg-[#FDF2F4] text-[#800020] border-[#F5C2CB]' 
+                            : 'bg-[#FEFCE8] text-[#854D0E] border-[#FEF08A]'
                         }`}>
                           {grape.type}
                         </span>
-                        <h3 className="text-3xl md:text-4xl font-serif text-ink tracking-tight leading-none">{grape.name}</h3>
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-ink/30 font-medium">
-                          {typeof grape.locations === 'string' ? grape.locations : (Array.isArray(grape.locations) && grape.locations.length > 0 ? (typeof grape.locations[0] === 'string' ? grape.locations[0] : (grape.locations[0] as any).country) : 'Global varietal')}
-                        </p>
+                        <h3 className="text-xl font-serif font-bold text-stone-900 tracking-tight">{grape.name}</h3>
                       </div>
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody>
                 {attributes.map((attr, idx) => (
-                  <tr key={attr.key} className="group hover:bg-white/[0.02] transition-colors">
-                    <td className="p-8 border-r border-white/10 bg-[#071F17] sticky left-0 z-30 transition-colors group-hover:bg-[#113d2f]">
-                      <span className="text-[10px] uppercase tracking-[0.3em] text-ink/30 font-bold group-hover:text-gold transition-colors">{attr.label}</span>
+                  <tr key={attr.key} className={idx % 2 === 0 ? 'bg-white' : 'bg-[#FAF8F5]/60'}>
+                    <td className="p-4 border-b border-r border-[#EBE7DF] bg-[#FAF8F5] font-semibold text-xs uppercase tracking-wider text-stone-700 sticky left-0 z-30">
+                      {attr.label}
                     </td>
                     {grapes.map(grape => {
                       const rawValue = (grape as any)[attr.key];
                       const displayValue = Array.isArray(rawValue) ? rawValue.join(', ') : (rawValue || '—');
-                      const isHighlighted = getWeightClass(attr.key, displayValue).includes('gold');
+                      const isHighlighted = getWeightClass(attr.key, displayValue).includes('text-[#722F37]');
                       
                       return (
                         <td 
                           key={grape.id} 
-                          className={`p-10 border-r border-white/5 text-center transition-colors ${idx % 2 === 0 ? 'bg-white/[0.01]' : 'bg-transparent'}`}
+                          className={`p-4 border-b border-r border-[#EBE7DF] text-center font-medium text-xs ${isHighlighted ? 'bg-[#FDF2F4] text-[#722F37] font-bold' : 'text-stone-700'}`}
                         >
-                          <div className={`text-base md:text-lg tracking-wide leading-relaxed px-6 py-6 rounded-sm transition-all duration-500 ${
-                            isHighlighted 
-                              ? 'bg-gold/[0.07] border border-gold/30 shadow-[0_0_30px_rgba(212,175,55,0.05)] scale-[1.02] z-10' 
-                              : 'border border-transparent'
-                          }`}>
-                            <p className={`${getWeightClass(attr.key, displayValue)} leading-relaxed`}>
-                              {displayValue}
-                            </p>
-                          </div>
+                          {displayValue}
                         </td>
                       );
                     })}
@@ -609,18 +753,16 @@ const GrapeComparisonView = ({ grapes, onClose }: { grapes: GrapeVariety[], onCl
         </div>
 
         {/* Footer */}
-        <div className="px-12 py-8 border-t border-white/5 bg-black/40 backdrop-blur-xl flex flex-col md:flex-row justify-between items-center gap-6 shrink-0">
-          <div className="flex items-center gap-5">
-            <div className="w-2.5 h-2.5 rounded-full bg-gold shadow-[0_0_10px_rgba(212,175,55,0.5)] animate-pulse"></div>
-            <p className="text-[11px] uppercase tracking-[0.3em] text-ink/40 max-w-xl leading-relaxed">
-              <span className="text-gold font-bold">Gold Highlight</span> indicates a distinct varietal characteristic that sets it apart in this comparative set.
+        <div className="px-8 py-4 border-t border-[#EBE7DF] bg-white flex flex-col md:flex-row justify-between items-center gap-4 shrink-0 text-stone-500 shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <span className="w-3 h-3 rounded-full bg-[#722F37]/20 border border-[#722F37]/40"></span>
+            <p className="text-xs">
+              <strong className="text-[#722F37]">Burgundy highlight</strong> indicates a unique characteristic distinct among compared grapes.
             </p>
           </div>
-          <div className="flex items-center gap-8 text-[9px] uppercase tracking-[0.4em] text-ink/20">
-            <span>Analytical Sommelier Suite</span>
-            <div className="w-1 h-1 bg-white/10 rounded-full"></div>
-            <span>V 2.0.4</span>
-          </div>
+          <span className="text-[10px] uppercase font-bold text-[#722F37] bg-[#722F37]/10 border border-[#722F37]/20 px-2.5 py-1 rounded-md">
+            Analytical Suite
+          </span>
         </div>
       </div>
     </motion.div>
@@ -634,10 +776,22 @@ interface WineCardProps {
 }
 
 const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
-  const typeConfig = WINE_TYPE_CONFIG[bottle.type] || { text: 'text-gray-400', bg: 'bg-gray-900/40', border: 'border-gray-800/50', accent: 'bg-gray-500' };
-  const [expansionState, setExpansionState] = useState<'collapsed' | 'basic' | 'full'>('collapsed');
+  const typeConfig = WINE_TYPE_CONFIG[bottle.type] || { text: 'text-amber-800', bg: 'bg-amber-50', border: 'border border-amber-200', accent: 'bg-amber-600', hex: '#D97706' };
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isSensoryOpen, setIsSensoryOpen] = useState(false);
   const [isImageOpen, setIsImageOpen] = useState(false);
   const isMissingNotes = !bottle.appearance || !bottle.nose || !bottle.palate || !bottle.finish || !bottle.tastingNotes;
+
+  const hasSensoryDetails = !!(
+    bottle.appearance ||
+    bottle.nose ||
+    bottle.palate ||
+    bottle.finish ||
+    bottle.viticulture ||
+    bottle.winemakingPhilosophy ||
+    (Array.isArray(bottle.foodPairing) && bottle.foodPairing.length > 0) ||
+    bottle.additionalNote
+  );
 
   return (
     <>
@@ -645,36 +799,37 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
       <AnimatePresence>
         {isImageOpen && (
           <motion.div
-            initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
-            animate={{ opacity: 1, backdropFilter: "blur(24px)" }}
-            exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
-            transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
             onClick={() => setIsImageOpen(false)}
-            className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 md:p-12 cursor-zoom-out"
+            className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-md flex items-center justify-center p-4 md:p-12 cursor-zoom-out"
           >
             <motion.div
               layoutId={`bottle-image-${bottle.id}`}
               transition={{ type: "spring", stiffness: 260, damping: 26 }}
-              className="relative w-full max-w-2xl aspect-[2/3.5] flex items-center justify-center"
+              className="relative w-full max-w-lg aspect-[2/3] bg-white border border-[#E6DFD5] rounded-3xl p-6 shadow-2xl flex items-center justify-center"
               onClick={(e) => e.stopPropagation()}
             >
               <button 
+                type="button"
                 onClick={() => setIsImageOpen(false)}
-                className="absolute top-4 right-4 md:-top-16 md:-right-16 z-[110] text-white/40 hover:text-gold transition-all bg-white/5 hover:bg-white/10 rounded-full p-3 backdrop-blur-md group/close"
-                aria-label="Close"
+                className="absolute top-4 right-4 z-[110] bg-stone-100 hover:bg-stone-200 text-stone-700 border border-[#E6DFD5] rounded-full p-2.5 shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                aria-label="Close image preview"
               >
-                <X size={32} className="group-hover/close:rotate-90 transition-transform duration-300" />
+                <X size={18} strokeWidth={2} />
               </button>
               
               {bottle.imageUrl ? (
                 <img 
                   src={bottle.imageUrl} 
                   alt={bottle.name}
-                  className="w-full h-full object-contain drop-shadow-[0_35px_35px_rgba(0,0,0,0.5)]"
+                  className="max-h-full max-w-full object-contain"
                   referrerPolicy="no-referrer"
                 />
               ) : (
-                <Wine size={300} className="text-gold/10" strokeWidth={0.5} />
+                <Wine size={120} className="text-stone-300" strokeWidth={1} />
               )}
             </motion.div>
           </motion.div>
@@ -682,44 +837,39 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
       </AnimatePresence>
 
       <motion.div
-        layout
-        transition={{ 
-          layout: { type: "spring", stiffness: 220, damping: 26 },
-          opacity: { duration: 0.15 } 
-        }}
         variants={cardVariants}
         initial="hidden"
         animate="visible"
         exit="exit"
         onClick={() => {
-          if (expansionState === 'collapsed') {
-            setExpansionState('basic');
-          } else if (expansionState === 'basic') {
-            setExpansionState('full');
+          if (!isExpanded) {
+            setIsExpanded(true);
           }
         }}
-        whileHover={expansionState === 'collapsed' ? { y: -3, scale: 1.002, transition: { duration: 0.2 } } : undefined}
-        className={`glass-panel flex flex-col group transition-all duration-500 rounded-sm overflow-hidden border-l border-white/5 md:border-l-4 ${typeConfig.border.replace('border-', 'border-l-')} shadow-2xl hover:border-gold/30 mb-6 relative ${
-          expansionState === 'collapsed'
-            ? 'cursor-pointer hover:bg-white/[0.01]' 
-            : ''
-        }`}
+        whileHover={!isExpanded ? { scale: 1.003 } : undefined}
+        style={{ willChange: "transform, opacity" }}
+        className={`bg-white flex flex-col group transition-all duration-200 ease-out rounded-2xl overflow-hidden border border-[#E6DFD5] hover:border-[#D6CFBF] shadow-[0_2px_12px_rgba(28,25,23,0.04)] hover:shadow-[0_6px_20px_rgba(28,25,23,0.08)] ${
+          bottle.type.includes('Red') 
+            ? 'border-l-4 border-l-[#800020]' 
+            : bottle.type.includes('White') 
+            ? 'border-l-4 border-l-[#CA8A04]' 
+            : 'border-l-4 border-l-[#0891B2]'
+        } relative ${!isExpanded ? 'cursor-pointer hover:bg-[#FAF8F5]' : 'bg-white'}`}
       >
         <AnimatePresence mode="wait" initial={false}>
-          {expansionState === 'collapsed' ? (
+          {!isExpanded ? (
             /* --- MINIMALIST HORIZONTAL CARD LAYOUT --- */
             <motion.div
               key="collapsed-horizontal"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 w-full"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.12, ease: "easeOut" }}
+              className="p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 w-full text-stone-900"
             >
               {/* Left: Thumbnail & Main Info */}
               <div className="flex items-center gap-4 min-w-0 flex-1">
-
-                {/* "Icon" Thumbnail Image */}
+                {/* Thumbnail Image */}
                 <motion.div
                   layoutId={`bottle-image-${bottle.id}`}
                   transition={{ type: "spring", stiffness: 260, damping: 26 }}
@@ -727,420 +877,389 @@ const WineCard: React.FC<WineCardProps> = ({ bottle, onEdit, onDelete }) => {
                     e.stopPropagation();
                     setIsImageOpen(true);
                   }}
-                  className="w-12 h-12 rounded-full border border-gold/20 bg-black/40 flex items-center justify-center cursor-zoom-in overflow-hidden hover:border-gold/50 transition-all shadow-md shrink-0"
+                  className="w-14 h-14 rounded-xl border border-[#E6DFD5] bg-[#FAF8F5] flex items-center justify-center cursor-zoom-in overflow-hidden shrink-0 hover:scale-105 transition-all shadow-inner"
                   title="Click to view full image"
                 >
                   {bottle.imageUrl ? (
                     <img 
                       src={bottle.imageUrl} 
                       alt="thumbnail" 
-                      className="w-full h-full object-contain p-1 opacity-80 hover:opacity-100 transition-all duration-300"
+                      className="w-full h-full object-contain p-1"
                       referrerPolicy="no-referrer"
                     />
                   ) : (
-                    <Wine size={20} className="text-gold/30" />
+                    <Wine size={22} className="text-stone-400" />
                   )}
                 </motion.div>
 
                 {/* Title & Producer */}
                 <div className="min-w-0 flex-1 pr-2">
-                  <div className="flex flex-wrap items-center gap-x-2">
-                    <h3 className="font-serif text-lg md:text-xl font-bold text-gold tracking-tight truncate line-clamp-1">
+                  <div className="flex flex-wrap items-center gap-x-2.5">
+                    <h3 className="font-serif text-lg md:text-xl font-bold text-[#5A1E24] tracking-tight truncate line-clamp-1">
                       {bottle.name}
                     </h3>
-                    <span className="italic font-normal text-gold/80 text-sm md:text-base shrink-0">
+                    <span className="font-mono text-sm md:text-base font-semibold text-[#800020] shrink-0">
                       {bottle.year || 'NV'}
                     </span>
                     {isMissingNotes && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm bg-gold/10 border border-gold/20 text-gold/80 text-[8px] uppercase tracking-wider font-extrabold font-sans">
-                        <Sparkle size={7} className="animate-pulse text-gold" />
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-amber-300 bg-amber-50 text-amber-800 text-[10px] font-semibold uppercase tracking-wider">
+                        <Sparkle size={9} className="text-amber-600" />
                         Draft
                       </span>
                     )}
                   </div>
-                  <p className="font-sans text-[10px] text-ink/40 uppercase tracking-[0.2em] truncate mt-0.5">
+                  <p className="text-xs text-stone-600 font-medium tracking-wide truncate mt-0.5">
                     {bottle.producer || 'Unknown Producer'}
                   </p>
                 </div>
               </div>
 
               {/* Middle: Type Badge & Origin */}
-              <div className="flex items-center gap-4 shrink-0 justify-between md:justify-start">
-                <div className={`text-[9px] uppercase tracking-[0.3em] font-black px-2.5 py-1 rounded-sm border shadow-sm backdrop-blur-md transition-all duration-500 ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border}`}>
+              <div className="flex items-center gap-3 shrink-0 justify-between md:justify-start">
+                <div className={`text-[10px] uppercase tracking-wider font-semibold px-3 py-1 rounded-full border ${typeConfig.border} ${typeConfig.text} ${typeConfig.bg}`}>
                   {bottle.type}
                 </div>
                 
-                <div className="text-left md:text-right min-w-[100px] hidden sm:block">
-                  <p className="text-[10px] uppercase tracking-wider text-ink/40 font-semibold truncate max-w-[120px]">{bottle.region || 'Any Region'}</p>
-                  <p className="text-[9px] text-ink/30 italic truncate max-w-[124px]">{bottle.country || 'Unknown Origin'}</p>
+                <div className="text-left md:text-right min-w-[110px] hidden sm:block">
+                  <p className="text-xs text-[#1E1E1E] font-semibold truncate max-w-[130px]">{bottle.region || 'Any Region'}</p>
+                  <p className="text-[10px] text-stone-500 italic truncate max-w-[130px]">{bottle.country || 'Unknown Origin'}</p>
                 </div>
               </div>
 
               {/* Right: Price & Expand Indicator */}
-              <div className="flex items-center justify-between md:justify-end gap-3 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-white/5">
+              <div className="flex items-center justify-between md:justify-end gap-3 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-[#EBE7DF]">
                 {bottle.price ? (
                   <div className="text-left md:text-right mr-1">
-                    <span className="text-[8px] uppercase tracking-wider text-ink/30 font-black block leading-none mb-0.5">Price</span>
-                    <span className="font-sans text-xs md:text-sm text-gold font-bold tabular-nums tracking-wide">
+                    <span className="font-mono text-xs md:text-sm bg-[#FDF2F4] text-[#800020] font-bold border border-[#F5C2CB] px-3 py-1 rounded-xl tabular-nums tracking-wide inline-block shadow-xs">
                       ฿{bottle.price.toLocaleString()}
                     </span>
                   </div>
                 ) : (
                   <div className="text-left md:text-right mr-1">
-                    <span className="text-[8px] uppercase tracking-wider text-ink/20 italic block leading-none">No Price</span>
+                    <span className="text-[10px] uppercase font-medium text-stone-400 italic">No Price</span>
                   </div>
                 )}
 
                 {/* Edit Icon in Minimalist Mode */}
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     onEdit(bottle);
                   }}
-                  className="w-8 h-8 rounded-full border border-white/10 hover:border-gold/30 bg-white/[0.02] hover:bg-gold/10 flex items-center justify-center text-ink/45 hover:text-gold transition-all"
+                  className="w-8 h-8 rounded-xl border border-[#E5E0D8] bg-[#F7F5F0] hover:bg-[#EBE7DF] text-stone-700 hover:text-stone-900 flex items-center justify-center transition-all cursor-pointer shadow-xs"
                   title="Edit Entry"
                 >
                   <Edit2 size={13} />
                 </button>
 
                 {/* Click instruction chevron */}
-                <div className="text-gold/40 group-hover:text-gold transition-colors flex items-center justify-center w-8 h-8 rounded-full border border-white/5 hover:border-gold/20 bg-white/[0.01]">
-                  <ChevronDown size={14} className="group-hover:translate-y-0.5 transition-transform duration-300" />
+                <div className="text-stone-400 flex items-center justify-center w-8 h-8 rounded-xl border border-[#E5E0D8] bg-[#F7F5F0] group-hover:bg-[#EBE7DF] transition-colors">
+                  <ChevronDown size={14} className="group-hover:translate-y-0.5 transition-transform duration-200" />
                 </div>
               </div>
             </motion.div>
           ) : (
-            /* --- PARTIAL & FULL EXPANDED CARD LAYOUT --- */
+            /* --- DETAILED EXPANDED CARD LAYOUT --- */
             <motion.div
               key="expanded-views"
-              initial="hidden"
-              animate="visible"
-              exit="hidden"
-              variants={{
-                hidden: { opacity: 0 },
-                visible: {
-                  opacity: 1,
-                  transition: {
-                    staggerChildren: 0.05,
-                    delayChildren: 0.05
-                  }
-                }
-              }}
-              className="p-8 md:p-10 flex flex-col min-w-0 relative"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              style={{ willChange: "transform, opacity" }}
+              className="p-6 md:p-8 flex flex-col min-w-0 relative text-stone-900"
             >
-              {/* Elegant Close Button Top Right */}
-              <motion.button
-                variants={{
-                  hidden: { opacity: 0, scale: 0.8 },
-                  visible: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 200, damping: 15 } }
-                }}
+              {/* Close Button Top Right */}
+              <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setExpansionState('collapsed');
+                  setIsExpanded(false);
+                  setIsSensoryOpen(false);
                 }}
-                className="absolute top-6 right-6 z-10 text-white/30 hover:text-gold hover:bg-white/5 p-2 rounded-full border border-white/15 hover:border-gold/30 transition-all flex items-center justify-center group/close-btn bg-black/20"
-                title="Close Full Card"
+                className="absolute top-6 right-6 z-10 bg-[#F7F5F0] hover:bg-[#EBE7DF] text-stone-700 hover:text-stone-900 p-2.5 rounded-xl border border-[#E5E0D8] transition-all flex items-center justify-center cursor-pointer shadow-xs"
+                title="Collapse Card"
+                aria-label="Collapse Card"
               >
-                <X size={18} className="group-hover/close-btn:scale-110 transition-transform" />
-              </motion.button>
+                <X size={16} />
+              </button>
 
               {/* Top Line: Image Icon, Type and Price */}
-              <motion.div 
-                variants={{
-                  hidden: { opacity: 0, y: 10 },
-                  visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 150, damping: 15 } }
-                }}
-                className="flex justify-between items-start mb-6 gap-4 pr-10"
-              >
+              <div className="flex justify-between items-start mb-5 gap-4 pr-12">
                 <div className="flex items-center gap-4">
-                  {/* The "Icon" Corner Image */}
+                  {/* The Image Icon */}
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
                       setIsImageOpen(true);
                     }}
-                    className="w-14 h-14 md:w-16 md:h-16 rounded-full border border-gold/20 bg-black/40 flex items-center justify-center cursor-zoom-in overflow-hidden hover:border-gold/50 transition-all shadow-lg group/icon shrink-0"
+                    className="w-16 h-16 rounded-xl border border-[#E6DFD5] bg-[#FAF8F5] flex items-center justify-center cursor-zoom-in overflow-hidden shrink-0 shadow-inner"
                     title="Click to zoom image"
                   >
                     {bottle.imageUrl ? (
                       <img 
                         src={bottle.imageUrl} 
                         alt="thumbnail" 
-                        className="w-full h-full object-contain p-1.5 opacity-80 group-hover/icon:opacity-100 group-hover/icon:scale-110 transition-all duration-500"
+                        className="w-full h-full object-contain p-1.5"
                         referrerPolicy="no-referrer"
                       />
                     ) : (
-                      <Wine size={24} className="text-gold/30" />
+                      <Wine size={26} className="text-stone-400" />
                     )}
                   </div>
 
-                  <div className={`text-[9px] uppercase tracking-[0.4em] font-black px-3 py-1.5 rounded-sm border shadow-sm backdrop-blur-md transition-all duration-500 ${typeConfig.text} ${typeConfig.bg} ${typeConfig.border}`}>
+                  <div className={`text-xs uppercase tracking-wider font-semibold px-3.5 py-1.5 rounded-full border ${typeConfig.border} ${typeConfig.text} ${typeConfig.bg}`}>
                     {bottle.type}
                   </div>
                 </div>
                 
                 {bottle.price && (
                   <div className="flex flex-col items-end gap-0.5">
-                    <span className="text-[8px] uppercase tracking-[0.2em] text-ink/30 font-black">Price</span>
-                    <span className="font-sans text-xl text-gold font-bold tabular-nums tracking-wide">
+                    <span className="text-[9px] uppercase tracking-wider text-stone-500 font-semibold">Price</span>
+                    <span className="font-mono text-lg bg-[#FDF2F4] text-[#800020] font-bold border border-[#F5C2CB] px-3.5 py-0.5 rounded-xl tabular-nums tracking-wide shadow-xs">
                       ฿{bottle.price.toLocaleString()}
                     </span>
                   </div>
                 )}
-              </motion.div>
+              </div>
 
               {/* Title & Year */}
-              <motion.div 
-                variants={{
-                  hidden: { opacity: 0, y: 10 },
-                  visible: { opacity: 1, y: 0 }
-                }}
-                className="mb-6"
-              >
-                <h3 className="font-serif text-2xl md:text-3xl font-bold text-gold tracking-tight leading-tight selection:bg-gold/30">
-                  {bottle.name} <span className="text-gold/40 mx-2 font-light">•</span> <span className="italic font-medium text-gold/80">{bottle.year || 'NV'}</span>
+              <div className="mb-4">
+                <h3 className="font-serif text-2xl md:text-3xl font-bold text-[#5A1E24] tracking-tight leading-tight">
+                  {bottle.name} <span className="text-stone-300 mx-1.5 font-light">•</span> <span className="font-mono font-semibold text-[#800020]">{bottle.year || 'NV'}</span>
                 </h3>
-              </motion.div>
+              </div>
 
               {/* Details: Producer, Varietal, Terroir */}
-              <motion.div 
-                variants={{
-                  hidden: { opacity: 0, y: 10 },
-                  visible: { opacity: 1, y: 0 }
-                }}
-                className="space-y-2.5 mb-8"
-              >
+              <div className="space-y-2 mb-6 p-4 bg-[#FAF8F5] border border-[#E6DFD5] rounded-xl text-stone-700">
                 <div className="flex items-baseline gap-4">
-                  <span className="text-[9px] uppercase tracking-[0.3em] text-ink/20 font-black shrink-0 w-24">Producer</span>
-                  <p className="font-sans text-xs text-ink/70 font-semibold tracking-widest uppercase">
+                  <span className="text-[10px] uppercase tracking-wider text-stone-500 font-semibold shrink-0 w-24">Producer</span>
+                  <p className="text-xs text-[#1E1E1E] font-semibold tracking-wide uppercase">
                     {bottle.producer || 'Unknown'}
                   </p>
                 </div>
                 <div className="flex items-baseline gap-4">
-                  <span className="text-[9px] uppercase tracking-[0.3em] text-ink/20 font-black shrink-0 w-24">Varietal</span>
-                  <p className="font-sans text-xs text-ink/50 italic">
+                  <span className="text-[10px] uppercase tracking-wider text-stone-500 font-semibold shrink-0 w-24">Varietal</span>
+                  <p className="text-xs text-[#1E1E1E] font-medium">
                     {Array.isArray(bottle.grape) ? bottle.grape.join(' • ') : bottle.grape || 'Secret Assemblage'}
                   </p>
                 </div>
                 <div className="flex items-baseline gap-4">
-                  <span className="text-[9px] uppercase tracking-[0.3em] text-ink/20 font-black shrink-0 w-24">Origin</span>
-                  <p className="font-sans text-xs text-ink/50">
+                  <span className="text-[10px] uppercase tracking-wider text-stone-500 font-semibold shrink-0 w-24">Origin</span>
+                  <p className="text-xs text-[#1E1E1E] font-medium">
                     {bottle.region}{bottle.country ? `, ${bottle.country}` : ''}
                   </p>
                 </div>
-              </motion.div>
+              </div>
 
-              {/* Tasting Diary (showing tastingNotes) */}
-              <motion.div 
-                variants={{
-                  hidden: { opacity: 0, y: 10 },
-                  visible: { opacity: 1, y: 0 }
-                }}
-                className="mb-8"
-              >
-                <div className="flex items-center gap-4 mb-3">
-                  <span className="text-[8px] uppercase tracking-[0.4em] text-gold/40 font-black">Tasting Diary</span>
-                  <div className="h-[1px] flex-1 bg-gold/10"></div>
-                </div>
-                <p className="text-base font-serif text-ink/90 font-medium leading-relaxed italic pr-4">
-                  "{bottle.tastingNotes || "Discovery awaits in the glass..."}"
-                </p>
-              </motion.div>
-
-              {/* Multi-tier Click-Reveal Banner or Full Info */}
-              {expansionState === 'basic' ? (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-4 pt-6 border-t border-white/5 flex flex-col items-center gap-3"
-                >
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setExpansionState('full');
-                    }}
-                    className="w-full flex items-center justify-between px-5 py-3.5 border border-gold/15 hover:border-gold/30 bg-gold/[0.02] hover:bg-gold/[0.05] rounded-sm transition-all group/reveal cursor-pointer"
-                  >
-                    <span className="text-[9px] uppercase tracking-[0.3em] text-gold/70 group-hover:text-gold transition-all font-black flex items-center gap-2">
-                      <Sparkles size={11} className="text-gold/60 animate-pulse" />
-                      Reveal Sensory & Physical Profile
+              {/* Tasting Diary */}
+              {bottle.tastingNotes && (
+                <div className="mb-5 p-5 bg-[#FDF2F4] border border-[#F5C2CB] rounded-xl shadow-xs">
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <Sparkles size={14} className="text-[#800020]" />
+                    <span className="text-xs uppercase tracking-wider text-[#800020] font-semibold">
+                      Tasting Diary
                     </span>
-                    <ChevronDown size={14} className="text-gold/40 group-hover:text-gold group-hover:translate-y-0.5 transition-all duration-300" />
-                  </button>
-                </motion.div>
-              ) : (
-                /* Immersive Profile Content rendered inside full card directly */
-                <motion.div 
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  variants={{
-                    hidden: { opacity: 0, y: 15 },
-                    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 120, damping: 15 } }
-                  }}
-                  className="pt-8 border-t border-white/5 space-y-12"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
-                    {/* Section 1: PHYSICAL PROFILE */}
-                    <div className="space-y-4">
-                      <h4 className="text-[10px] uppercase tracking-[0.35em] text-gold font-black flex items-center gap-2">
-                        <span className="w-4 h-[1px] bg-gold/30"></span>
-                        Appearance
-                      </h4>
-                      <div className="bg-black/25 p-5 rounded-sm border border-white/5 shadow-inner">
-                        <p className="font-serif text-sm text-ink/80 leading-relaxed italic">
-                          {bottle.appearance || "Robe and clarity details not recorded for this millésime."}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Section 2: GASTRONOMY */}
-                    <div className="space-y-4">
-                      <h4 className="text-[10px] uppercase tracking-[0.35em] text-gold font-black flex items-center gap-2">
-                        <span className="w-4 h-[1px] bg-gold/30"></span>
-                        Gastronomy & Pairings
-                      </h4>
-                      <div className="bg-black/25 p-5 rounded-sm border border-white/5 shadow-inner min-h-[4.5rem]">
-                        <div className="flex flex-wrap gap-2">
-                          {Array.isArray(bottle.foodPairing) && bottle.foodPairing.length > 0 ? (
-                            bottle.foodPairing.map((food, i) => (
-                              <span key={i} className="px-3 py-1 rounded-full bg-gold/5 border border-gold/10 text-gold/80 text-[10px] font-serif italic">
-                                {food}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-xs text-ink/30 italic">No recommendations recorded.</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
                   </div>
-
-                  {/* Section 3: SENSORY ANALYSIS */}
-                  <div className="space-y-4">
-                    <h4 className="text-[10px] uppercase tracking-[0.35em] text-gold font-black flex items-center gap-2">
-                      <span className="w-4 h-[1px] bg-gold/30"></span>
-                      Sensory Analysis
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-black/25 p-4 rounded-sm border border-white/5 shadow-inner">
-                        <span className="text-[8px] uppercase tracking-[0.25em] text-ink/30 font-black mb-1.5 block">Nose</span>
-                        <p className="font-serif text-xs text-ink/70 leading-relaxed italic last:mb-0">
-                          {bottle.nose || "Aromatic profile remains unlogged."}
-                        </p>
-                      </div>
-                      <div className="bg-black/25 p-4 rounded-sm border border-white/5 shadow-inner">
-                        <span className="text-[8px] uppercase tracking-[0.25em] text-ink/30 font-black mb-1.5 block">Palate</span>
-                        <p className="font-serif text-xs text-ink/70 leading-relaxed italic last:mb-0">
-                          {bottle.palate || "Structural and mouthfeel analysis missing."}
-                        </p>
-                      </div>
-                      <div className="bg-black/25 p-4 rounded-sm border border-white/5 shadow-inner">
-                        <span className="text-[8px] uppercase tracking-[0.25em] text-ink/30 font-black mb-1.5 block">Finish</span>
-                        <p className="font-serif text-xs text-ink/70 leading-relaxed italic last:mb-0">
-                          {bottle.finish || "Final persistence not described."}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Section 3.5: TERROIR & WINEMAKING */}
-                  {(bottle.viticulture || bottle.winemakingPhilosophy) && (
-                    <div className="space-y-4">
-                      <h4 className="text-[10px] uppercase tracking-[0.35em] text-gold font-black flex items-center gap-2">
-                        <span className="w-4 h-[1px] bg-gold/30"></span>
-                        Terroir & Viticulture
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {bottle.viticulture && (
-                          <div className="bg-black/25 p-4 rounded-sm border border-white/5 shadow-inner">
-                            <span className="text-[8px] uppercase tracking-[0.25em] text-gold/50 font-black mb-1.5 block">Viticulture & Vineyard</span>
-                            <p className="font-serif text-xs text-ink/70 leading-relaxed italic last:mb-0">
-                              {bottle.viticulture}
-                            </p>
-                          </div>
-                        )}
-                        {bottle.winemakingPhilosophy && (
-                          <div className="bg-black/25 p-4 rounded-sm border border-white/5 shadow-inner">
-                            <span className="text-[8px] uppercase tracking-[0.25em] text-gold/50 font-black mb-1.5 block">Winemaking Philosophy</span>
-                            <p className="font-serif text-xs text-ink/70 leading-relaxed italic last:mb-0">
-                              {bottle.winemakingPhilosophy}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Section 4: SUMMARY & SECURE NOTES */}
-                  {bottle.additionalNote && (
-                    <div className="bg-gold/[0.01] p-6 rounded-sm border border-gold/5 relative overflow-hidden">
-                      <span className="text-[8px] uppercase tracking-[0.25em] text-gold/50 font-black mb-2 block">Collector's Notes</span>
-                      <p className="font-serif text-xs text-ink/80 leading-relaxed">
-                        {bottle.additionalNote}
-                      </p>
-                    </div>
-                  )}
-                </motion.div>
+                  <p className="text-sm font-normal text-[#1E1E1E] leading-relaxed italic">
+                    "{bottle.tastingNotes}"
+                  </p>
+                </div>
               )}
 
-              {/* Footer Actions */}
-              <motion.div 
-                variants={{
-                  hidden: { opacity: 0, y: 10 },
-                  visible: { opacity: 1, y: 0 }
-                }}
-                className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setExpansionState('collapsed');
-                    }}
-                    className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.3em] font-black text-ink/40 hover:text-gold transition-all"
-                  >
-                    <span>↑ Collapse Card</span>
-                  </button>
-
-                  {expansionState === 'full' && (
-                    <>
-                      <span className="text-white/5">|</span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setExpansionState('basic');
-                        }}
-                        className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.3em] font-black text-gold/60 hover:text-gold transition-all"
-                      >
-                        <span>↑ Roll Back to Tasting Notes</span>
-                      </button>
-                    </>
+              {/* Accordion Toggle Button: Fully closed by default with zero unnecessary height */}
+              <div className="mt-2 pt-4 border-t border-[#E6DFD5]">
+                <button 
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsSensoryOpen(!isSensoryOpen);
+                  }}
+                  className="w-full flex items-center justify-between px-5 py-3 border border-[#E6DFD5] bg-[#FAF8F5] hover:bg-[#F2EFE9] rounded-xl transition-all cursor-pointer group"
+                >
+                  <span className="text-xs uppercase tracking-wider text-[#5A1E24] font-semibold flex items-center gap-2">
+                    <Sparkles size={14} className="text-[#722F37]" />
+                    {isSensoryOpen ? 'Hide Sensory & Physical Profile' : 'Reveal Sensory & Physical Profile'}
+                  </span>
+                  {isSensoryOpen ? (
+                    <ChevronUp size={16} className="text-stone-600" />
+                  ) : (
+                    <ChevronDown size={16} className="text-stone-600 group-hover:translate-y-0.5 transition-transform" />
                   )}
-                </div>
+                </button>
+              </div>
 
-                <div className="flex items-center gap-4">
+              {/* Sensory & Physical Profile collapsible accordion content */}
+              <AnimatePresence>
+                {isSensoryOpen && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    className="overflow-hidden space-y-6 pt-5"
+                  >
+                    {!hasSensoryDetails ? (
+                      <div className="p-4 bg-[#FAF8F5] border border-dashed border-[#E6DFD5] rounded-xl text-center">
+                        <p className="text-xs text-stone-600">No additional sensory dimensions logged for this vintage yet.</p>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEdit(bottle);
+                          }}
+                          className="mt-2 text-xs font-semibold text-[#722F37] hover:underline cursor-pointer"
+                        >
+                          + Log appearance, nose, palate & pairings
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {bottle.appearance && (
+                            <div className="p-4 bg-[#FDF2F4] border border-[#F5C2CB] rounded-xl space-y-1.5">
+                              <h4 className="text-xs uppercase tracking-wider text-[#800020] font-semibold flex items-center gap-1.5">
+                                <Droplets size={14} /> Appearance
+                              </h4>
+                              <p className="text-xs text-[#1E1E1E] font-normal leading-relaxed">
+                                {bottle.appearance}
+                              </p>
+                            </div>
+                          )}
+
+                          {Array.isArray(bottle.foodPairing) && bottle.foodPairing.length > 0 && (
+                            <div className="p-4 bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl space-y-1.5">
+                              <h4 className="text-xs uppercase tracking-wider text-[#15803D] font-semibold flex items-center gap-1.5">
+                                <Utensils size={14} /> Gastronomy & Pairings
+                              </h4>
+                              <div className="flex flex-wrap gap-1.5 pt-1">
+                                {bottle.foodPairing.map((food, i) => (
+                                  <span key={i} className="px-2.5 py-1 rounded-lg border border-[#BBF7D0] bg-white text-[#15803D] text-xs font-medium">
+                                    {food}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Sensory Breakdown (Nose, Palate, Finish) */}
+                        {(bottle.nose || bottle.palate || bottle.finish) && (
+                          <div className="space-y-2.5">
+                            <h4 className="text-xs uppercase tracking-wider text-[#5A1E24] font-semibold">
+                              Sensory Breakdown
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                              {bottle.nose && (
+                                <div className="bg-[#FAF8F5] p-3.5 rounded-xl border border-[#E6DFD5]">
+                                  <span className="text-[10px] uppercase tracking-wider text-[#6D28D9] font-semibold mb-1 block">Nose</span>
+                                  <p className="text-xs text-[#1E1E1E] font-normal italic leading-relaxed">
+                                    {bottle.nose}
+                                  </p>
+                                </div>
+                              )}
+                              {bottle.palate && (
+                                <div className="bg-[#FAF8F5] p-3.5 rounded-xl border border-[#E6DFD5]">
+                                  <span className="text-[10px] uppercase tracking-wider text-[#CA8A04] font-semibold mb-1 block">Palate</span>
+                                  <p className="text-xs text-[#1E1E1E] font-normal italic leading-relaxed">
+                                    {bottle.palate}
+                                  </p>
+                                </div>
+                              )}
+                              {bottle.finish && (
+                                <div className="bg-[#FAF8F5] p-3.5 rounded-xl border border-[#E6DFD5]">
+                                  <span className="text-[10px] uppercase tracking-wider text-[#800020] font-semibold mb-1 block">Finish</span>
+                                  <p className="text-xs text-[#1E1E1E] font-normal italic leading-relaxed">
+                                    {bottle.finish}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Terroir & Winemaking */}
+                        {(bottle.viticulture || bottle.winemakingPhilosophy) && (
+                          <div className="space-y-2.5">
+                            <h4 className="text-xs uppercase tracking-wider text-[#5A1E24] font-semibold">
+                              Terroir & Viticulture
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {bottle.viticulture && (
+                                <div className="bg-[#FAF8F5] p-4 rounded-xl border border-[#E6DFD5]">
+                                  <span className="text-[10px] uppercase tracking-wider text-[#0E7490] font-semibold mb-1 block">Viticulture & Vineyard</span>
+                                  <p className="text-xs text-[#1E1E1E] font-normal leading-relaxed">
+                                    {bottle.viticulture}
+                                  </p>
+                                </div>
+                              )}
+                              {bottle.winemakingPhilosophy && (
+                                <div className="bg-[#FAF8F5] p-4 rounded-xl border border-[#E6DFD5]">
+                                  <span className="text-[10px] uppercase tracking-wider text-[#7C3AED] font-semibold mb-1 block">Winemaking Philosophy</span>
+                                  <p className="text-xs text-[#1E1E1E] font-normal leading-relaxed">
+                                    {bottle.winemakingPhilosophy}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Collector's Notes */}
+                        {bottle.additionalNote && (
+                          <div className="bg-[#FAF8F5] p-4 rounded-xl border border-[#E6DFD5]">
+                            <span className="text-[10px] uppercase tracking-wider text-stone-500 font-semibold mb-1 block">Collector's Notes</span>
+                            <p className="text-xs text-[#1E1E1E] font-normal leading-relaxed">
+                              {bottle.additionalNote}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Footer Actions */}
+              <div className="mt-6 pt-4 border-t border-[#E6DFD5] flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsExpanded(false);
+                    setIsSensoryOpen(false);
+                  }}
+                  className="px-3.5 py-1.5 border border-[#E5E0D8] rounded-xl bg-[#F7F5F0] hover:bg-[#EBE7DF] text-stone-700 text-xs uppercase tracking-wider font-semibold cursor-pointer transition-all"
+                >
+                  <span>↑ Collapse Card</span>
+                </button>
+
+                <div className="flex items-center gap-2">
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       onEdit(bottle);
                     }}
-                    className="p-2 text-ink/30 hover:text-gold transition-all hover:scale-105"
+                    className="p-2 border border-[#E5E0D8] rounded-xl bg-[#F7F5F0] hover:bg-[#EBE7DF] text-stone-700 transition-all cursor-pointer shadow-xs"
                     title="Edit Entry"
                   >
-                    <Edit2 size={16} />
+                    <Edit2 size={15} />
                   </button>
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       onDelete(bottle.id);
                     }}
-                    className="p-2 text-ink/30 hover:text-red-500/80 transition-all hover:scale-105"
+                    className="p-2 border border-[#F5C2CB] rounded-xl bg-[#FDF2F4] hover:bg-[#FEE2E2] text-[#800020] transition-all cursor-pointer shadow-xs"
                     title="Archive Entry"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={15} />
                   </button>
                 </div>
-              </motion.div>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -1439,10 +1558,8 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     } catch (error: any) {
       console.error("Form submission failed:", error);
       setUploadError(error.message || "Failed to save record. Please check your connection.");
-      setIsSaving(false);
     } finally {
-      // isSaving is handled in App.tsx by closing the form, 
-      // but if we stay here (error), we need to unset it
+      setIsSaving(false);
     }
   };
 
@@ -1486,73 +1603,76 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
       animate={{ x: 0 }}
       exit={{ x: '100%' }}
       transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-      className="fixed inset-y-0 right-0 w-full max-w-lg bg-[#071F17] shadow-2xl z-50 overflow-y-auto border-l border-white/5"
+      className="fixed inset-y-0 right-0 w-full max-w-lg bg-[#FBF9F5] shadow-[-16px_0px_48px_rgba(28,25,23,0.15)] z-[60] overflow-y-auto border-l border-[#EBE7DF] text-stone-900 pointer-events-auto"
     >
-      <div className="p-10">
-        <div className="flex justify-between items-center mb-12">
-          <div className="flex-1 space-y-6">
-            <h2 className="font-serif text-3xl font-black text-gold tracking-tight selection:bg-gold/30">
+      <div className="p-8 md:p-10">
+        <div className="flex justify-between items-center mb-8 border-b border-[#EBE7DF] pb-4">
+          <div className="flex-1">
+            <h2 className="font-serif text-2xl md:text-3xl font-bold text-[#5A1E24] tracking-tight">
               {bottle ? 'Update Profile' : 'New Cellar Entry'}
             </h2>
-            <div className="h-[1px] w-12 bg-gold/50"></div>
+            <p className="text-xs uppercase tracking-wider font-semibold text-[#722F37] mt-1">Wine & Sensory Ledger</p>
           </div>
           <button 
+            type="button"
             onClick={onClose} 
-            className="p-3 bg-white/5 hover:bg-gold/10 rounded-full transition-all border border-white/5 hover:border-gold/30 group"
+            className="p-2.5 bg-white hover:bg-[#F7F5F0] rounded-xl border border-[#E5E0D8] text-stone-600 hover:text-stone-900 transition-all cursor-pointer shadow-xs"
+            aria-label="Close modal"
           >
-            <X size={20} className="text-ink/40 group-hover:text-gold" />
+            <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Bottle/Estate Name</label>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Bottle/Estate Name</label>
             <input
               required
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
-              className="w-full bg-transparent border-b border-white/10 focus:border-gold outline-none py-3 text-2xl font-serif font-light transition-all text-ink"
+              className="w-full bg-white border border-[#E5E0D8] rounded-xl px-4 py-2.5 text-stone-900 font-semibold text-lg focus:outline-none focus:border-[#722F37] focus:ring-1 focus:ring-[#722F37]/30 transition-all placeholder:text-stone-400"
               placeholder="e.g. Château Margaux"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-8">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Producer</label>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Producer</label>
               <input
                 required
                 value={formData.producer}
                 onChange={e => setFormData({ ...formData, producer: e.target.value })}
-                className="w-full bg-transparent border-b border-white/10 focus:border-gold outline-none py-2 transition-all text-ink font-light"
+                className="w-full bg-white border border-[#E5E0D8] rounded-xl px-3.5 py-2 text-stone-900 font-medium focus:outline-none focus:border-[#722F37] transition-all text-xs"
                 placeholder="Estate Name"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Vintage (NV or Year)</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Vintage (NV or Year)</label>
               <input
                 required
                 value={formData.year}
                 onChange={e => setFormData({ ...formData, year: e.target.value })}
-                className="w-full bg-transparent border-b border-white/10 focus:border-gold outline-none py-2 transition-all text-ink font-light"
+                className="w-full bg-white border border-[#E5E0D8] rounded-xl px-3.5 py-2 text-stone-900 font-mono font-medium focus:outline-none focus:border-[#722F37] transition-all text-xs"
                 placeholder="2018 or NV"
               />
             </div>
           </div>
 
-          <div className="space-y-4">
-            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Classification</label>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Classification</label>
             <div className="flex flex-wrap gap-2">
               {wineTypes.map(t => {
-                const typeConfig = WINE_TYPE_CONFIG[t] || { text: 'text-gold', accent: 'bg-gold', border: 'border-gold', bg: 'bg-gold/10' };
+                const typeConfig = WINE_TYPE_CONFIG[t] || { text: 'text-[#800020]', bg: 'bg-[#FDF2F4]', border: 'border border-[#F5C2CB]' };
+                const isSelected = formData.type === t;
                 return (
                   <button
                     key={t}
                     type="button"
                     onClick={() => setFormData({ ...formData, type: t })}
-                    className={`px-4 py-2 text-[10px] uppercase tracking-widest border transition-all rounded-sm ${
-                      formData.type === t
-                        ? `${typeConfig.bg} ${typeConfig.border} ${typeConfig.text} font-bold shadow-lg scale-105`
-                        : 'border-white/10 text-ink/60 hover:border-gold/40'
+                    className={`px-3 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-xl border transition-all cursor-pointer ${
+                      isSelected
+                        ? `${typeConfig.bg} ${typeConfig.text} ${typeConfig.border} shadow-xs font-bold -translate-y-0.5`
+                        : 'bg-white text-stone-600 border-[#E5E0D8] hover:bg-[#F7F5F0]'
                     }`}
                   >
                     {t}
@@ -1562,43 +1682,45 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-8">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Region</label>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Region</label>
               <input
                 value={formData.region}
                 onChange={e => setFormData({ ...formData, region: e.target.value })}
-                className="w-full bg-transparent border-b border-white/10 focus:border-gold outline-none py-2 transition-all text-ink font-light"
+                className="w-full bg-white border border-[#E5E0D8] rounded-xl px-3.5 py-2 text-stone-900 font-medium focus:outline-none focus:border-[#722F37] transition-all text-xs"
+                placeholder="e.g. Bordeaux"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Country</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Country</label>
               <input
                 value={formData.country}
                 onChange={e => setFormData({ ...formData, country: e.target.value })}
-                className="w-full bg-transparent border-b border-white/10 focus:border-gold outline-none py-2 transition-all text-ink font-light"
+                className="w-full bg-white border border-[#E5E0D8] rounded-xl px-3.5 py-2 text-stone-900 font-medium focus:outline-none focus:border-[#722F37] transition-all text-xs"
+                placeholder="e.g. France"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-8">
-            <div className="space-y-2 col-span-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Grape Varieties</label>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5 col-span-2">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Grape Varieties</label>
               <div className="flex flex-wrap gap-2 mb-2 min-h-[32px]">
                 {Array.isArray(formData.grape) && formData.grape.map((g, i) => (
-                  <span key={i} className="flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[10px] text-gold/80">
+                  <span key={i} className="flex items-center gap-1.5 px-3 py-1 bg-[#FAF8F3] border border-[#EBE7DF] rounded-lg text-xs font-medium text-stone-700">
                     {g}
                     <button 
                       type="button" 
                       onClick={() => removeGrape(i)}
-                      className="hover:text-red-400 transition-colors"
+                      className="hover:text-[#722F37] cursor-pointer"
                     >
-                      <X size={10} />
+                      <X size={12} />
                     </button>
                   </span>
                 ))}
               </div>
-              <div className="relative">
+              <div className="relative flex gap-2">
                 <input
                   value={grapeInput}
                   onChange={e => setGrapeInput(e.target.value)}
@@ -1608,19 +1730,18 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
                       addGrape();
                     }
                   }}
-                  className="w-full bg-transparent border-b border-white/10 focus:border-gold outline-none py-2 transition-all text-ink font-light pr-10"
+                  className="flex-1 bg-white border border-[#E5E0D8] rounded-xl px-3.5 py-2 text-stone-900 font-medium text-xs focus:outline-none focus:border-[#722F37] transition-all"
                   placeholder="Type a variety and press Enter"
                 />
                 <button
                   type="button"
                   onClick={addGrape}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-gold/50 hover:text-gold transition-colors"
+                  className="px-3 rounded-xl border border-[#E5E0D8] bg-[#F7F5F0] hover:bg-[#EBE7DF] text-stone-700 font-semibold cursor-pointer"
                 >
                   <Plus size={16} />
                 </button>
                 {grapeInput.trim() && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-[#071F17] border border-white/10 rounded-sm z-50 max-h-32 overflow-y-auto shadow-2xl scroll-hide">
-                    {/* Suggestions from Encyclopedia */}
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#EBE7DF] rounded-xl z-50 max-h-36 overflow-y-auto shadow-xl scroll-hide">
                     {grapes
                       .filter(g => g.name.toLowerCase().includes(grapeInput.toLowerCase()) && !(formData.grape || []).includes(g.name))
                       .map(g => (
@@ -1631,46 +1752,46 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
                             setFormData({ ...formData, grape: [...(formData.grape || []), g.name] });
                             setGrapeInput('');
                           }}
-                          className="w-full text-left px-4 py-2 text-[10px] uppercase tracking-widest text-ink/60 hover:bg-gold/10 hover:text-gold transition-colors border-b border-white/5 last:border-0"
+                          className="w-full text-left px-3.5 py-2 text-xs font-medium text-stone-800 hover:bg-[#FDF2F4] hover:text-[#722F37] transition-colors border-b border-[#F2EFE9] last:border-0 cursor-pointer"
                         >
-                          {g.name} <span className="opacity-40 italic ml-2">({(g.locations || [])[0] || 'Unknown'})</span>
+                          {g.name} <span className="opacity-50 text-[10px] ml-2">({(g.locations || [])[0] || 'Unknown'})</span>
                         </button>
                       ))}
                   </div>
                 )}
               </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Price (฿)</label>
+            <div className="space-y-1.5 col-span-2 sm:col-span-1">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Price (฿)</label>
               <input
                 type="number"
                 value={formData.price}
-                onChange={e => setFormData({ ...formData, price: parseInt(e.target.value) })}
-                className="w-full bg-transparent border-b border-white/10 focus:border-gold outline-none py-2 transition-all text-ink font-light"
+                onChange={e => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })}
+                className="w-full bg-white border border-[#E5E0D8] rounded-xl px-3.5 py-2 text-stone-900 font-mono font-medium focus:outline-none focus:border-[#722F37] transition-all text-xs"
               />
             </div>
           </div>
 
           <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Bottle Photo</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Bottle Photo & AI Scanner</label>
               
               <div 
                 onDragOver={e => e.preventDefault()}
                 onDrop={handleDrop}
                 onClick={() => !isUploading && fileInputRef.current?.click()}
-                className={`w-full group cursor-pointer h-48 border-2 border-dashed transition-all flex flex-col items-center justify-center rounded-sm overflow-hidden relative ${
-                  formData.imageUrl ? 'border-gold/30' : 'border-white/10 hover:border-gold/30 hover:bg-white/5'
-                } ${isUploading ? 'opacity-50 cursor-wait' : ''}`}
+                className={`w-full group cursor-pointer h-48 border border-dashed border-[#D6CFBF] bg-[#FAF8F3] rounded-2xl flex flex-col items-center justify-center overflow-hidden relative transition-all hover:bg-white hover:border-[#722F37]/50 ${
+                  isUploading ? 'opacity-50 cursor-wait' : ''
+                }`}
               >
                 {isUploading || isAnalyzing ? (
-                  <div className="flex flex-col items-center gap-3 text-gold">
-                    <Loader2 size={32} className="animate-spin" />
-                    <span className="text-[10px] uppercase tracking-[0.2em] font-bold">
+                  <div className="flex flex-col items-center gap-3 text-stone-800">
+                    <Loader2 size={30} className="animate-spin text-[#722F37]" />
+                    <span className="text-xs uppercase tracking-wider font-semibold text-stone-800">
                       {isUploading && !isAnalyzing ? 'Uploading to cloud...' : isAnalyzing ? 'AI Analyzing Label...' : 'Processing...'}
                     </span>
                     {isAnalyzing && (
-                      <p className="text-[8px] text-gold/60 animate-pulse">Extracting Producer, Year, Region...</p>
+                      <p className="text-[10px] text-stone-500 font-medium animate-pulse">Extracting Producer, Year, Region & Tasting Notes...</p>
                     )}
                   </div>
                 ) : formData.imageUrl ? (
@@ -1678,24 +1799,24 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
                     <img 
                       src={formData.imageUrl} 
                       alt="Preview" 
-                      className="w-full h-full object-cover mix-blend-lighten opacity-80 transition-transform group-hover:scale-105"
+                      className="w-full h-full object-cover transition-transform group-hover:scale-105"
                       referrerPolicy="no-referrer"
                     />
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                       <div className="flex flex-col items-center gap-2">
-                        <Camera size={24} className="text-gold" />
-                        <span className="text-[9px] uppercase tracking-widest text-gold">Replace Photo</span>
+                        <Camera size={24} className="text-white" />
+                        <span className="text-xs uppercase tracking-wider font-semibold text-white bg-white/20 backdrop-blur-md px-3 py-1 rounded-full">Replace Photo</span>
                       </div>
                     </div>
                   </>
                 ) : (
-                  <div className="flex flex-col items-center gap-4 text-ink/30 transition-colors group-hover:text-gold/60">
-                    <div className="p-4 bg-white/5 rounded-full">
-                      <Upload size={24} />
+                  <div className="flex flex-col items-center gap-3 text-stone-600">
+                    <div className="p-3 bg-white border border-[#E5E0D8] rounded-xl group-hover:border-[#722F37]/40 shadow-xs transition-all">
+                      <Upload size={22} className="text-stone-600 group-hover:text-[#722F37]" />
                     </div>
                     <div className="text-center">
-                      <p className="text-[10px] uppercase tracking-[0.2em] font-bold">Upload Photo</p>
-                      <p className="text-[9px] mt-1 opacity-60">or drag & drop</p>
+                      <p className="text-xs uppercase tracking-wider font-semibold text-stone-800">Upload Wine Photo</p>
+                      <p className="text-[10px] text-stone-400 mt-0.5">Click or drag & drop</p>
                     </div>
                   </div>
                 )}
@@ -1709,146 +1830,146 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
               </div>
 
               {uploadError && (
-                <div className="mt-2 p-3 bg-red-950/40 border border-red-900/50 rounded flex gap-2 items-start">
-                  <Info size={14} className="text-red-400 mt-0.5 shrink-0" />
-                  <p className="text-[9px] text-red-200 leading-relaxed font-medium uppercase tracking-wider">{uploadError}</p>
+                <div className="mt-2 p-3 bg-[#FDF2F4] border border-[#F5C2CB] rounded-xl flex gap-2 items-start text-[#800020]">
+                  <Info size={16} className="text-[#800020] mt-0.5 shrink-0" />
+                  <p className="text-xs font-normal leading-relaxed">{uploadError}</p>
                 </div>
               )}
 
-              <div className="mt-2 text-[9px] text-ink/20 flex items-center justify-between">
-                <span>Recommended: Portrait Orientation</span>
-                <div className="flex gap-4">
+              <div className="mt-2 text-xs flex items-center justify-between">
+                <span className="text-stone-400 font-medium">Portrait orientation recommended</span>
+                <div className="flex gap-2">
                   {formData.imageUrl && !isUploading && (
                     <button 
                       type="button" 
                       onClick={() => handleAIScan(formData.imageUrl)}
                       disabled={isAnalyzing}
-                      className={`${analysisSuccess ? 'text-green-400' : 'text-gold hover:text-gold/80'} flex items-center gap-1 uppercase tracking-widest transition-colors font-bold disabled:opacity-50`}
+                      className="px-3 py-1.5 rounded-xl font-semibold text-xs tracking-wider cursor-pointer disabled:opacity-50 flex items-center gap-1.5 bg-[#722F37] text-white shadow-xs hover:bg-[#5C242C] transition-colors"
                     >
                       {isAnalyzing ? (
-                        <Loader2 size={10} className="animate-spin" />
-                      ) : analysisSuccess ? (
-                        <Sparkle size={10} className="fill-current" />
+                        <Loader2 size={12} className="animate-spin text-white" />
                       ) : (
-                        <Sparkles size={10} />
+                        <Sparkles size={12} className="text-white" />
                       )}
-                      {analysisSuccess ? 'Scan Complete' : isAnalyzing ? 'Analyzing...' : 'AI Scan Label'}
+                      {analysisSuccess ? 'Scanned!' : isAnalyzing ? 'Analyzing...' : 'AI Scan Label'}
                     </button>
                   )}
                   {formData.imageUrl && (
                     <button 
                       type="button" 
                       onClick={(e) => { e.stopPropagation(); setFormData({ ...formData, imageUrl: '' }); }}
-                      className="text-red-400 hover:text-red-300 flex items-center gap-1 uppercase tracking-widest transition-colors font-bold"
+                      className="px-3 py-1.5 rounded-xl border border-[#E5E0D8] bg-[#F7F5F0] hover:bg-[#FDF2F4] text-stone-600 hover:text-[#800020] font-semibold text-xs tracking-wider transition-all cursor-pointer"
                     >
-                      Clear Photo
+                      Clear
                     </button>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Or Paste Image URL</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Or Paste Image URL</label>
               <input
                 type="text"
                 value={formData.imageUrl}
                 onChange={e => setFormData({ ...formData, imageUrl: e.target.value })}
-                className="w-full bg-transparent border-b border-white/10 focus:border-gold outline-none py-2 transition-all text-ink font-light text-xs opacity-60 focus:opacity-100"
+                className="w-full bg-white border border-[#E5E0D8] rounded-xl px-3.5 py-2 text-stone-900 text-xs focus:outline-none focus:border-[#722F37]"
                 placeholder="https://..."
               />
             </div>
             
-            <div className="space-y-4 pt-4">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Tasting Diary (Detailed Analytical Profile)</label>
+            <div className="space-y-4 pt-4 border-t border-[#EBE7DF]">
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-[#722F37]" />
+                <label className="text-xs font-semibold uppercase tracking-wider text-[#722F37]">Tasting Diary (Detailed Sensory Profile)</label>
+              </div>
               
-              {/* Prioritizing most expressive descriptive notes */}
-              <div className="space-y-4 p-6 bg-white/5 border border-white/10 rounded-sm">
-                <div className="space-y-2">
-                  <label className="text-[9px] uppercase tracking-widest text-gold/60 font-black ml-1">Appearance & Hue</label>
+              <div className="space-y-3 p-4 bg-[#FAF8F3] border border-[#EBE7DF] rounded-xl">
+                <div className="space-y-1">
+                  <label className="text-xs uppercase tracking-wider text-stone-600 font-semibold">Appearance & Hue</label>
                   <textarea
                     rows={2}
                     value={formData.appearance}
                     onChange={e => setFormData({ ...formData, appearance: e.target.value })}
-                    className="w-full bg-white/5 border border-white/5 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
+                    className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 focus:outline-none focus:border-[#722F37]"
                     placeholder="Describe the robe, clarity, and intensity..."
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-[9px] uppercase tracking-widest text-gold/60 font-black ml-1">The Nose (Aromatics)</label>
+                <div className="space-y-1">
+                  <label className="text-xs uppercase tracking-wider text-stone-600 font-semibold">The Nose (Aromatics)</label>
                   <textarea
                     rows={2}
                     value={formData.nose}
                     onChange={e => setFormData({ ...formData, nose: e.target.value })}
-                    className="w-full bg-white/5 border border-white/5 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
+                    className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 focus:outline-none focus:border-[#722F37]"
                     placeholder="Primary fruits, secondary fermentation notes, tertiary age..."
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[9px] uppercase tracking-widest text-ink/40 font-medium ml-1">Palate & Structure</label>
+              <div className="space-y-1">
+                <label className="text-xs uppercase tracking-wider text-stone-600 font-semibold">Palate & Structure</label>
                 <textarea
                   rows={2}
                   value={formData.palate}
                   onChange={e => setFormData({ ...formData, palate: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
+                  className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 focus:outline-none focus:border-[#722F37]"
                   placeholder="Body, acidity, tannins, alcohol, balance..."
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[9px] uppercase tracking-widest text-ink/40 font-medium ml-1">The Finish</label>
+              <div className="space-y-1">
+                <label className="text-xs uppercase tracking-wider text-stone-600 font-semibold">The Finish</label>
                 <textarea
                   rows={2}
                   value={formData.finish}
                   onChange={e => setFormData({ ...formData, finish: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
+                  className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 focus:outline-none focus:border-[#722F37]"
                   placeholder="Length, persistence, and final impressions..."
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[9px] uppercase tracking-widest text-gold/60 font-black ml-1">Viticulture & Vineyard</label>
+              <div className="space-y-1">
+                <label className="text-xs uppercase tracking-wider text-stone-600 font-semibold">Viticulture & Vineyard</label>
                 <textarea
                   rows={2}
                   value={formData.viticulture}
                   onChange={e => setFormData({ ...formData, viticulture: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
+                  className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 focus:outline-none focus:border-[#722F37]"
                   placeholder="Farming practices, soil type, vine age, elevation, organic/biodynamic..."
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[9px] uppercase tracking-widest text-gold/60 font-black ml-1">Wine Making Philosophy</label>
+              <div className="space-y-1">
+                <label className="text-xs uppercase tracking-wider text-stone-600 font-semibold">Wine Making Philosophy</label>
                 <textarea
                   rows={2}
                   value={formData.winemakingPhilosophy}
                   onChange={e => setFormData({ ...formData, winemakingPhilosophy: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink italic font-light"
+                  className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 focus:outline-none focus:border-[#722F37]"
                   placeholder="Fermentation method, oak aging, minimal intervention, wild yeast..."
                 />
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between ml-1">
-                  <label className="text-[9px] uppercase tracking-widest text-gold font-black">Main Tasting Notes (List View Quote)</label>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs uppercase tracking-wider text-stone-700 font-semibold">Main Tasting Summary</label>
                   <button
                     type="button"
                     disabled={isRefiningNotes || !formData.tastingNotes.trim()}
                     onClick={handleRefineNotes}
-                    className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-gold hover:text-gold/80 disabled:text-ink/30 transition-colors cursor-pointer disabled:cursor-not-allowed"
-                    title="Rewrite bullet-points or rough text into a professional editorial paragraph"
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-xl font-semibold text-xs tracking-wider cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed bg-[#FAF8F3] border border-[#EBE7DF] text-[#722F37] hover:bg-white shadow-xs"
+                    title="Polish raw thoughts or bullets into an editorial paragraph"
                   >
                     {isRefiningNotes ? (
                       <>
-                        <Loader2 size={11} className="animate-spin text-gold" />
+                        <Loader2 size={12} className="animate-spin text-[#722F37]" />
                         <span>Refining...</span>
                       </>
                     ) : (
                       <>
-                        <Sparkles size={11} className="text-gold" />
+                        <Sparkles size={12} className="text-[#722F37]" />
                         <span>Refine Notes</span>
                       </>
                     )}
@@ -1858,32 +1979,32 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
                   rows={3}
                   value={formData.tastingNotes}
                   onChange={e => setFormData({ ...formData, tastingNotes: e.target.value })}
-                  className="w-full bg-gold/5 border border-gold/20 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink font-medium italic"
-                  placeholder="The primary descriptive notes that will appear on the main card. Write raw thoughts or bullets, then click 'Refine Notes' to polish them..."
+                  className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 focus:outline-none focus:border-[#722F37]"
+                  placeholder="The primary descriptive notes that will appear on the main card..."
                 />
                 {refineError && (
-                  <p className="text-[10px] text-red-400 mt-1">{refineError}</p>
+                  <p className="text-xs text-rose-600 font-medium mt-1">{refineError}</p>
                 )}
               </div>
             </div>
             
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Suggested Food Pairings</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Suggested Food Pairings</label>
               <div className="flex flex-wrap gap-2 mb-2 min-h-[32px]">
                 {Array.isArray(formData.foodPairing) && formData.foodPairing.map((p, i) => (
-                  <span key={i} className="flex items-center gap-1.5 px-3 py-1 bg-gold/10 border border-gold/20 rounded-full text-[10px] text-gold/80 italic">
+                  <span key={i} className="flex items-center gap-1.5 px-3 py-1 bg-[#F0FDF4] border border-[#BBF7D0] rounded-lg text-xs font-medium text-[#15803D]">
                     {p}
                     <button 
                       type="button" 
                       onClick={() => removePairing(i)}
-                      className="hover:text-red-400 transition-colors"
+                      className="hover:text-red-700 cursor-pointer"
                     >
-                      <X size={10} />
+                      <X size={12} />
                     </button>
                   </span>
                 ))}
               </div>
-              <div className="relative">
+              <div className="relative flex gap-2">
                 <input
                   value={pairingInput}
                   onChange={e => setPairingInput(e.target.value)}
@@ -1893,38 +2014,38 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
                       addPairing();
                     }
                   }}
-                  className="w-full bg-transparent border-b border-white/10 focus:border-gold outline-none py-2 transition-all text-ink font-light pr-10 italic"
+                  className="flex-1 bg-white border border-[#E5E0D8] rounded-xl px-3.5 py-2 text-stone-900 font-medium text-xs focus:outline-none focus:border-[#722F37]"
                   placeholder="e.g. Grilled Scallops (Enter to add)"
                 />
                 <button
                   type="button"
                   onClick={addPairing}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-gold/50 hover:text-gold transition-colors"
+                  className="px-3 rounded-xl border border-[#E5E0D8] bg-[#F7F5F0] hover:bg-[#EBE7DF] text-stone-700 font-semibold cursor-pointer"
                 >
                   <Plus size={16} />
                 </button>
               </div>
             </div>
             
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink/30">Summary / Personal Storage Notes</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Personal Notes / Storage Location</label>
               <textarea
                 rows={2}
                 value={formData.additionalNote}
                 onChange={e => setFormData({ ...formData, additionalNote: e.target.value })}
-                className="w-full bg-white/5 border border-white/10 p-4 rounded focus:border-gold outline-none transition-all text-sm text-ink font-light"
-                placeholder="Storing location, personal memories, price history, etc..."
+                className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 focus:outline-none focus:border-[#722F37]"
+                placeholder="Rack B2, purchased from importer, opened for anniversary..."
               />
             </div>
           </div>
 
-          <div className="pt-8">
+          <div className="pt-3">
             <button
               type="submit"
               disabled={isUploading || isSaving}
-              className={`w-full bg-gold text-wine-bg py-5 font-bold tracking-[0.3em] uppercase text-xs hover:bg-gold/90 transition-all shadow-2xl active:scale-95 flex items-center justify-center gap-3 ${(isUploading || isSaving) ? 'opacity-50 cursor-wait' : ''}`}
+              className={`w-full bg-[#722F37] hover:bg-[#5C242C] text-white rounded-xl py-3.5 font-semibold tracking-wider uppercase text-xs cursor-pointer flex items-center justify-center gap-2.5 shadow-md transition-all active:scale-98 ${(isUploading || isSaving) ? 'opacity-50 cursor-wait' : ''}`}
             >
-              {(isUploading || isSaving) && <Loader2 size={16} className="animate-spin" />}
+              {(isUploading || isSaving) && <Loader2 size={15} className="animate-spin text-white" />}
               {isUploading ? 'Processing Photo...' : isSaving ? 'Saving to Diary...' : 'Commit to Diary'}
             </button>
           </div>
@@ -1939,8 +2060,32 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [bottles, setBottles] = useState<WineBottle[]>([]);
-  const [grapes, setGrapes] = useState<GrapeVariety[]>([]);
+  
+  // Local guest reserve state so unauthenticated or cookie-blocked users can fully explore the app
+  const [guestBottles, setGuestBottles] = useState<WineBottle[]>(() => {
+    try {
+      const saved = localStorage.getItem('bottle_diary_guest_bottles');
+      return saved ? JSON.parse(saved) : DEMO_BOTTLES;
+    } catch {
+      return DEMO_BOTTLES;
+    }
+  });
+
+  const [guestGrapes, setGuestGrapes] = useState<GrapeVariety[]>(() => {
+    try {
+      const saved = localStorage.getItem('bottle_diary_guest_grapes');
+      return saved ? JSON.parse(saved) : DEMO_GRAPES;
+    } catch {
+      return DEMO_GRAPES;
+    }
+  });
+
+  const [firestoreBottles, setFirestoreBottles] = useState<WineBottle[]>([]);
+  const [firestoreGrapes, setFirestoreGrapes] = useState<GrapeVariety[]>([]);
+
+  // Seamlessly switch: if user is signed in, use their private Firestore collection. Otherwise, use guest bottles.
+  const bottles = user ? firestoreBottles : guestBottles;
+  const grapes = user ? firestoreGrapes : guestGrapes;
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -1952,8 +2097,8 @@ export default function App() {
 
   useEffect(() => {
     if (!user) {
-      setBottles([]);
-      setGrapes([]);
+      setFirestoreBottles([]);
+      setFirestoreGrapes([]);
       return;
     }
 
@@ -1970,11 +2115,11 @@ export default function App() {
     );
 
     const unsubBottles = onSnapshot(qBottles, (snapshot) => {
-      setBottles(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as WineBottle[]);
+      setFirestoreBottles(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as WineBottle[]);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'bottles'));
 
     const unsubGrapes = onSnapshot(qGrapes, (snapshot) => {
-      setGrapes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as GrapeVariety[]);
+      setFirestoreGrapes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as GrapeVariety[]);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'grapes'));
 
     return () => {
@@ -1999,13 +2144,26 @@ export default function App() {
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
   const [selectedGrapes, setSelectedGrapes] = useState<string[]>([]);
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
-  const [view, setView] = useState<'cellar' | 'stats' | 'wine-of-the-day' | 'grapes' | 'tutor'>('cellar');
+  const [view, setView] = useState<'home' | 'cellar' | 'explore' | 'profile' | 'stats' | 'wine-of-the-day' | 'grapes' | 'tutor'>('home');
+  const [exploreTab, setExploreTab] = useState<'map' | 'grapes' | 'tutor'>('map');
+  const [isNavDrawerOpen, setIsNavDrawerOpen] = useState(false);
   const [statsSubTab, setStatsSubTab] = useState<'bottles' | 'grapes'>('bottles');
   const [selectedAnalysisCountry, setSelectedAnalysisCountry] = useState<string | null>(null);
   const [selectedAnalysisRegion, setSelectedAnalysisRegion] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'bottle' | 'grape' } | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+
+  // Prevent background scrolling while modal or sheet is open
+  useEffect(() => {
+    if (isFormOpen || isGrapeFormOpen || itemToDelete) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+      };
+    }
+  }, [isFormOpen, isGrapeFormOpen, itemToDelete]);
 
   // AI Wine Tutor States
   const [quizQuestion, setQuizQuestion] = useState<QuizQuestion | null>(null);
@@ -2107,16 +2265,19 @@ export default function App() {
       await signInWithGoogle();
     } catch (error: any) {
       console.error("Login failed:", error);
-      if (error.code === 'auth/unauthorized-domain') {
-        setAuthError(`Domain "${window.location.hostname}" is not authorized. Please add it to "Authorized domains" in your Firebase Console Authentication settings.`);
+      const msg = error?.message || '';
+      if (error.code === 'auth/unauthorized-domain' || msg.includes('unauthorized-domain')) {
+        setAuthError(`Domain "${window.location.hostname}" is not authorized yet in Firebase. You can continue previewing all features in Guest Reserve mode.`);
       } else if (error.code === 'auth/popup-blocked') {
-        setAuthError("Login popup was blocked by your browser. Please allow popups for this site and try again.");
+        setAuthError("Login popup was blocked by your browser. Please allow popups or open this app directly in a full browser tab.");
       } else if (error.code === 'auth/popup-closed-by-user') {
-        setAuthError("The sign-in window was closed before completion. Please try again. If you continue to see this error, try opening the application in a new tab to bypass iframe pop-up limits.");
+        setAuthError("The sign-in window was closed. Try opening the application in a new tab to bypass iframe pop-up limits.");
       } else if (error.code === 'auth/cancelled-popup-request') {
-        setAuthError("A sign-in request is already pending. Please wait a moment or refresh the page and try again.");
+        setAuthError("A sign-in request is already pending. Please wait a moment.");
+      } else if (msg.includes('401') || msg.includes('malformed') || error.code === 'auth/internal-error') {
+        setAuthError("Google authentication in this preview frame encountered a cookie/origin restriction (401). Open the app in a new tab or continue exploring in Guest Reserve Mode.");
       } else {
-        setAuthError(error.message || "An unexpected error occurred during login.");
+        setAuthError(error.message || "An unexpected error occurred during login. You can continue exploring in Guest Reserve mode.");
       }
     }
   };
@@ -2150,10 +2311,43 @@ export default function App() {
       .slice(0, 5);
   }, [bottles]);
 
+  const distinctRegionsCount = useMemo(() => {
+    const regions = bottles.map(b => b.region).filter(Boolean);
+    return new Set(regions).size || availableCountries.length;
+  }, [bottles, availableCountries]);
 
+  const favoritesCount = useMemo(() => {
+    return bottles.filter(b => (b.price || 0) >= 3000 || (b.tastingNotes && b.tastingNotes.length > 80)).length;
+  }, [bottles]);
 
   const handleCreateOrUpdate = async (data: Omit<WineBottle, 'id' | 'dateAdded'>) => {
-    if (!user) return;
+    if (!user) {
+      // Guest mode local storage commit
+      if (editingBottle) {
+        setGuestBottles(prev => {
+          const updated = prev.map(b => b.id === editingBottle.id ? { ...b, ...data } : b);
+          try { localStorage.setItem('bottle_diary_guest_bottles', JSON.stringify(updated)); } catch {}
+          return updated;
+        });
+      } else {
+        const newBottle: WineBottle = {
+          ...data,
+          id: 'guest-' + Math.random().toString(36).substr(2, 9),
+          dateAdded: Date.now(),
+          userId: 'guest'
+        };
+        setGuestBottles(prev => {
+          const updated = [newBottle, ...prev];
+          try { localStorage.setItem('bottle_diary_guest_bottles', JSON.stringify(updated)); } catch {}
+          return updated;
+        });
+      }
+      setIsFormOpen(false);
+      setEditingBottle(undefined);
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 4000);
+      return;
+    }
 
     try {
       console.log("Committing wine record:", { ...data, hasImage: !!data.imageUrl });
@@ -2161,7 +2355,7 @@ export default function App() {
         const bottleRef = doc(db, 'bottles', editingBottle.id);
         await updateDoc(bottleRef, {
           ...data,
-          lastUpdated: Date.now(), // More accurate sync tracking
+          lastUpdated: Date.now(),
           userId: user.uid
         });
       } else {
@@ -2185,7 +2379,30 @@ export default function App() {
   };
 
   const handleCreateOrUpdateGrape = async (data: Omit<GrapeVariety, 'id' | 'dateAdded' | 'userId'>) => {
-    if (!user) return;
+    if (!user) {
+      if (editingGrape) {
+        setGuestGrapes(prev => {
+          const updated = prev.map(g => g.id === editingGrape.id ? { ...g, ...data } : g);
+          try { localStorage.setItem('bottle_diary_guest_grapes', JSON.stringify(updated)); } catch {}
+          return updated;
+        });
+      } else {
+        const newGrape: GrapeVariety = {
+          ...data,
+          id: 'guest-grape-' + Math.random().toString(36).substr(2, 9),
+          dateAdded: Date.now(),
+          userId: 'guest'
+        };
+        setGuestGrapes(prev => {
+          const updated = [newGrape, ...prev];
+          try { localStorage.setItem('bottle_diary_guest_grapes', JSON.stringify(updated)); } catch {}
+          return updated;
+        });
+      }
+      setIsGrapeFormOpen(false);
+      setEditingGrape(undefined);
+      return;
+    }
 
     try {
       if (editingGrape) {
@@ -2217,11 +2434,30 @@ export default function App() {
   };
 
   const confirmDelete = async () => {
-    if (!user || !itemToDelete) return;
+    if (!itemToDelete) return;
     const { id, type } = itemToDelete;
+    
+    if (!user) {
+      if (type === 'bottle') {
+        setGuestBottles(prev => {
+          const updated = prev.filter(b => b.id !== id);
+          try { localStorage.setItem('bottle_diary_guest_bottles', JSON.stringify(updated)); } catch {}
+          return updated;
+        });
+      } else {
+        setGuestGrapes(prev => {
+          const updated = prev.filter(g => g.id !== id);
+          try { localStorage.setItem('bottle_diary_guest_grapes', JSON.stringify(updated)); } catch {}
+          return updated;
+        });
+      }
+      setItemToDelete(null);
+      return;
+    }
     
     try {
       await deleteDoc(doc(db, type === 'bottle' ? 'bottles' : 'grapes', id));
+      setItemToDelete(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `${type === 'bottle' ? 'bottles' : 'grapes'}/${id}`);
     }
@@ -2383,33 +2619,32 @@ export default function App() {
 
   const grapeTypeData = useMemo(() => {
     const counts: Record<string, number> = { Red: 0, White: 0 };
-    grapes.forEach(g => {
-      if (counts[g.type] !== undefined) {
-        counts[g.type]++;
-      }
+    (grapes || []).forEach(g => {
+      const gType = g?.type === 'White' ? 'White' : 'Red';
+      counts[gType] = (counts[gType] || 0) + 1;
     });
     return Object.entries(counts)
       .map(([name, value]) => ({ name, value }))
       .filter(item => item.value > 0);
   }, [grapes]);
 
-  const COLORS = ['#D4AF37', '#800020', '#C0C0C0', '#FFD700', '#E5E4E2', '#B8860B', '#BC8F8F', '#8B4513'];
+  const COLORS = ['#e11d48', '#d97706', '#059669', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e'];
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="glass-panel p-3 bg-wine-bg shadow-2xl">
-          <p className="text-[10px] uppercase tracking-widest text-gold font-bold mb-1">{label || payload[0].payload.name}</p>
+        <div className="bg-white border border-[#EBE7DF] p-3 rounded-xl shadow-lg text-stone-900">
+          <p className="text-[10px] uppercase tracking-wider text-[#722F37] font-bold mb-1">{label || payload[0].payload.name}</p>
           {payload.map((entry: any, index: number) => (
-            <p key={index} className="text-[11px] text-ink/80 flex items-center justify-between gap-4">
-              <span className="opacity-60">{entry.name}:</span>
-              <span className="font-bold">
+            <p key={index} className="text-xs text-stone-700 font-medium flex items-center justify-between gap-4">
+              <span className="text-stone-500">{entry.name}:</span>
+              <span className="font-semibold text-stone-900">
                 {entry.name === 'price' ? `฿${entry.value.toLocaleString()}` : entry.value}
               </span>
             </p>
           ))}
           {payload[0].payload.type && (
-            <p className="text-[9px] mt-2 text-ink/40 italic">Classification: {payload[0].payload.type}</p>
+            <p className="text-[9px] mt-1 text-stone-400 font-semibold uppercase">Classification: {payload[0].payload.type}</p>
           )}
         </div>
       );
@@ -2418,541 +2653,421 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row wine-gradient overflow-x-hidden">
-      {/* Sidebar Navigation */}
-      <aside className="w-full md:w-80 border-r border-white/10 p-10 flex flex-col md:fixed md:h-full z-10 bg-black/20 backdrop-blur-md">
-        <div className="flex items-center space-x-4 mb-16 group">
-          <div className="w-12 h-12 border border-gold rounded-full flex items-center justify-center text-gold group-hover:bg-gold group-hover:text-wine-bg transition-all shadow-[0_0_15px_rgba(212,175,55,0.2)]">
-            <Sparkle size={24} strokeWidth={1.5} />
-          </div>
-          <div>
-            <h1 className="text-3xl font-serif font-light tracking-widest uppercase text-ink">Bottle Diary</h1>
-            <p className="text-[9px] uppercase tracking-[0.4em] text-gold/60 mt-1">Private Reserve</p>
-          </div>
-        </div>
+    <div className="min-h-screen bg-[#FBF9F5] text-stone-900 font-sans flex flex-col relative selection:bg-[#722F37]/20 selection:text-[#722F37]">
+      {/* Top Header */}
+      <TopHeader
+        user={user}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        isFilterExpanded={isFilterExpanded}
+        onToggleFilter={() => setIsFilterExpanded(!isFilterExpanded)}
+        onOpenMenu={() => setIsNavDrawerOpen(true)}
+      />
 
-        <nav className="flex-1 space-y-10 scroll-hide overflow-y-auto">
-          <div className="space-y-2">
-            <button
-              onClick={() => setView('cellar')}
-              className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
-                view === 'cellar' ? 'bg-white/[0.09] backdrop-blur-sm border border-white/10 text-gold font-bold shadow-lg' : 'text-ink/50 hover:text-ink hover:bg-white/5'
-              }`}
-            >
-              <Wine size={16} />
-              My Cellar
-            </button>
-            <button
-              onClick={() => setView('wine-of-the-day')}
-              className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
-                view === 'wine-of-the-day' ? 'bg-white/[0.09] backdrop-blur-sm border border-white/10 text-gold font-bold shadow-lg' : 'text-ink/50 hover:text-ink hover:bg-white/5'
-              }`}
-            >
-              <Star size={16} />
-              Wine of the Day
-            </button>
-            <button
-              onClick={() => setView('grapes')}
-              className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
-                view === 'grapes' ? 'bg-white/[0.09] backdrop-blur-sm border border-white/10 text-gold font-bold shadow-lg' : 'text-ink/50 hover:text-ink hover:bg-white/5'
-              }`}
-            >
-              <FlaskConical size={16} />
-              Grape Varieties
-            </button>
-
-            <button
-               onClick={() => setView('stats')}
-               className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
-                 view === 'stats' ? 'bg-white/[0.09] backdrop-blur-sm border border-white/10 text-gold font-bold shadow-lg' : 'text-ink/50 hover:text-ink hover:bg-white/5'
-               }`}
-             >
-               <BarChart3 size={16} />
-               Cellar Analytics
-             </button>
-
-             <button
-                onClick={() => setView('tutor')}
-                className={`w-full flex items-center gap-4 px-4 py-3 rounded-sm transition-all text-[11px] uppercase tracking-[0.3em] ${
-                  view === 'tutor' ? 'bg-white/[0.09] backdrop-blur-sm border border-white/10 text-gold font-bold shadow-lg' : 'text-ink/50 hover:text-ink hover:bg-white/5'
-                }`}
-              >
-                <Sparkles size={16} />
-                <span>AI Wine Tutor</span>
-              </button>
-           </div>
- 
-           <div>
-             <button 
-               onClick={() => setIsFilterExpanded(!isFilterExpanded)}
-               className="w-full flex items-center justify-between group mb-6 hover:text-gold transition-colors"
-             >
-               <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold transition-colors">
-                 {isFilterExpanded ? 'Hide Filters' : 'Filter Collection'}
-               </h3>
-               <div className={`transition-transform duration-300 ${isFilterExpanded ? 'rotate-180' : ''}`}>
-                 <ChevronDown size={14} className="text-ink/20 group-hover:text-gold" />
-               </div>
-             </button>
-             
-             <AnimatePresence initial={false}>
-               {isFilterExpanded && (
-                 <motion.div 
-                   initial={{ height: 0, opacity: 0 }}
-                   animate={{ height: 'auto', opacity: 1 }}
-                   exit={{ height: 0, opacity: 0 }}
-                   className="space-y-6 overflow-hidden pb-10"
-                 >
-                   <div className="space-y-1.5 hidden">
-                     <button 
-                       onClick={() => setActiveFilter('All')}
-                       className={`w-full flex items-center justify-between px-4 py-2.5 rounded-sm transition-all text-[9px] uppercase tracking-[0.3em] ${
-                         activeFilter === 'All' 
-                           ? 'bg-gold/10 text-gold border border-gold/20 font-bold' 
-                           : 'text-ink/40 hover:text-ink hover:bg-white/5 border border-transparent'
-                       }`}
-                     >
-                       <span>Entire Cellar</span>
-                       <span className="opacity-40">{bottles.length}</span>
-                     </button>
-                     
-                     <div className="h-4"></div>
-                     <p className="text-[8px] uppercase tracking-widest text-ink/20 font-bold px-4 mb-2">Classifications</p>
-                     
-                     {WINE_TYPES.map(type => {
-                       const typeConfig = WINE_TYPE_CONFIG[type];
-                       return (
-                         <button 
-                           key={type}
-                           onClick={() => setActiveFilter(type)}
-                           className={`w-full flex items-center justify-between px-4 py-2.5 rounded-sm transition-all text-[9px] uppercase tracking-[0.3em] group ${
-                             activeFilter === type 
-                               ? `${typeConfig.bg} ${typeConfig.text} ${typeConfig.border} border font-bold` 
-                               : 'text-ink/40 hover:text-ink hover:bg-white/5 border border-transparent'
-                           }`}
-                         >
-                           <div className="flex items-center gap-2">
-                             <div className={`w-1 h-1 rounded-full ${typeConfig.accent} ${activeFilter === type ? 'opacity-100' : 'opacity-40 group-hover:opacity-100'}`}></div>
-                             <span>{type}</span>
-                           </div>
-                           <span className="opacity-40">
-                             {bottles.filter(b => b.type === type).length}
-                           </span>
-                         </button>
-                       );
-                     })}
-                   </div>
-
-                  {/* Price Range Filter */}
-                  <div className="px-4 space-y-3">
-                    <p className="text-[8px] uppercase tracking-widest text-ink/20 font-bold mb-2">Price Range (฿)</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <label className="text-[7px] uppercase tracking-widest text-ink/30">Min</label>
-                        <input 
-                          type="number"
-                          value={priceRange.min}
-                          onChange={(e) => setPriceRange({ ...priceRange, min: parseInt(e.target.value) || 0 })}
-                          className="w-full bg-white/5 border border-white/10 rounded-sm py-2 px-3 text-[10px] text-ink outline-none focus:border-gold/30"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[7px] uppercase tracking-widest text-ink/30">Max</label>
-                        <input 
-                          type="number"
-                          value={priceRange.max}
-                          onChange={(e) => setPriceRange({ ...priceRange, max: parseInt(e.target.value) || 100000 })}
-                          className="w-full bg-white/5 border border-white/10 rounded-sm py-2 px-3 text-[10px] text-ink outline-none focus:border-gold/30"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Date Range Filter */}
-                  <div className="px-4 space-y-3">
-                    <p className="text-[8px] uppercase tracking-widest text-ink/20 font-bold mb-2">Date Added</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <label className="text-[7px] uppercase tracking-widest text-ink/30">Start</label>
-                        <input 
-                          type="date"
-                          value={dateRange.start}
-                          onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                          className="w-full bg-white/5 border border-white/10 rounded-sm py-2 px-3 text-[10px] text-ink outline-none focus:border-gold/30"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[7px] uppercase tracking-widest text-ink/30">End</label>
-                        <input 
-                          type="date"
-                          value={dateRange.end}
-                          onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                          className="w-full bg-white/5 border border-white/10 rounded-sm py-2 px-3 text-[10px] text-ink outline-none focus:border-gold/30"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Grape Variety Filter */}
-                  <div className="px-4 space-y-3 pt-4 border-t border-white/5">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-[8px] uppercase tracking-widest text-ink/20 font-bold">Grape Varieties</p>
-                      {selectedGrapes.length > 0 && (
-                        <button 
-                          onClick={() => setSelectedGrapes([])}
-                          className="text-[7px] uppercase tracking-widest text-gold hover:text-gold/80 transition-colors underline"
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pr-2 scrollbar-hide">
-                      {availableGrapes.map(grape => (
-                        <button
-                          key={grape}
-                          onClick={() => {
-                            if (selectedGrapes.includes(grape)) {
-                              setSelectedGrapes(selectedGrapes.filter(g => g !== grape));
-                            } else {
-                              setSelectedGrapes([...selectedGrapes, grape]);
-                            }
-                          }}
-                          className={`text-[8px] uppercase tracking-wider px-2 py-1 rounded-sm border transition-all ${
-                            selectedGrapes.includes(grape)
-                              ? 'bg-gold/20 border-gold/40 text-gold shadow-[0_0_10px_rgba(212,175,55,0.1)]'
-                              : 'bg-white/5 border-white/10 text-ink/40 hover:border-gold/20'
-                          }`}
-                        >
-                          {grape}
-                        </button>
-                      ))}
-                      {availableGrapes.length === 0 && (
-                        <p className="text-[8px] text-ink/20 italic">No varieties found</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Country Filter */}
-                  <div className="px-4 space-y-3 pt-4 border-t border-white/5">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-[8px] uppercase tracking-widest text-ink/20 font-bold">Countries</p>
-                      {selectedCountries.length > 0 && (
-                        <button 
-                          onClick={() => setSelectedCountries([])}
-                          className="text-[7px] uppercase tracking-widest text-gold hover:text-gold/80 transition-colors underline"
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-2 scrollbar-hide">
-                      {availableCountries.map(country => (
-                        <button
-                          key={country}
-                          onClick={() => {
-                            if (selectedCountries.includes(country)) {
-                              setSelectedCountries(selectedCountries.filter(c => c !== country));
-                            } else {
-                              setSelectedCountries([...selectedCountries, country]);
-                            }
-                          }}
-                          className={`text-[8px] uppercase tracking-wider px-2 py-1 rounded-sm border transition-all ${
-                            selectedCountries.includes(country)
-                              ? 'bg-gold/20 border-gold/40 text-gold shadow-[0_0_10px_rgba(212,175,55,0.1)]'
-                              : 'bg-white/5 border-white/10 text-ink/40 hover:border-gold/20'
-                          }`}
-                        >
-                          {country}
-                        </button>
-                      ))}
-                      {availableCountries.length === 0 && (
-                        <p className="text-[8px] text-ink/20 italic">No countries found</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Reset All Filters */}
-                  <div className="px-4 pt-4 border-t border-white/5">
-                    <button 
-                      onClick={() => {
-                        setActiveFilter('All');
-                        setPriceRange({ min: 0, max: 100000 });
-                        setDateRange({ start: '', end: '' });
-                        setSelectedGrapes([]);
-                        setSelectedCountries([]);
-                        setSearchQuery('');
-                      }}
-                      className="w-full py-3 bg-red-950/20 text-red-500/60 border border-red-950/40 text-[8px] uppercase tracking-[0.3em] font-bold hover:bg-red-950/40 transition-all rounded-sm"
-                    >
-                      Reset All Filters
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </nav>
-
-        <div className="mt-auto pt-10 space-y-6">
-          {user ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 px-4 py-3 bg-black/20 backdrop-blur-md border border-gold/10 rounded-sm">
-                {user.photoURL ? (
-                  <img src={user.photoURL} alt={user.displayName || 'User'} className="w-8 h-8 rounded-full border border-gold/30" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center text-gold">
-                    <UserIcon size={16} />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-ink font-bold truncate uppercase tracking-widest">{user.displayName || 'Collector'}</p>
-                  <p className="text-[8px] text-ink/30 truncate uppercase tracking-tighter">{user.email}</p>
-                </div>
-                <button 
-                  onClick={logout}
-                  className="p-2 text-ink/40 hover:text-red-400 transition-colors"
-                  title="Logout"
-                >
-                  <LogOut size={16} />
-                </button>
-              </div>
-            </div>
-            ) : (
-              <div className="space-y-4">
-                <button
-                  onClick={handleLogin}
-                  className="w-full flex items-center justify-center gap-3 px-4 py-4 bg-gold text-wine-bg text-[10px] uppercase font-bold tracking-[0.3em] hover:bg-gold/90 transition-all rounded-sm shadow-xl active:scale-95"
-                >
-                  <LogIn size={18} />
-                  Connect Devices
-                </button>
-                {authError && (
-                  <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-[9px] uppercase tracking-widest leading-relaxed rounded-sm">
-                    {authError}
-                  </div>
-                )}
-              </div>
-            )}
-
-          <div className="bg-black/20 backdrop-blur-md border border-gold/10 p-6 rounded-sm shadow-xl relative overflow-hidden">
-             <div className="absolute top-0 right-0 p-2 opacity-10">
-               <Wine size={40} />
-             </div>
-             <p className="text-[11px] font-light text-ink/60 leading-relaxed italic relative z-10">
-               "Wine is bottled poetry."
-             </p>
-             <p className="text-[9px] uppercase mt-3 text-gold tracking-widest relative z-10">— R.L. Stevenson</p>
-          </div>
-        </div>
-      </aside>
+      {/* Slide-out Navigation Drawer */}
+      <NavigationDrawer
+        isOpen={isNavDrawerOpen}
+        onClose={() => setIsNavDrawerOpen(false)}
+        user={user}
+        onLogin={handleLogin}
+        onLogout={logout}
+        onNavigate={(v) => {
+          if (v === 'grapes') {
+            setView('explore');
+            setExploreTab('grapes');
+          } else if (v === 'tutor') {
+            setView('explore');
+            setExploreTab('tutor');
+          } else if (v === 'stats') {
+            setView('profile');
+          } else {
+            setView(v as any);
+          }
+        }}
+      />
 
       {/* Main Content Area */}
-      <main className="flex-1 md:ml-80 p-8 md:p-16 relative bg-[#071F17] min-h-screen">
+      <main className="flex-1 max-w-6xl w-full mx-auto p-4 md:p-8 pb-16 md:pb-12 relative">
+        {/* Detailed Filter Expandable Panel */}
+        <AnimatePresence>
+          {isFilterExpanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="mb-6 p-5 rounded-2xl bg-white border border-[#EBE7DF] shadow-sm space-y-4 overflow-hidden"
+            >
+              <div className="flex items-center justify-between border-b border-[#EBE7DF] pb-2">
+                <h4 className="text-xs font-serif font-bold text-stone-900 uppercase tracking-wider">
+                  Detailed Cellar Filters
+                </h4>
+                <button
+                  onClick={() => {
+                    setActiveFilter('All');
+                    setPriceRange({ min: 0, max: 100000 });
+                    setDateRange({ start: '', end: '' });
+                    setSelectedGrapes([]);
+                    setSelectedCountries([]);
+                    setSearchQuery('');
+                  }}
+                  className="text-xs text-[#722F37] font-semibold hover:underline cursor-pointer"
+                >
+                  Reset All Filters
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-stone-800">
+                {/* Price */}
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-semibold text-stone-500">Price Range (฿)</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      placeholder="Min"
+                      value={priceRange.min}
+                      onChange={(e) => setPriceRange({ ...priceRange, min: parseInt(e.target.value) || 0 })}
+                      className="w-full bg-[#FAF8F3] border border-[#E5E0D8] rounded-lg p-2 text-xs text-stone-900"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Max"
+                      value={priceRange.max}
+                      onChange={(e) => setPriceRange({ ...priceRange, max: parseInt(e.target.value) || 100000 })}
+                      className="w-full bg-[#FAF8F3] border border-[#E5E0D8] rounded-lg p-2 text-xs text-stone-900"
+                    />
+                  </div>
+                </div>
+                {/* Dates */}
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-semibold text-stone-500">Date Added</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="date"
+                      value={dateRange.start}
+                      onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                      className="w-full bg-[#FAF8F3] border border-[#E5E0D8] rounded-lg p-1.5 text-[10px] text-stone-900"
+                    />
+                    <input
+                      type="date"
+                      value={dateRange.end}
+                      onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                      className="w-full bg-[#FAF8F3] border border-[#E5E0D8] rounded-lg p-1.5 text-[10px] text-stone-900"
+                    />
+                  </div>
+                </div>
+                {/* Grapes */}
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-semibold text-stone-500">Varieties</label>
+                  <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto custom-scrollbar">
+                    {availableGrapes.slice(0, 10).map((g) => (
+                      <button
+                        key={g}
+                        onClick={() => setSelectedGrapes(selectedGrapes.includes(g) ? selectedGrapes.filter(x => x !== g) : [...selectedGrapes, g])}
+                        className={`text-[9px] uppercase px-2 py-0.5 rounded-md border font-semibold ${selectedGrapes.includes(g) ? 'bg-[#722F37] text-white border-[#722F37]' : 'bg-[#FAF8F3] text-stone-700 border-[#E5E0D8]'}`}
+                      >
+                        {g}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* Countries */}
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-semibold text-stone-500">Country of Origin</label>
+                  <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto custom-scrollbar">
+                    {availableCountries.map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setSelectedCountries(selectedCountries.includes(c) ? selectedCountries.filter(x => x !== c) : [...selectedCountries, c])}
+                        className={`text-[9px] uppercase px-2 py-0.5 rounded-md border font-semibold ${selectedCountries.includes(c) ? 'bg-[#722F37] text-white border-[#722F37]' : 'bg-[#FAF8F3] text-stone-700 border-[#E5E0D8]'}`}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {!user && (
+          <div className="mb-8 p-4 md:p-5 rounded-2xl bg-white border border-[#EBE7DF] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-200">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-[#722F37]/10 border border-[#722F37]/20 flex items-center justify-center text-[#722F37] shrink-0">
+                <Wine size={20} />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-stone-900 tracking-wide flex items-center gap-2">
+                  Sommelier Reserve Preview Mode
+                  <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono font-medium">Active</span>
+                </p>
+                <p className="text-[11px] text-stone-600 mt-0.5">
+                  Exploring with curated cellar bottles. Sign in with Google anytime to save and sync across your devices.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogin}
+              className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#722F37] hover:bg-[#5c242c] text-white text-xs uppercase font-semibold tracking-wider transition-all duration-200 ease-out active:scale-[0.98] rounded-xl shadow-sm cursor-pointer"
+            >
+              <LogIn size={14} />
+              Sign in with Google
+            </button>
+          </div>
+        )}
+
         <AnimatePresence mode="wait">
           {authLoading ? (
             <motion.div
               key="loading"
-              initial={{ opacity: 0, scale: 0.8, filter: 'blur(10px)' }}
-              animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, scale: 1.1, filter: 'blur(20px)' }}
-              transition={{ duration: 0.8, ease: "circOut" }}
-              className="min-h-screen flex items-center justify-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="min-h-[60vh] flex items-center justify-center"
             >
-              <div className="flex flex-col items-center gap-6">
-                <Loader2 size={48} className="text-gold animate-spin" />
-                <p className="text-[10px] uppercase tracking-[0.5em] text-gold font-bold">Unlocking the Cellar...</p>
+              <div className="flex flex-col items-center gap-4 p-8 bg-white border border-[#EBE7DF] rounded-3xl shadow-sm">
+                <div className="relative">
+                  <div className="w-14 h-14 rounded-full border-2 border-[#722F37]/20 border-t-[#722F37] animate-spin" />
+                  <Wine size={20} className="absolute inset-0 m-auto text-[#722F37] animate-pulse" />
+                </div>
+                <p className="text-xs uppercase tracking-widest text-stone-600 font-medium">Unlocking the Cellar...</p>
               </div>
             </motion.div>
-          ) : !user ? (
+          ) : view === 'home' ? (
             <motion.div
-              key="auth-prompt"
-              initial={{ opacity: 0, y: 40, filter: 'blur(10px)' }}
-              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, y: -40, filter: 'blur(10px)' }}
-              transition={{ duration: 0.6, ease: "circOut" }}
-              className="min-h-[80vh] flex flex-col items-center justify-center text-center max-w-2xl mx-auto space-y-12"
+              key="home"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="space-y-8"
             >
-              <div className="w-32 h-32 border border-gold/30 rounded-full flex items-center justify-center text-gold animate-pulse">
-                <Wine size={64} strokeWidth={1} />
-              </div>
-              
-              <div className="space-y-6">
-                <h2 className="text-6xl font-serif font-light text-ink leading-tight">Sync your cellar across <br />all your devices.</h2>
-                <p className="text-ink/40 font-light leading-relaxed max-w-lg mx-auto">
-                  Sign in with your Google account to securely store your wine collection in our private reserve. 
-                  Access your tasting notes, and cellar analytics from your Android, iOS, or Desktop.
-                </p>
-              </div>
+              {/* Dashboard Grid - 4 Quick Access Metric Cards */}
+              <DashboardGrid
+                bottleCount={bottles.length}
+                regionCount={distinctRegionsCount}
+                grapeCount={availableGrapes.length}
+                favoriteCount={favoritesCount}
+                onSelectCategory={(category) => {
+                  if (category === 'cellar' || (category as any) === 'bottles') {
+                    setView('cellar');
+                  } else if (category === 'regions') {
+                    setView('explore');
+                    setExploreTab('map');
+                  } else if (category === 'grapes') {
+                    setView('explore');
+                    setExploreTab('grapes');
+                  } else if (category === 'favorites') {
+                    setView('cellar');
+                    setPriceRange({ min: 2000, max: 100000 });
+                  }
+                }}
+              />
 
-              <div className="space-y-8 flex flex-col items-center">
-                <button
-                  onClick={handleLogin}
-                  className="bg-gold text-wine-bg px-12 py-5 font-bold tracking-[0.4em] uppercase text-xs hover:bg-gold/90 transition-all shadow-2xl active:scale-95 flex items-center gap-4"
-                >
-                  <LogIn size={20} />
-                  Sign in with Google
-                </button>
+              {/* Recently Added Section Carousel */}
+              <RecentlyAddedCarousel
+                bottles={bottles}
+                onSelectBottle={(bottle) => {
+                  setEditingBottle(bottle);
+                  setIsFormOpen(true);
+                }}
+                onViewAll={() => setView('cellar')}
+                typeConfigMap={WINE_TYPE_CONFIG}
+              />
 
-                {authError && (
-                  <div className="max-w-md p-4 bg-red-500/5 border border-red-500/20 text-red-500 text-[10px] uppercase tracking-[0.2em] leading-relaxed rounded-sm animate-shake">
-                    {authError}
+              {/* Wine of the Day Highlight Section in Warm Light Card */}
+              {wineOfTheDay && (
+                <div className="bg-white border border-[#EBE7DF] rounded-2xl p-6 md:p-8 shadow-[0_2px_12px_rgba(28,25,23,0.04)] relative overflow-hidden">
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div className="space-y-3 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase font-bold tracking-widest px-2.5 py-1 rounded-full bg-[#722F37]/10 text-[#722F37] border border-[#722F37]/20">
+                          Sommelier's Pick of the Day
+                        </span>
+                        <span className="text-xs text-stone-500 font-medium">
+                          {wineOfTheDay.type} • {wineOfTheDay.year}
+                        </span>
+                      </div>
+                      <h3 className="text-2xl md:text-3xl font-serif font-bold text-stone-900 leading-tight">
+                        {wineOfTheDay.name}
+                      </h3>
+                      <p className="text-xs text-stone-600 line-clamp-2">
+                        {wineOfTheDay.tastingNotes || wineOfTheDay.producer + (wineOfTheDay.region ? ` • ${wineOfTheDay.region}` : '')}
+                      </p>
+                      <div className="flex items-center gap-3 pt-1">
+                        <button
+                          onClick={() => setView('wine-of-the-day')}
+                          className="text-xs font-semibold text-[#722F37] hover:underline flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <span>Read Full Tasting Notes</span>
+                          <ArrowRight size={14} />
+                        </button>
+                      </div>
+                    </div>
+                    {wineOfTheDay.imageUrl && (
+                      <div className="w-28 h-36 bg-[#FAF8F5] rounded-xl border border-[#EBE7DF] flex items-center justify-center p-2 shrink-0">
+                        <img
+                          src={wineOfTheDay.imageUrl}
+                          alt={wineOfTheDay.name}
+                          className="max-h-full max-w-full object-contain drop-shadow"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-              
-              <div className="pt-12 grid grid-cols-3 gap-12 w-full border-t border-white/5 opacity-40">
-                 <div className="space-y-2">
-                   <p className="text-xl font-serif text-ink tracking-widest italic">01</p>
-                   <p className="text-[8px] uppercase tracking-widest text-ink">Real-time Sync</p>
-                 </div>
-                 <div className="space-y-2">
-                   <p className="text-xl font-serif text-ink tracking-widest italic">02</p>
-                   <p className="text-[8px] uppercase tracking-widest text-ink">Private Vault</p>
-                 </div>
-                 <div className="space-y-2">
-                   <p className="text-xl font-serif text-ink tracking-widest italic">03</p>
-                   <p className="text-[8px] uppercase tracking-widest text-ink">AI Insights</p>
-                 </div>
-              </div>
+                </div>
+              )}
             </motion.div>
           ) : view === 'wine-of-the-day' ? (
             <motion.div
               key="wine-of-the-day"
-              initial={{ opacity: 0, scale: 0.98, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 1.02, y: -20 }}
-              transition={{ duration: 0.5, ease: "anticipate" }}
-              className="space-y-12"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="space-y-6"
             >
-              <div className="space-y-4">
-                <p className="text-[10px] uppercase tracking-[0.5em] text-gold font-bold flex items-center gap-2">
-                  <span className="w-8 h-px bg-gold/30"></span>
-                  Daily Selection
-                </p>
-                <h2 className="text-5xl font-serif font-light text-ink leading-tight">Your Wine of the Day.</h2>
-                <p className="text-ink/40 max-w-xl font-light leading-relaxed">
-                  A special selection from your private reserve, chosen to inspire your palate today.
-                </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#E6DFD5]">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase tracking-widest font-bold bg-[#722F37]/10 text-[#722F37] border border-[#722F37]/20 px-3 py-1 rounded-full inline-block">
+                      Daily Selection
+                    </span>
+                  </div>
+                  <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#5A1E24] leading-tight">
+                    Your Wine of the Day
+                  </h2>
+                  <p className="text-stone-600 max-w-xl font-normal text-xs">
+                    A special selection from your private reserve, chosen to inspire your palate today.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setView('cellar')}
+                  className="self-start sm:self-auto px-4 py-2 bg-white hover:bg-[#FAF8F5] text-stone-700 border border-[#E6DFD5] rounded-xl text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer shadow-xs"
+                >
+                  ← Back to Cellar
+                </button>
               </div>
 
               {!wineOfTheDay ? (
-                <div className="py-32 bg-white/5 border border-dashed border-white/10 rounded-sm flex flex-col items-center justify-center text-center p-12">
-                  <Wine size={48} className="text-ink/10 mb-6" />
-                  <h3 className="font-serif text-2xl text-ink/40 mb-2 italic">No Bottles Found</h3>
-                  <p className="text-[10px] uppercase tracking-widest text-ink/20 mb-8 max-w-md">
+                <div className="py-20 bg-white border border-dashed border-[#E6DFD5] rounded-3xl flex flex-col items-center justify-center text-center p-8 shadow-sm">
+                  <Wine size={48} className="text-stone-300 mb-4" />
+                  <h3 className="font-serif font-bold text-2xl text-[#5A1E24] mb-1">No Bottles Found</h3>
+                  <p className="text-xs uppercase tracking-wider text-stone-500 mb-6 max-w-md font-medium">
                     Start adding bottles to your cellar to receive a daily selection.
                   </p>
                   <button 
+                    type="button"
                     onClick={() => { setView('cellar'); setIsFormOpen(true); }}
-                    className="flex items-center gap-2 text-gold group"
+                    className="flex items-center gap-2 bg-[#722F37] hover:bg-[#5C242C] text-white px-6 py-3 rounded-xl shadow-sm font-semibold text-xs uppercase active:scale-[0.98] transition-all cursor-pointer"
                   >
-                    <Plus size={14} />
-                    <span className="text-[10px] uppercase tracking-[0.3em] font-bold group-hover:underline">Add your first bottle</span>
+                    <Plus size={16} />
+                    <span>Add your first bottle</span>
                   </button>
                 </div>
               ) : (
                 <div className="max-w-4xl mx-auto">
-                  <motion.div 
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="glass-panel overflow-hidden bg-white/5 border-gold/20"
-                  >
+                  <div className="bg-white border border-[#E6DFD5] rounded-3xl shadow-[0_4px_24px_rgba(28,25,23,0.06)] overflow-hidden">
                     <div className="flex flex-col lg:flex-row">
                       {wineOfTheDay.imageUrl && (
-                        <div className="lg:w-1/2 h-96 lg:h-auto bg-black relative">
+                        <div className="lg:w-1/2 min-h-72 lg:min-h-auto bg-[#FAF8F5] border-b lg:border-b-0 lg:border-r border-[#E6DFD5] relative flex items-center justify-center p-8">
                           <img 
                             src={wineOfTheDay.imageUrl} 
                             alt={wineOfTheDay.name}
-                            className="w-full h-full object-cover mix-blend-lighten opacity-80"
+                            className="max-h-72 w-auto object-contain drop-shadow-md transition-transform hover:scale-105 duration-300"
                             referrerPolicy="no-referrer"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#071F17] lg:block hidden"></div>
-                          <div className="absolute inset-0 bg-gradient-to-t from-[#071F17] to-transparent lg:hidden block"></div>
                         </div>
                       )}
                       
-                      <div className={`p-10 flex flex-col justify-center ${wineOfTheDay.imageUrl ? 'lg:w-1/2' : 'w-full'}`}>
-                        <div className="flex items-center justify-between mb-8">
-                           <span className={`text-[10px] uppercase tracking-[0.2em] font-bold px-4 py-1.5 rounded-full border ${WINE_TYPE_CONFIG[wineOfTheDay.type]?.text} ${WINE_TYPE_CONFIG[wineOfTheDay.type]?.bg} ${WINE_TYPE_CONFIG[wineOfTheDay.type]?.border}`}>
+                      <div className={`p-6 md:p-8 flex flex-col justify-center ${wineOfTheDay.imageUrl ? 'lg:w-1/2' : 'w-full'}`}>
+                        <div className="flex items-center justify-between mb-5">
+                          <span className={`text-xs uppercase tracking-wider font-semibold px-3 py-1 rounded-full border ${WINE_TYPE_CONFIG[wineOfTheDay.type]?.bg || 'bg-[#FDF2F4]'} ${WINE_TYPE_CONFIG[wineOfTheDay.type]?.text || 'text-[#800020]'} ${WINE_TYPE_CONFIG[wineOfTheDay.type]?.border || 'border-[#F5C2CB]'}`}>
                             {wineOfTheDay.type}
                           </span>
+                          {wineOfTheDay.price && (
+                            <span className="text-xs font-mono font-bold bg-[#FDF2F4] text-[#800020] border border-[#F5C2CB] px-3 py-1 rounded-full shadow-xs">
+                              ฿{wineOfTheDay.price.toLocaleString()}
+                            </span>
+                          )}
                         </div>
 
-                        <div className="space-y-4 mb-10">
-                          <h3 className="text-4xl font-serif font-light text-ink leading-tight">{wineOfTheDay.name}</h3>
-                          <div className="space-y-1">
-                            <p className="font-serif italic text-gold text-lg">{wineOfTheDay.producer}</p>
-                            <p className="text-[10px] uppercase tracking-[0.4em] text-ink/30">{wineOfTheDay.year}</p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-8 mb-10 border-y border-white/5 py-8">
-                          <div className="space-y-1">
-                            <p className="text-[9px] uppercase tracking-widest text-ink/30 font-bold">Region</p>
-                            <p className="text-sm text-ink/80">{wineOfTheDay.region || '—'}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-[9px] uppercase tracking-widest text-ink/30 font-bold">Country</p>
-                            <p className="text-sm text-ink/80">{wineOfTheDay.country || '—'}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-[9px] uppercase tracking-widest text-ink/30 font-bold">Grapes</p>
-                            <p className="text-sm text-ink/80">{wineOfTheDay.grape?.join(', ') || '—'}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-[9px] uppercase tracking-widest text-ink/30 font-bold">Price</p>
-                            <p className="text-sm text-ink/80">฿{wineOfTheDay.price?.toLocaleString() || '—'}</p>
+                        <div className="space-y-1.5 mb-5">
+                          <h3 className="text-2xl md:text-3xl font-serif font-bold text-[#5A1E24] leading-tight">
+                            {wineOfTheDay.name}
+                          </h3>
+                          <div className="flex items-center gap-3">
+                            <p className="font-semibold text-stone-700 text-sm">{wineOfTheDay.producer}</p>
+                            <span className="text-stone-300">•</span>
+                            <span className="text-xs font-mono font-semibold text-[#800020] bg-[#FDF2F4] border border-[#F5C2CB] px-2.5 py-0.5 rounded-full">
+                              {wineOfTheDay.year || 'NV'}
+                            </span>
                           </div>
                         </div>
 
-                        <div className="space-y-6">
-                          <p className="text-[9px] uppercase tracking-widest text-gold font-bold flex items-center gap-2">
-                             <Sparkles size={12} />
-                             Sommelier's Analytical Review
+                        <div className="grid grid-cols-2 gap-3 mb-5 border-y border-[#E6DFD5] py-3.5 bg-[#FAF8F5] rounded-2xl px-4">
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider text-stone-500 font-semibold">Region</p>
+                            <p className="text-xs font-semibold text-[#1E1E1E] mt-0.5">{wineOfTheDay.region || '—'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider text-stone-500 font-semibold">Country</p>
+                            <p className="text-xs font-semibold text-[#1E1E1E] mt-0.5">{wineOfTheDay.country || '—'}</p>
+                          </div>
+                          <div className="col-span-2">
+                            <p className="text-[10px] uppercase tracking-wider text-stone-500 font-semibold">Grapes</p>
+                            <p className="text-xs font-semibold text-[#1E1E1E] mt-0.5">{wineOfTheDay.grape?.join(', ') || '—'}</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3.5">
+                          <p className="text-[10px] uppercase tracking-wider text-[#5A1E24] font-bold flex items-center gap-2">
+                            <Sparkles size={14} className="text-[#722F37]" />
+                            Sommelier's Analytical Review
                           </p>
                           
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                             {wineOfTheDay.appearance && (
-                              <div className="space-y-2">
-                                <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold">I. Appearance</p>
-                                <p className="text-sm italic text-ink/70 leading-relaxed font-serif">{wineOfTheDay.appearance}</p>
+                              <div className="p-3 bg-[#FAF8F5] border border-[#E6DFD5] rounded-xl">
+                                <p className="text-[10px] text-[#5A1E24] uppercase font-bold">I. Appearance</p>
+                                <p className="text-xs text-[#1E1E1E] font-normal mt-0.5">{wineOfTheDay.appearance}</p>
                               </div>
                             )}
                             {wineOfTheDay.nose && (
-                              <div className="space-y-2">
-                                <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold">II. Nose</p>
-                                <p className="text-sm italic text-ink/70 leading-relaxed font-serif">{wineOfTheDay.nose}</p>
+                              <div className="p-3 bg-[#FAF8F5] border border-[#E6DFD5] rounded-xl">
+                                <p className="text-[10px] text-[#5A1E24] uppercase font-bold">II. Nose</p>
+                                <p className="text-xs text-[#1E1E1E] font-normal mt-0.5">{wineOfTheDay.nose}</p>
                               </div>
                             )}
                             {wineOfTheDay.palate && (
-                              <div className="space-y-2">
-                                <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold">III. Palate</p>
-                                <p className="text-sm italic text-ink/70 leading-relaxed font-serif">{wineOfTheDay.palate}</p>
+                              <div className="p-3 bg-[#FAF8F5] border border-[#E6DFD5] rounded-xl">
+                                <p className="text-[10px] text-[#5A1E24] uppercase font-bold">III. Palate</p>
+                                <p className="text-xs text-[#1E1E1E] font-normal mt-0.5">{wineOfTheDay.palate}</p>
                               </div>
                             )}
                             {wineOfTheDay.finish && (
-                              <div className="space-y-2">
-                                <p className="text-[8px] text-ink/30 uppercase tracking-[0.2em] font-bold">IV. Finish</p>
-                                <p className="text-sm italic text-ink/70 leading-relaxed font-serif">{wineOfTheDay.finish}</p>
+                              <div className="p-3 bg-[#FAF8F5] border border-[#E6DFD5] rounded-xl">
+                                <p className="text-[10px] text-[#5A1E24] uppercase font-bold">IV. Finish</p>
+                                <p className="text-xs text-[#1E1E1E] font-normal mt-0.5">{wineOfTheDay.finish}</p>
                               </div>
                             )}
                           </div>
 
                           {wineOfTheDay.tastingNotes && !wineOfTheDay.appearance && !wineOfTheDay.nose && !wineOfTheDay.palate && !wineOfTheDay.finish && (
-                            <p className="text-sm italic text-ink/60 leading-relaxed font-serif">
+                            <p className="text-xs text-[#1E1E1E] font-serif italic p-3.5 bg-[#FDF2F4] border border-[#F5C2CB] rounded-xl leading-relaxed">
                               "{wineOfTheDay.tastingNotes}"
                             </p>
                           )}
                           {Array.isArray(wineOfTheDay.foodPairing) && wineOfTheDay.foodPairing.length > 0 && (
-                            <div className="mt-6 p-6 border border-gold/10 bg-gold/5 rounded-sm">
-                              <p className="text-[10px] uppercase tracking-widest text-gold font-bold mb-3 flex items-center gap-2">
-                                <Utensils size={10} />
+                            <div className="p-3.5 border border-amber-200 bg-[#FFFBEB] rounded-xl">
+                              <p className="text-[10px] uppercase tracking-wider text-amber-900 font-bold mb-2 flex items-center gap-1.5">
+                                <Utensils size={12} className="text-amber-700" />
                                 Sommelier's Pairing Suggestions
                               </p>
-                              <ul className="space-y-2">
+                              <ul className="space-y-1">
                                 {wineOfTheDay.foodPairing.map((pairing, i) => (
-                                  <li key={i} className="text-xs italic text-ink/80 flex items-start gap-3">
-                                    <span className="mt-1.5 w-1 h-1 rounded-full bg-gold/40 shrink-0" />
+                                  <li key={i} className="text-xs text-[#1E1E1E] font-medium flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-600 shrink-0" />
                                     {pairing}
                                   </li>
                                 ))}
@@ -2961,165 +3076,55 @@ export default function App() {
                           )}
                         </div>
                         
-                        <div className="mt-10">
+                        <div className="mt-5">
                           <button 
+                            type="button"
                             onClick={() => {
                               setEditingBottle(wineOfTheDay);
                               setIsFormOpen(true);
                             }}
-                            className="bg-gold/10 hover:bg-gold/20 text-gold border border-gold/20 px-8 py-4 text-[10px] uppercase tracking-[0.3em] font-bold transition-all"
+                            className="w-full bg-[#722F37] hover:bg-[#5C242C] text-white py-3 rounded-xl text-xs uppercase font-semibold tracking-wider shadow-sm active:scale-[0.98] transition-all cursor-pointer"
                           >
                             Update Tasting Notes
                           </button>
                         </div>
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 </div>
               )}
-            </motion.div>
-          ) : view === 'grapes' ? (
-            <motion.div
-              key="grapes"
-              initial={{ opacity: 0, scale: 0.98, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 1.02, y: -20 }}
-              transition={{ duration: 0.5, ease: "anticipate" }}
-              className="space-y-16"
-            >
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-4">
-                    <div className="w-8 h-px bg-gold/30"></div>
-                    <span className="text-[10px] uppercase tracking-[0.6em] text-gold font-bold">Encyclopedia</span>
-                  </div>
-                  <h1 className="text-6xl font-serif font-light text-ink">Grape Varieties</h1>
-                  <div className="flex items-center gap-6 mt-6">
-                    <div className="flex flex-col">
-                      <span className="text-[8px] uppercase tracking-widest text-ink/30 font-bold mb-1">Total Varieties</span>
-                      <span className="text-xl font-serif text-ink">{grapes.length}</span>
-                    </div>
-                    <div className="w-px h-6 bg-white/5"></div>
-                    <div className="flex flex-col">
-                      <span className="text-[8px] uppercase tracking-widest text-ink/30 font-bold mb-1">Red</span>
-                      <span className="text-xl font-serif text-[#800020]">{grapes.filter(g => g.type === 'Red').length}</span>
-                    </div>
-                    <div className="w-px h-6 bg-white/5"></div>
-                    <div className="flex flex-col">
-                      <span className="text-[8px] uppercase tracking-widest text-ink/30 font-bold mb-1">White</span>
-                      <span className="text-xl font-serif text-gold">{grapes.filter(g => g.type === 'White').length}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 flex-1 max-w-3xl">
-                  <div className="flex items-center gap-2 p-1 bg-white/5 border border-white/5 rounded-sm">
-                    <span className="text-[7px] uppercase tracking-widest text-ink/30 font-bold px-3 hidden sm:block">Sort by</span>
-                    {(['newest', 'name', 'type'] as const).map((option) => (
-                      <button
-                        key={option}
-                        onClick={() => setSortByGrapes(option)}
-                        className={`px-4 py-3 text-[8px] tracking-[0.2em] font-bold uppercase transition-all rounded-sm ${
-                          sortByGrapes === option 
-                            ? 'bg-gold text-wine-bg shadow-lg' 
-                            : 'text-ink/40 hover:text-ink hover:bg-white/5'
-                        }`}
-                      >
-                        {option === 'newest' ? 'Added Date' : option === 'type' ? 'Variety Type' : 'Alphabetical'}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="relative group flex-1">
-                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-ink/20 group-focus-within:text-gold transition-colors" size={20} />
-                    <input
-                      type="text"
-                      placeholder="Search varieties..."
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      className="w-full bg-white/[0.04] border border-white/10 px-16 py-5 text-lg font-serif font-light outline-none focus:bg-white/10 focus:border-gold/30 transition-all rounded-sm tracking-wide text-ink placeholder:text-ink/65"
-                    />
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setEditingGrape(undefined);
-                      setIsGrapeFormOpen(true);
-                    }}
-                    className="bg-gold text-[#071F17] px-10 py-5 font-extrabold tracking-[0.4em] uppercase text-[10px] hover:bg-gold/90 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3 whitespace-nowrap"
-                  >
-                    <Plus size={18} />
-                    Register Variety
-                  </button>
-                </div>
-              </div>
-
-              <motion.div 
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10"
-              >
-                <AnimatePresence mode="popLayout">
-                  {filteredGrapes.map(grape => (
-                    <GrapeCard
-                      key={grape.id}
-                      grape={grape}
-                      onEdit={(g) => {
-                        setEditingGrape(g);
-                        setIsGrapeFormOpen(true);
-                      }}
-                      onDelete={handleDeleteGrape}
-                      isComparing={selectedGrapesForComparison.includes(grape.id)}
-                      onToggleCompare={handleToggleCompare}
-                    />
-                  ))}
-                </AnimatePresence>
-                
-                {grapes.length === 0 && (
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="col-span-full py-32 flex flex-col items-center text-center space-y-6"
-                  >
-                    <div className="w-24 h-24 border border-white/5 rounded-full flex items-center justify-center text-ink/10">
-                      <FlaskConical size={48} strokeWidth={1} />
-                    </div>
-                    <div className="space-y-2">
-                       <p className="font-serif text-2xl text-ink/40 font-light italic">Your Encyclopedia is Empty</p>
-                       <p className="text-[10px] uppercase tracking-[0.3em] text-ink/20">Start cataloging grape varieties to build your knowledge base</p>
-                    </div>
-                  </motion.div>
-                )}
-              </motion.div>
             </motion.div>
           ) : view === 'cellar' ? (
             <motion.div
               key="cellar"
-              initial={{ opacity: 0, scale: 0.98, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 1.02, y: -20 }}
-              transition={{ duration: 0.5, ease: "anticipate" }}
-              className="space-y-16"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="space-y-8"
             >
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-4">
-                    <div className="w-8 h-px bg-gold/30"></div>
-                    <span className="text-[10px] uppercase tracking-[0.6em] text-gold font-bold">Cellar</span>
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-2 border-b border-[#EBE7DF]">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase tracking-widest font-bold bg-[#722F37]/10 text-[#722F37] border border-[#722F37]/20 px-3 py-0.5 rounded-full">
+                      Cellar Inventory
+                    </span>
+                    <span className="text-xs text-stone-500 font-medium font-mono">
+                      {filteredBottles.length} of {bottles.length} Bottles
+                    </span>
                   </div>
-                  <h1 className="text-6xl font-serif font-light text-ink">Inventory</h1>
+                  <h1 className="text-3xl md:text-4xl font-serif font-bold text-stone-900 tracking-tight">My Wines</h1>
                 </div>
 
-                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 flex-1 max-w-3xl">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-xl">
                   <div className="relative group flex-1">
-                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-ink/20 group-focus-within:text-gold transition-colors" size={20} />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 group-focus-within:text-[#722F37] transition-colors" size={16} />
                     <input
                       type="text"
-                      placeholder="Search reserve..."
+                      placeholder="Search reserve by name, producer, grape..."
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
-                      className="w-full bg-white/[0.04] border border-white/10 px-16 py-5 text-lg font-serif font-light outline-none focus:bg-white/10 focus:border-gold/30 transition-all rounded-sm tracking-wide text-ink placeholder:text-ink/65"
+                      className="w-full bg-white border border-[#EBE7DF] pl-10 pr-4 py-2.5 text-xs font-medium outline-none rounded-xl text-stone-900 placeholder:text-stone-400 focus:border-[#722F37] transition-all shadow-sm"
                     />
                   </div>
 
@@ -3128,36 +3133,28 @@ export default function App() {
                       setEditingBottle(undefined);
                       setIsFormOpen(true);
                     }}
-                    className="bg-gold text-[#071F17] px-10 py-5 font-extrabold tracking-[0.4em] uppercase text-[10px] hover:bg-gold/90 transition-all shadow-[0_15px_40px_rgba(212,175,55,0.15)] active:scale-95 flex items-center justify-center gap-3 whitespace-nowrap"
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#722F37] hover:bg-[#5c242c] text-white rounded-xl text-xs font-semibold uppercase tracking-wider transition-all shadow-sm active:scale-[0.98] whitespace-nowrap cursor-pointer"
                   >
-                    <Plus size={18} />
-                    Add to Reserve
+                    <Plus size={15} />
+                    <span>Add Wine</span>
                   </button>
                 </div>
               </div>
 
               {/* Horizontal Classifications Filter */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-4 scroll-hide border-b border-white/5">
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 scroll-hide">
                 <button
                   onClick={() => setActiveFilter('All')}
-                  className={`relative px-5 py-2.5 rounded-sm text-[9px] uppercase font-bold tracking-[0.25em] transition-all whitespace-nowrap border shrink-0 ${
+                  className={`px-4 py-2 rounded-xl text-xs uppercase font-semibold tracking-wider transition-all whitespace-nowrap border shrink-0 cursor-pointer ${
                     activeFilter === 'All'
-                      ? 'text-gold border-gold shadow-[0_5px_15px_rgba(212,175,55,0.15)] font-bold'
-                      : 'border-white/10 text-ink/70 hover:text-ink hover:border-gold/30'
+                      ? 'bg-[#722F37] text-white border-[#722F37] shadow-sm font-bold'
+                      : 'bg-white border-[#EBE7DF] text-stone-600 hover:text-stone-900 hover:bg-stone-50'
                   }`}
                 >
-                  {activeFilter === 'All' && (
-                    <motion.div
-                      layoutId="activeFilterBg"
-                      className="absolute inset-0 bg-gold/15 border border-gold/45 -z-10 rounded-sm"
-                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                    />
-                  )}
-                  <span className="relative z-10">Entire Cellar ({bottles.length})</span>
+                  All ({bottles.length})
                 </button>
                 
                 {WINE_TYPES.map(type => {
-                  const typeConfig = WINE_TYPE_CONFIG[type];
                   const count = bottles.filter(b => b.type === type).length;
                   const isSelected = activeFilter === type;
                   
@@ -3165,23 +3162,13 @@ export default function App() {
                     <button
                       key={type}
                       onClick={() => setActiveFilter(type)}
-                      className={`relative px-5 py-2.5 rounded-sm text-[9px] uppercase tracking-[0.25em] transition-all whitespace-nowrap border shrink-0 flex items-center gap-2 ${
+                      className={`px-4 py-2 rounded-xl text-xs uppercase font-semibold tracking-wider transition-all whitespace-nowrap border shrink-0 flex items-center gap-2 cursor-pointer ${
                         isSelected
-                          ? `${typeConfig.activeText} font-bold shadow-lg`
-                          : 'border-white/10 text-ink/70 hover:text-ink hover:border-gold/30'
+                          ? 'bg-[#722F37] text-white border-[#722F37] shadow-sm font-bold'
+                          : 'bg-white border-[#EBE7DF] text-stone-600 hover:text-stone-900 hover:bg-stone-50'
                       }`}
                     >
-                      {isSelected && (
-                        <motion.div
-                          layoutId="activeFilterBg"
-                          className={`absolute inset-0 ${typeConfig.activeBg} -z-10 rounded-sm`}
-                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                        />
-                      )}
-                      <span className="relative z-10 flex items-center gap-2">
-                        <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-current opacity-100' : `${typeConfig.accent} opacity-30`}`}></div>
-                        <span>{type} ({count})</span>
-                      </span>
+                      <span>{type} ({count})</span>
                     </button>
                   );
                 })}
@@ -3191,7 +3178,7 @@ export default function App() {
                 variants={containerVariants}
                 initial="hidden"
                 animate="visible"
-                className="flex flex-col gap-6 max-w-5xl mx-auto w-full"
+                className="flex flex-col gap-5 max-w-5xl mx-auto w-full"
               >
                 <AnimatePresence mode="popLayout">
                   {filteredBottles.map(bottle => (
@@ -3211,612 +3198,126 @@ export default function App() {
                   <motion.div 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="col-span-full py-32 flex flex-col items-center text-center space-y-6"
+                    className="py-20 bg-white border border-dashed border-[#EBE7DF] rounded-3xl flex flex-col items-center text-center space-y-4 shadow-sm"
                   >
-                    <div className="w-24 h-24 border border-white/5 rounded-full flex items-center justify-center text-ink/10">
-                      <Search size={48} strokeWidth={1} />
+                    <div className="w-16 h-16 bg-[#722F37]/10 border border-[#722F37]/20 rounded-2xl flex items-center justify-center text-[#722F37]">
+                      <Search size={28} />
                     </div>
-                    <div className="space-y-2">
-                      <p className="font-serif text-2xl text-ink/40 font-light italic">No bottles match your current filters</p>
-                      <p className="text-[10px] uppercase tracking-[0.3em] text-ink/20">Try adjusting your search criteria</p>
+                    <div className="space-y-1">
+                      <p className="font-serif text-2xl text-stone-900 font-bold">No bottles match your filters</p>
+                      <p className="text-xs uppercase tracking-wider text-stone-500 font-medium">Try resetting or adjusting your search criteria</p>
                     </div>
                   </motion.div>
                 )}
               </motion.div>
-
-
             </motion.div>
-          ) : view === 'tutor' ? (
-            <motion.div
-              key="tutor"
-              initial={{ opacity: 0, scale: 0.98, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 1.02, y: -20 }}
-              transition={{ duration: 0.5, ease: "anticipate" }}
-              className="space-y-12 max-w-3xl mx-auto"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 border-b border-white/5 pb-8">
-                <div className="space-y-4">
-                  <p className="text-[10px] uppercase tracking-[0.5em] text-gold font-bold flex items-center gap-2">
-                    <span className="w-8 h-px bg-gold/30"></span>
-                    Interactive Academy
-                  </p>
-                  <h2 className="text-4xl font-serif font-light text-ink tracking-wide">AI Wine Tutor</h2>
-                  <p className="text-ink/40 text-xs font-light tracking-wide max-w-md">
-                    Expand your sommelier expertise with dynamic quizzes and educational insights curated in real-time by artificial intelligence.
-                  </p>
-                </div>
-                
-                {/* Score badge */}
-                <div className="glass-panel px-6 py-4 bg-white/[0.02] border border-white/5 rounded-sm flex items-center gap-4 self-start sm:self-auto">
-                  <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center text-gold">
-                    <Sparkle size={14} />
-                  </div>
-                  <div>
-                    <p className="text-[8px] uppercase tracking-widest text-ink/40">Intellect Score</p>
-                    <p className="text-sm font-serif text-gold font-bold">
-                      {totalQuizAnswered > 0 ? `${quizScore} / ${totalQuizAnswered}` : "0 / 0"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Quiz Body */}
-              <div className="glass-panel p-8 md:p-12 bg-white/[0.01] border border-white/5 rounded-sm relative overflow-hidden shadow-2xl">
-                <AnimatePresence mode="wait">
-                  {isQuizLoading ? (
-                    <motion.div
-                      key="loading"
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -15 }}
-                      transition={{ duration: 0.3 }}
-                      className="py-24 flex flex-col items-center justify-center space-y-6"
-                    >
-                      <Loader2 size={40} className="text-gold animate-spin stroke-1" />
-                      <div className="text-center space-y-2">
-                        <p className="text-[10px] uppercase tracking-[0.4em] text-gold font-bold">Consulting the Sommelier...</p>
-                        <p className="text-ink/30 text-xs font-light">Crafting a bespoke wine question for you</p>
-                      </div>
-                    </motion.div>
-                  ) : quizError ? (
-                    <motion.div
-                      key="error"
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -15 }}
-                      transition={{ duration: 0.3 }}
-                      className="py-16 text-center space-y-6"
-                    >
-                      <p className="text-red-400 font-serif text-lg italic">{quizError}</p>
-                      <button
-                        onClick={fetchNewQuizQuestion}
-                        className="border border-gold/30 hover:border-gold hover:bg-gold/5 text-gold text-[10px] uppercase tracking-widest font-bold px-6 py-3 transition-colors"
-                      >
-                        Try Again
-                      </button>
-                    </motion.div>
-                  ) : quizQuestion ? (
-                    <motion.div
-                      key={quizQuestion.question}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ duration: 0.4, ease: "easeInOut" }}
-                      className="space-y-8"
-                    >
-                      <div className="space-y-4">
-                        <span className="inline-block px-3 py-1 bg-gold/5 border border-gold/10 text-gold text-[8px] uppercase tracking-[0.2em] rounded-sm font-bold">
-                          Question #{totalQuizAnswered + (isAnswerRevealed ? 0 : 1)}
-                        </span>
-                        <h3 className="text-2xl font-serif font-light text-ink leading-relaxed tracking-wide">
-                          {quizQuestion.question}
-                        </h3>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-4 pt-4">
-                        {quizQuestion.options.map((option, idx) => {
-                          const isSelected = selectedAnswer === option;
-                          const isCorrectOption = option === quizQuestion.correctAnswer;
-                          
-                          let buttonStyle = "border-white/5 bg-white/[0.02] text-ink/70 hover:border-gold/30 hover:bg-white/[0.04] hover:text-ink";
-                          let iconNode = null;
-
-                          if (isAnswerRevealed) {
-                            if (isCorrectOption) {
-                              buttonStyle = "border-gold/50 bg-gold/10 text-gold font-medium";
-                              iconNode = <Check size={16} className="text-gold" />;
-                            } else if (isSelected) {
-                              buttonStyle = "border-red-500/40 bg-red-500/10 text-red-300";
-                              iconNode = <X size={16} className="text-red-400" />;
-                            } else {
-                              buttonStyle = "border-white/5 bg-white/[0.01] text-ink/30 cursor-not-allowed";
-                            }
-                          }
-
-                          return (
-                            <button
-                              key={idx}
-                              disabled={isAnswerRevealed}
-                              onClick={() => {
-                                setSelectedAnswer(option);
-                                setIsAnswerRevealed(true);
-                                setTotalQuizAnswered(prev => prev + 1);
-                                if (option === quizQuestion.correctAnswer) {
-                                  setQuizScore(prev => prev + 1);
-                                }
-                              }}
-                              className={`w-full text-left px-6 py-5 rounded-sm transition-all text-sm flex items-center justify-between border ${buttonStyle}`}
-                            >
-                              <span className="font-light tracking-wide">{option}</span>
-                              {iconNode}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Reveal feedback & educational note */}
-                      <AnimatePresence>
-                        {isAnswerRevealed && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 15 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="pt-8 border-t border-white/5 space-y-6"
-                          >
-                            <div className="flex items-center gap-3">
-                              <span className={`text-[11px] uppercase tracking-[0.4em] font-bold ${selectedAnswer === quizQuestion.correctAnswer ? 'text-gold' : 'text-red-400'}`}>
-                                {selectedAnswer === quizQuestion.correctAnswer ? 'Magnificent & Correct' : 'Fascinating, but incorrect'}
-                              </span>
-                              <span className="text-ink/10">|</span>
-                              <span className="text-xs text-ink/40 font-light">
-                                The answer is <strong className="text-gold font-serif italic">{quizQuestion.correctAnswer}</strong>
-                              </span>
-                            </div>
-
-                            <div className="p-6 bg-[#041510]/60 border-l border-gold/40 rounded-sm">
-                              <p className="text-[9px] uppercase tracking-[0.2em] text-gold/60 mb-2 font-bold flex items-center gap-2">
-                                <Info size={12} />
-                                Did you know?
-                              </p>
-                              <p className="text-ink/80 text-sm font-light leading-relaxed font-serif italic">
-                                {quizQuestion.explanation}
-                              </p>
-                            </div>
-
-                            <div className="flex justify-center pt-4">
-                              <button
-                                onClick={fetchNewQuizQuestion}
-                                className="bg-gold text-[#071F17] hover:bg-gold/90 text-[10px] uppercase tracking-[0.3em] font-bold px-8 py-4 rounded-sm transition-all shadow-xl active:scale-95 flex items-center gap-2"
-                              >
-                                <Sparkles size={14} />
-                                Next Question
-                              </button>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="start"
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -15 }}
-                      transition={{ duration: 0.3 }}
-                      className="py-24 text-center space-y-6"
-                    >
-                      <p className="text-ink/40 font-light">Begin your interactive wine tutorial journey.</p>
-                      <button
-                        onClick={fetchNewQuizQuestion}
-                        className="bg-gold text-[#071F17] hover:bg-gold/90 text-[10px] uppercase tracking-[0.3em] font-bold px-8 py-4 rounded-sm transition-all shadow-xl"
-                      >
-                        Start Quiz
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </motion.div>
+          ) : (view === 'explore' || view === 'grapes' || view === 'tutor') ? (
+            <ExploreView
+              activeSubTab={exploreTab}
+              onSubTabChange={(tab) => setExploreTab(tab)}
+              bottles={bottles}
+              grapes={grapes}
+              filteredGrapes={filteredGrapes}
+              grapeSearchQuery={searchQuery}
+              onGrapeSearchChange={setSearchQuery}
+              sortByGrapes={sortByGrapes}
+              onSortByGrapesChange={setSortByGrapes}
+              selectedGrapesForComparison={selectedGrapesForComparison}
+              onToggleCompareGrape={handleToggleCompare}
+              onOpenAddGrape={() => {
+                setEditingGrape(undefined);
+                setIsGrapeFormOpen(true);
+              }}
+              onEditGrape={(g) => {
+                setEditingGrape(g);
+                setIsGrapeFormOpen(true);
+              }}
+              onDeleteGrape={(id) => handleDeleteGrape(id)}
+              renderGrapeCard={(grape) => (
+                <GrapeCard
+                  key={grape.id}
+                  grape={grape}
+                  onEdit={(g) => {
+                    setEditingGrape(g);
+                    setIsGrapeFormOpen(true);
+                  }}
+                  onDelete={handleDeleteGrape}
+                  isComparing={selectedGrapesForComparison.includes(grape.id)}
+                  onToggleCompare={handleToggleCompare}
+                />
+              )}
+              quizQuestion={quizQuestion}
+              isQuizLoading={isQuizLoading}
+              quizError={quizError}
+              quizScore={quizScore}
+              totalQuizAnswered={totalQuizAnswered}
+              selectedAnswer={selectedAnswer}
+              isAnswerRevealed={isAnswerRevealed}
+              onSelectAnswer={(option) => {
+                setSelectedAnswer(option);
+                setIsAnswerRevealed(true);
+                setTotalQuizAnswered(prev => prev + 1);
+                if (quizQuestion && option === quizQuestion.correctAnswer) {
+                  setQuizScore(prev => prev + 1);
+                }
+              }}
+              onFetchNewQuiz={fetchNewQuizQuestion}
+            />
           ) : (
-            <motion.div
-              key="stats"
-              initial={{ opacity: 0, scale: 0.98, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 1.02, y: -20 }}
-              transition={{ duration: 0.5, ease: "anticipate" }}
-              className="space-y-16"
-            >
-              <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
-                <header className="space-y-4">
-                  <p className="text-[10px] uppercase tracking-[0.5em] text-gold font-bold flex items-center gap-2">
-                    <span className="w-8 h-px bg-gold/30"></span>
-                    {statsSubTab === 'bottles' ? 'Cellar Analytics' : 'Variety Analytics'}
-                  </p>
-                  <h2 className="text-5xl font-serif font-light text-ink leading-tight">
-                    {statsSubTab === 'bottles' ? (
-                      <>Insights into your <br />private collection.</>
-                    ) : (
-                      <>Knowledge base <br />demographics.</>
-                    )}
-                  </h2>
-                </header>
-
-                <div className="flex gap-1 bg-white/5 p-1 rounded-sm border border-white/5">
-                  <button
-                    onClick={() => setStatsSubTab('bottles')}
-                    className={`px-6 py-2 text-[10px] uppercase tracking-[0.2em] transition-all rounded-sm ${statsSubTab === 'bottles' ? 'bg-gold text-[#071F17] font-bold shadow-lg' : 'text-ink/70 hover:text-ink'}`}
-                  >
-                    Cellar
-                  </button>
-                  <button
-                    onClick={() => setStatsSubTab('grapes')}
-                    className={`px-6 py-2 text-[10px] uppercase tracking-[0.2em] transition-all rounded-sm ${statsSubTab === 'grapes' ? 'bg-gold text-[#071F17] font-bold shadow-lg' : 'text-ink/70 hover:text-ink'}`}
-                  >
-                    Grapes
-                  </button>
-                </div>
-              </div>
-
-              {statsSubTab === 'bottles' ? (
-                bottles.length === 0 ? (
-                  <div className="py-32 bg-white/5 border border-dashed border-white/10 rounded-sm flex flex-col items-center justify-center text-center p-12">
-                    <BarChart3 size={48} className="text-ink/10 mb-6" />
-                    <h3 className="font-serif text-2xl text-ink/40 mb-2 italic">No Data to Analyze</h3>
-                    <p className="text-[10px] uppercase tracking-widest text-ink/20 mb-8 max-w-md">
-                      Start documenting your cellar to unlock visual insights and trends.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-12">
-                    <WorldMap bottles={bottles} />
-                    
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                      <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10">
-                        <div>
-                          <h3 className="text-lg font-serif text-ink mb-1">Distribution by Type</h3>
-                          <p className="text-[10px] uppercase tracking-widest text-ink/30">Categorized cellar breakdown</p>
-                        </div>
-                        <div className="h-[300px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={typeData}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={60}
-                                outerRadius={100}
-                                paddingAngle={5}
-                                dataKey="value"
-                              >
-                                {typeData.map((entry, index) => (
-                                  <Cell 
-                                    key={`cell-${index}`} 
-                                    fill={WINE_TYPE_CONFIG[entry.name]?.hex || COLORS[index % COLORS.length]} 
-                                  />
-                                ))}
-                              </Pie>
-                              <Tooltip content={<CustomTooltip />} />
-                              <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '20px' }} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </div>
-
-                      <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10">
-                        <div>
-                          <h3 className="text-lg font-serif text-ink mb-1">Top Regions</h3>
-                          <p className="text-[10px] uppercase tracking-widest text-ink/30">Most prevalent origins in your archive</p>
-                        </div>
-                        <div className="h-[300px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={regionData} layout="vertical" margin={{ left: 20, right: 30 }}>
-                              <XAxis type="number" hide />
-                              <YAxis 
-                                dataKey="name" 
-                                type="category" 
-                                stroke="#f8f4ed" 
-                                fontSize={10} 
-                                tickLine={false} 
-                                axisLine={false}
-                                width={100}
-                              />
-                              <Tooltip 
-                                content={<CustomTooltip />}
-                                cursor={{ fill: 'rgba(212,175,55,0.05)' }}
-                              />
-                              <Bar dataKey="value" name="Bottles" fill="#D4AF37" radius={[0, 4, 4, 0]} barSize={20} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-                      <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10 lg:col-span-1">
-                        <div>
-                          <h3 className="text-lg font-serif text-ink mb-1">Most Popular Varieties</h3>
-                          <p className="text-[10px] uppercase tracking-widest text-ink/30">Highest frequency in your collection</p>
-                        </div>
-                        <div className="space-y-6">
-                          {topVarietals.map((v, i) => (
-                            <div key={v.name} className="flex justify-between items-center group">
-                              <div className="flex items-center gap-4">
-                                <span className="text-[10px] text-gold/40 font-mono w-4 italic">{i+1}.</span>
-                                <div>
-                                  <p className="text-sm font-serif text-ink group-hover:text-gold transition-colors">{v.name}</p>
-                                  <p className="text-[9px] uppercase tracking-widest text-ink/30">{v.count} bottles documented</p>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10 lg:col-span-2 shadow-2xl">
-                        <div>
-                          <h3 className="text-lg font-serif text-ink mb-1">Cellar Growth</h3>
-                          <p className="text-[10px] uppercase tracking-widest text-ink/30">Cumulative bottle count over time</p>
-                        </div>
-                        <div className="h-[350px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={cellarGrowthData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                              <XAxis 
-                                dataKey="name" 
-                                stroke="#f8f4ed" 
-                                fontSize={10} 
-                                tickLine={false} 
-                                axisLine={false}
-                                dy={10}
-                              />
-                              <YAxis 
-                                stroke="#f8f4ed" 
-                                fontSize={10} 
-                                tickLine={false} 
-                                axisLine={false} 
-                                dx={-10}
-                              />
-                              <Tooltip content={<CustomTooltip />} />
-                              <Line 
-                                type="monotone" 
-                                dataKey="count" 
-                                name="Total Bottles"
-                                stroke="#D4AF37" 
-                                strokeWidth={3} 
-                                dot={{ r: 4, fill: '#D4AF37', strokeWidth: 0 }}
-                                activeDot={{ r: 6, fill: '#D4AF37', strokeWidth: 2, stroke: '#071F17' }}
-                              />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </div>
-                    </div>
-
-                      <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10">
-                        <div>
-                          <h3 className="text-lg font-serif text-ink mb-1">Value Distribution</h3>
-                          <p className="text-[10px] uppercase tracking-widest text-ink/30">Breakdown of reserve value tiers</p>
-                        </div>
-                        <div className="h-[350px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={priceDistributionData} margin={{ top: 20, right: 30, bottom: 20, left: 20 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                              <XAxis 
-                                dataKey="name" 
-                                stroke="#f8f4ed" 
-                                fontSize={10}
-                                tickLine={false}
-                                axisLine={false}
-                              />
-                              <YAxis 
-                                stroke="#f8f4ed" 
-                                fontSize={10}
-                                tickLine={false}
-                                axisLine={false}
-                              />
-                              <Tooltip content={<CustomTooltip />} />
-                              <Bar 
-                                dataKey="value" 
-                                name="Bottles" 
-                                fill="#D4AF37"
-                                radius={[4, 4, 0, 0]}
-                              />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                ) : (
-                  <div className="space-y-12">
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                      <div className="glass-panel p-8 bg-white/5 border-white/10 lg:col-span-1">
-                        <div className="mb-8">
-                          <h3 className="text-lg font-serif text-ink mb-1">Variety Composition</h3>
-                          <p className="text-[10px] uppercase tracking-widest text-ink/30">Red vs White Library</p>
-                        </div>
-                        <div className="space-y-6">
-                           {grapeTypeData.map((item) => (
-                             <div key={item.name} className="space-y-2">
-                               <div className="flex justify-between items-end">
-                                 <span className="text-[10px] uppercase tracking-[0.2em] text-ink font-bold">{item.name}</span>
-                                 <span className="text-xl font-serif text-gold">{item.value}</span>
-                               </div>
-                               <div className="h-1.5 w-full bg-white/5 overflow-hidden">
-                                 <motion.div 
-                                   initial={{ width: 0 }}
-                                   animate={{ width: `${(item.value / grapes.length) * 100}%` }}
-                                   transition={{ duration: 1, ease: "easeOut" }}
-                                   className="h-full" 
-                                   style={{ 
-                                     backgroundColor: item.name === 'Red' ? '#800020' : '#f8f4ed'
-                                   }}
-                                 />
-                               </div>
-                               <p className="text-[8px] text-right text-ink/20 italic">{Math.round((item.value / grapes.length) * 100)}% of library</p>
-                             </div>
-                           ))}
-                           {grapes.length === 0 && (
-                             <p className="text-xs text-ink/30 italic">Add grapes to see composition</p>
-                           )}
-                        </div>
-                        
-                        <div className="mt-12 pt-8 border-t border-white/5">
-                           <p className="text-[32px] font-serif text-ink leading-none">{grapes.length}</p>
-                           <p className="text-[9px] uppercase tracking-[0.4em] text-gold mt-2">Total Varieties</p>
-                        </div>
-                      </div>
-
-                      <div className="glass-panel p-8 space-y-8 bg-white/5 border-white/10 lg:col-span-3">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                          <div>
-                            <h3 className="text-lg font-serif text-ink mb-1">Grape Geography</h3>
-                            <p className="text-[10px] uppercase tracking-widest text-ink/30">Encyclopedia diversity by country</p>
-                          </div>
-                          <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scroll-hide">
-                            {grapeGeographyData.map(country => (
-                              <button
-                                key={country.name}
-                                onClick={() => {
-                                  if (selectedAnalysisCountry === country.name) {
-                                    setSelectedAnalysisCountry(null);
-                                    setSelectedAnalysisRegion(null);
-                                  } else {
-                                    setSelectedAnalysisCountry(country.name);
-                                    setSelectedAnalysisRegion(null);
-                                  }
-                                }}
-                                className={`px-4 py-2 text-[9px] uppercase tracking-widest border transition-all whitespace-nowrap rounded-sm ${selectedAnalysisCountry === country.name ? 'bg-gold text-wine-bg border-gold' : 'border-white/10 text-ink/40 hover:border-gold/30 hover:text-ink'}`}
-                              >
-                                {country.name} ({country.total})
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        <AnimatePresence mode="wait">
-                    {selectedAnalysisCountry ? (
-                      <motion.div
-                        key={selectedAnalysisCountry}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="grid grid-cols-1 md:grid-cols-2 gap-12 pt-6 border-t border-white/5"
-                      >
-                        <div className="space-y-4">
-                          <p className="text-[10px] uppercase tracking-[0.3em] text-gold font-bold">Regions in {selectedAnalysisCountry}</p>
-                          <div className="flex flex-wrap gap-2">
-                            {grapeGeographyData.find(c => c.name === selectedAnalysisCountry)?.regionMap.map(region => (
-                              <button 
-                                key={region.name} 
-                                onClick={() => setSelectedAnalysisRegion(selectedAnalysisRegion === region.name ? null : region.name)}
-                                className={`px-3 py-1 border text-[11px] rounded-sm transition-all flex items-center gap-2 ${
-                                  selectedAnalysisRegion === region.name 
-                                    ? 'bg-gold/20 border-gold/40 text-gold' 
-                                    : 'bg-white/5 border-white/5 text-ink/60 hover:border-gold/20'
-                                }`}
-                              >
-                                {region.name}
-                                <span className="text-[8px] opacity-40">({region.grapes.length})</span>
-                              </button>
-                            )) || <p className="text-xs text-ink/30 italic">No regions specified</p>}
-                          </div>
-                        </div>
-
-                        <div className="space-y-6">
-                          {selectedAnalysisRegion ? (
-                            <motion.div
-                              initial={{ opacity: 0, x: 5 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              className="space-y-4"
-                            >
-                              <p className="text-[10px] uppercase tracking-[0.3em] text-gold font-bold flex items-center justify-between">
-                                Varieties in {selectedAnalysisRegion}
-                                <button 
-                                  onClick={() => setSelectedAnalysisRegion(null)}
-                                  className="text-[8px] border border-gold/20 px-2 py-1 hover:bg-gold/10 transition-colors"
-                                >
-                                  Back to All Country Varieties
-                                </button>
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                {grapeGeographyData
-                                  .find(c => c.name === selectedAnalysisCountry)
-                                  ?.regionMap.find(r => r.name === selectedAnalysisRegion)
-                                  ?.grapes.map(grape => (
-                                    <span key={grape} className="px-3 py-1 border border-gold/20 text-gold text-[11px] font-serif italic rounded-sm bg-gold/5">
-                                      {grape}
-                                    </span>
-                                  ))}
-                              </div>
-                            </motion.div>
-                          ) : (
-                            <div className="space-y-4">
-                              <p className="text-[10px] uppercase tracking-[0.3em] text-gold font-bold">All Varieties from {selectedAnalysisCountry}</p>
-                              <div className="flex flex-wrap gap-2">
-                                {grapeGeographyData.find(c => c.name === selectedAnalysisCountry)?.grapes.map(grape => (
-                                  <span key={grape} className="px-3 py-1 border border-gold/10 text-gold/80 text-[11px] font-serif italic rounded-sm">
-                                    {grape}
-                                  </span>
-                                )) || <p className="text-xs text-ink/30 italic">No varieties specified</p>}
-                              </div>
-                              <p className="text-[8px] text-ink/20 italic mt-2">Click a region to filter by area</p>
-                            </div>
-                          )}
-                        </div>
-                      </motion.div>
-                    ) : (
-                      <div className="py-12 text-center border-t border-white/5">
-                        <p className="text-[10px] uppercase tracking-[0.3em] text-ink/20">Select a country above to see regional & variety insights</p>
-                      </div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-            </div>
+            <ProfileView
+              user={user}
+              bottles={bottles}
+              grapes={grapes}
+              typeData={typeData}
+              regionData={regionData}
+              cellarGrowthData={cellarGrowthData}
+              topVarietals={topVarietals}
+              customTooltip={CustomTooltip}
+              colors={COLORS}
+              onLogin={handleLogin}
+              onLogout={logout}
+            />
           )}
-        </motion.div>
-      )}
         </AnimatePresence>
       </main>
 
       {/* Comparison Bar */}
       <AnimatePresence>
-        {selectedGrapesForComparison.length > 0 && view === 'grapes' && (
+        {selectedGrapesForComparison.length > 0 && (view === 'grapes' || view === 'explore') && (
           <motion.div
             initial={{ y: 100 }}
             animate={{ y: 0 }}
             exit={{ y: 100 }}
-            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-2xl"
+            className="fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-2xl"
           >
-            <div className="glass-panel p-4 bg-gold/10 border-gold/30 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center justify-between gap-6">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 border border-gold/30 rounded-full flex items-center justify-center text-gold">
+            <div className="p-4 bg-white border border-[#EBE7DF] rounded-2xl shadow-[0_12px_40px_rgba(28,25,23,0.12)] flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#722F37]/10 border border-[#722F37]/20 rounded-xl flex items-center justify-center text-[#722F37]">
                   <BarChart3 size={20} />
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest text-gold font-bold">{selectedGrapesForComparison.length} Varieties Selected</p>
-                  <div className="flex gap-1 mt-1">
+                  <p className="text-xs uppercase tracking-wider text-stone-900 font-semibold">{selectedGrapesForComparison.length} Varieties Selected</p>
+                  <div className="flex gap-1 mt-0.5">
                     {comparedGrapes.map(g => (
-                      <span key={g.id} className="text-[8px] text-ink/60 uppercase">{g.name}</span>
-                    )).reduce((prev: any, curr: any) => [prev, <span key={`sep-${curr.key}`} className="text-[8px] text-ink/20 mx-1">•</span>, curr])}
+                      <span key={g.id} className="text-[10px] text-[#722F37] font-medium uppercase">{g.name}</span>
+                    )).reduce((prev: any, curr: any) => [prev, <span key={`sep-${curr.key}`} className="text-[10px] text-stone-300 mx-1">•</span>, curr])}
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <button 
                   onClick={() => setSelectedGrapesForComparison([])}
-                  className="text-[9px] uppercase tracking-widest text-ink/40 hover:text-ink transition-colors px-4"
+                  className="text-xs uppercase font-semibold text-stone-500 hover:text-stone-900 transition-colors px-3 py-2 cursor-pointer"
                 >
                   Clear
                 </button>
                 <button 
                   onClick={() => setIsComparingGrapes(true)}
                   disabled={selectedGrapesForComparison.length < 2}
-                  className={`bg-gold text-wine-bg px-8 py-3 text-[10px] uppercase tracking-[0.2em] font-bold shadow-lg transition-all ${selectedGrapesForComparison.length < 2 ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
+                  className={`bg-[#722F37] hover:bg-[#5c242c] text-white px-5 py-2.5 text-xs uppercase font-semibold shadow-sm rounded-xl transition-all cursor-pointer ${selectedGrapesForComparison.length < 2 ? 'opacity-50 grayscale cursor-not-allowed' : 'active:scale-[0.98]'}`}
                 >
                   {selectedGrapesForComparison.length < 2 
-                    ? `Add ${2 - selectedGrapesForComparison.length} more` 
+                    ? `Pick ${2 - selectedGrapesForComparison.length} more` 
                     : 'Compare Side-by-Side'}
                 </button>
               </div>
@@ -3844,7 +3345,7 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsFormOpen(false)}
-              className="fixed inset-0 bg-[#000]/80 backdrop-blur-md z-40"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 pointer-events-auto"
             />
             <WineForm
               bottle={editingBottle}
@@ -3864,7 +3365,7 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsGrapeFormOpen(false)}
-              className="fixed inset-0 bg-[#000]/80 backdrop-blur-md z-40"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 pointer-events-auto"
             />
             <GrapeForm
               grape={editingGrape}
@@ -3887,14 +3388,42 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <footer className="md:ml-80 p-12 border-t border-white/5 text-center mt-auto">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-[1px] bg-gold/20"></div>
-          <p className="text-[9px] uppercase tracking-[0.5em] text-ink/20 font-bold">
-            Bottle Diary Archive • Version 2.1.5 • AI Sommelier v3.3
+      <footer className="p-8 border-t border-[#EBE7DF] bg-[#FAF8F5] text-center mt-auto pb-24 md:pb-8">
+        <div className="flex flex-col items-center gap-1">
+          <p className="text-xs font-serif font-bold text-stone-900 tracking-wide">
+            Sommelier Reserve
+          </p>
+          <p className="text-[10px] uppercase tracking-widest text-stone-400 font-medium">
+            Bottle Diary Archive • Private Collection
           </p>
         </div>
       </footer>
+
+      {/* Floating 5-Item Bottom Navigation Bar */}
+      <BottomNavBar
+        currentTab={
+          view === 'home'
+            ? 'home'
+            : view === 'cellar'
+            ? 'cellar'
+            : view === 'explore' || view === 'tutor' || view === 'grapes'
+            ? 'explore'
+            : 'profile'
+        }
+        onSelectTab={(tab) => {
+          setView(tab as any);
+        }}
+        onAddNewWine={() => {
+          setEditingBottle(undefined);
+          setIsFormOpen(true);
+        }}
+        onOpenAddModal={() => {
+          setEditingBottle(undefined);
+          setIsFormOpen(true);
+        }}
+        wineCount={bottles.length}
+        totalBottles={bottles.length}
+      />
 
       {/* Success Toast Notification */}
       <AnimatePresence>
@@ -3903,31 +3432,25 @@ export default function App() {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[100] px-4 w-full max-w-sm"
+            className="fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 z-[100] px-4 w-full max-w-sm"
           >
-            <div className="bg-[#1c2e1c] border border-green-500/30 p-5 rounded-sm shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center gap-4">
-              <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white shrink-0 shadow-[0_0_15px_rgba(34,197,94,0.4)]">
-                <Check size={18} strokeWidth={3} />
+            <div className="bg-white border border-emerald-300 p-4 rounded-2xl shadow-lg flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-700 shrink-0">
+                <Check size={18} />
               </div>
               <div className="flex-1">
-                <p className="text-[10px] uppercase font-black tracking-[0.15em] text-green-100 leading-tight">
-                  SUCCESS: IMAGE COMMITTED TO DIARY. RECORD UPDATED.
+                <p className="text-xs uppercase font-semibold text-emerald-800 leading-tight">
+                  SUCCESS: RECORD COMMITTED TO DIARY!
                 </p>
               </div>
               <button 
                 onClick={() => setShowSuccessToast(false)}
-                className="text-green-500/40 hover:text-green-500 transition-colors"
+                className="text-stone-400 hover:text-stone-600 transition-colors"
                 title="Dismiss"
               >
                 <X size={16} />
               </button>
             </div>
-            <motion.div 
-              initial={{ width: "100%" }}
-              animate={{ width: "0%" }}
-              transition={{ duration: 4, ease: "linear" }}
-              className="absolute bottom-0 left-0 h-0.5 bg-green-500/50 rounded-full"
-            />
           </motion.div>
         )}
       </AnimatePresence>

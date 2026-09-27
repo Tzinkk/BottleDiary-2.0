@@ -2,12 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { 
   initializeFirestore, 
-  doc, 
-  getDocFromServer, 
-  persistentLocalCache, 
-  persistentMultipleTabManager,
-  memoryLocalCache,
-  CACHE_SIZE_UNLIMITED
+  memoryLocalCache
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -22,23 +17,10 @@ const dbInstance = initializeFirestore(app, {
 export const db = dbInstance;
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 export const signInWithGoogle = () => signInWithPopup(auth, googleProvider);
 export const logout = () => signOut(auth);
-
-// CRITICAL: Validate connection to Firestore
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && (error.message.includes('the client is offline') || error.message.includes('reach Cloud Firestore backend'))) {
-      console.warn("Please check your Firebase configuration. Running in offline/cached mode.");
-    } else {
-      console.warn("Firestore connection check warning:", error);
-    }
-  }
-}
-testConnection();
 
 export enum OperationType {
   CREATE = 'create',

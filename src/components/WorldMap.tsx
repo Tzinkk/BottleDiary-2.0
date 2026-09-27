@@ -215,14 +215,14 @@ export const WorldMap: React.FC<WorldMapProps> = ({ bottles }) => {
   };
 
   return (
-    <div className="glass-panel p-6 md:p-8 bg-white/5 border-white/10 rounded-sm relative overflow-hidden flex flex-col space-y-6">
+    <div className="bg-white border border-[#EBE7DF] shadow-[0_2px_12px_rgba(28,25,23,0.04)] rounded-2xl p-6 md:p-8 relative overflow-hidden flex flex-col space-y-6 text-stone-900">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h3 className="text-xl font-serif text-ink mb-1 flex items-center gap-2">
-            <Globe className="text-gold w-5 h-5 shrink-0" />
-            Global Cellar Footprint
+          <h3 className="text-xl md:text-2xl font-serif font-bold text-stone-900 mb-1 flex items-center gap-2.5">
+            <Globe className="text-[#722F37] w-5 h-5 shrink-0" />
+            <span>Global Cellar Footprint</span>
           </h3>
-          <p className="text-[10px] uppercase tracking-widest text-ink/30">
+          <p className="text-xs font-medium tracking-wide text-stone-500">
             Geographic distribution & volumes of logged origins
           </p>
         </div>
@@ -232,23 +232,23 @@ export const WorldMap: React.FC<WorldMapProps> = ({ bottles }) => {
           <button 
             onClick={handleZoomIn} 
             title="Zoom In"
-            className="p-2 border border-white/5 rounded-sm bg-white/5 hover:bg-white/10 text-ink/70 hover:text-ink transition-all active:scale-95"
+            className="p-2.5 rounded-xl bg-[#F7F5F0] hover:bg-[#EBE7DF] border border-[#E5E0D8] text-stone-700 transition-all hover:scale-105 active:scale-95 shadow-sm cursor-pointer"
           >
-            <ZoomIn size={14} />
+            <ZoomIn size={16} />
           </button>
           <button 
             onClick={handleZoomOut} 
             title="Zoom Out"
-            className="p-2 border border-white/5 rounded-sm bg-white/5 hover:bg-white/10 text-ink/70 hover:text-ink transition-all active:scale-95"
+            className="p-2.5 rounded-xl bg-[#F7F5F0] hover:bg-[#EBE7DF] border border-[#E5E0D8] text-stone-700 transition-all hover:scale-105 active:scale-95 shadow-sm cursor-pointer"
           >
-            <ZoomOut size={14} />
+            <ZoomOut size={16} />
           </button>
           <button 
             onClick={handleResetZoom} 
             title="Reset Map View"
-            className="p-2 border border-white/5 rounded-sm bg-white/5 hover:bg-white/10 text-ink/70 hover:text-ink transition-all active:scale-95 flex items-center gap-1.5 text-[9px] uppercase tracking-wider font-bold"
+            className="px-3.5 py-2.5 rounded-xl bg-[#F7F5F0] hover:bg-[#EBE7DF] border border-[#E5E0D8] text-stone-700 transition-all hover:scale-105 active:scale-95 shadow-sm flex items-center gap-1.5 text-xs tracking-wider font-semibold cursor-pointer"
           >
-            <RotateCcw size={12} />
+            <RotateCcw size={14} />
             <span className="hidden sm:inline">Reset</span>
           </button>
         </div>
@@ -256,23 +256,23 @@ export const WorldMap: React.FC<WorldMapProps> = ({ bottles }) => {
 
       <div 
         ref={containerRef}
-        className="w-full relative bg-[#071F17]/30 border border-white/5 rounded-sm flex items-center justify-center cursor-grab active:cursor-grabbing select-none h-[320px] md:h-[420px]"
+        className="w-full relative bg-[#F5F2EA] border border-[#EBE7DF] rounded-xl flex items-center justify-center cursor-grab active:cursor-grabbing select-none h-[320px] md:h-[420px] overflow-hidden shadow-inner"
         onMouseDown={handleMouseDown}
         onMouseMove={handleDragMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
         {loading && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center space-y-3 z-10 bg-wine-bg/80">
-            <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-[9px] uppercase tracking-[0.25em] text-ink/40">Loading World Map Database...</p>
+          <div className="absolute inset-0 flex flex-col items-center justify-center space-y-3 z-10 bg-[#F5F2EA]/80 backdrop-blur-sm">
+            <div className="w-9 h-9 border-2 border-[#722F37]/30 border-t-[#722F37] rounded-full animate-spin"></div>
+            <p className="text-xs uppercase tracking-widest font-semibold text-stone-600">Loading World Map Database...</p>
           </div>
         )}
 
         {error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10">
-            <p className="text-red-400 font-serif text-lg mb-2">Map Loading Issue</p>
-            <p className="text-xs text-ink/40 max-w-sm">{error}</p>
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10 bg-[#F5F2EA]/90 backdrop-blur-sm">
+            <p className="text-[#800020] font-bold text-base mb-1">Map Loading Issue</p>
+            <p className="text-xs text-stone-500 max-w-sm">{error}</p>
           </div>
         )}
 
@@ -283,11 +283,11 @@ export const WorldMap: React.FC<WorldMapProps> = ({ bottles }) => {
             viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
             className="absolute inset-0"
           >
-            {/* Graticule/Gridlines for extra cartographic charm */}
+            {/* Graticule/Gridlines */}
             <path 
               d={pathGenerator(d3.geoGraticule()()) || ''} 
               fill="none" 
-              stroke="rgba(255,255,255,0.015)" 
+              stroke="rgba(0,0,0,0.04)" 
               strokeWidth={0.5} 
             />
 
@@ -297,14 +297,12 @@ export const WorldMap: React.FC<WorldMapProps> = ({ bottles }) => {
                 const count = matchCountryCount(geoName);
                 const hasWine = count > 0;
                 
-                // Color coding
+                // Light theme wine palette
                 const fillColor = hasWine 
                   ? colorScale(count) 
-                  : 'rgba(255, 255, 255, 0.025)';
-                const strokeColor = hasWine 
-                  ? 'rgba(230, 194, 128, 0.45)' 
-                  : 'rgba(255, 255, 255, 0.06)';
-                const strokeWidth = hasWine ? 0.75 : 0.4;
+                  : '#E5DFD3';
+                const strokeColor = hasWine ? '#722F37' : '#D6CFBF';
+                const strokeWidth = hasWine ? 1.2 : 0.5;
 
                 return (
                   <path
@@ -313,7 +311,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({ bottles }) => {
                     fill={fillColor}
                     stroke={strokeColor}
                     strokeWidth={strokeWidth}
-                    className="transition-all duration-200 hover:opacity-80 cursor-pointer"
+                    className="transition-colors duration-150 hover:fill-[#800020] hover:opacity-100 cursor-pointer"
                     onMouseEnter={(e) => handleMouseEnter(e, geoName, count)}
                     onMouseMove={handleMouseMove}
                     onMouseLeave={handleMouseLeave}
@@ -327,17 +325,17 @@ export const WorldMap: React.FC<WorldMapProps> = ({ bottles }) => {
         {/* Dynamic Tooltip */}
         {tooltip && (
           <div 
-            className="absolute z-50 pointer-events-none bg-[#071F17] border border-[#E6C280]/30 p-2.5 rounded shadow-2xl transition-all duration-75 text-left"
+            className="absolute z-50 pointer-events-none bg-white/95 backdrop-blur-md border border-[#EBE7DF] p-3 rounded-xl shadow-lg transition-all duration-75 text-left"
             style={{ 
               left: `${tooltip.x}px`, 
               top: `${tooltip.y - 45}px`,
               transform: 'translateX(-50%)' 
             }}
           >
-            <p className="text-[10px] uppercase tracking-wider text-[#E6C280] font-bold">
+            <p className="text-xs uppercase tracking-wider text-[#722F37] font-bold">
               {tooltip.name}
             </p>
-            <p className="text-xs text-ink/80 font-serif italic mt-0.5">
+            <p className="text-xs text-amber-700 font-mono mt-0.5 font-semibold">
               {tooltip.count} {tooltip.count === 1 ? 'bottle' : 'bottles'} logged
             </p>
           </div>
@@ -346,18 +344,18 @@ export const WorldMap: React.FC<WorldMapProps> = ({ bottles }) => {
 
       {/* Origin Stats Legend */}
       {activeCountriesList.length > 0 && (
-        <div className="pt-4 border-t border-white/5">
-          <h4 className="text-[10px] uppercase tracking-[0.2em] text-ink/30 mb-3 font-bold">
+        <div className="pt-4 border-t border-[#EBE7DF]">
+          <h4 className="text-xs uppercase tracking-wider text-stone-500 mb-3 font-semibold">
             Cellar Origins Breakdown
           </h4>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
             {activeCountriesList.map(({ name, count }) => (
               <div 
                 key={name}
-                className="flex items-center justify-between p-2 border border-white/5 rounded-sm bg-white/[0.01] hover:bg-white/[0.03] transition-colors"
+                className="flex items-center justify-between p-2.5 border border-[#EBE7DF] rounded-xl bg-[#FBF9F5] hover:bg-white hover:border-[#D6CFBF] transition-all"
               >
-                <span className="text-[10px] text-ink/80 truncate pr-2 font-medium">{name}</span>
-                <span className="text-[10px] text-[#E6C280] font-mono bg-[#E6C280]/10 px-1.5 py-0.5 rounded-sm font-bold">
+                <span className="text-xs text-stone-800 truncate pr-2 font-medium">{name}</span>
+                <span className="text-xs text-[#722F37] font-mono bg-[#FDF2F4] border border-[#F5C2CB] px-2 py-0.5 rounded-md font-semibold">
                   {count}
                 </span>
               </div>

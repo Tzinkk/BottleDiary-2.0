@@ -1,44 +1,117 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Cinzel:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400;1,600&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-serif: "Cormorant Garamond", serif;
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Cinzel", "Playfair Display", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-display: "Outfit", system-ui, sans-serif;
 
-  --color-gold: #E6C280;
-  --color-wine-bg: #0B2B20;
-  --color-wine-accent: #164E3A;
-  --color-ink: #E6C280;
-  
-  --color-glass: rgba(255, 255, 255, 0.03);
-  --color-glass-border: rgba(255, 255, 255, 0.08);
+  --color-wine-cream: #FBF9F5;
+  --color-wine-cream-dark: #F7F5F0;
+  --color-wine-bordeaux: #722F37;
+  --color-wine-ruby: #800020;
+  --color-wine-deep: #5E2229;
+  --color-wine-gold: #C5A059;
+  --color-wine-gold-light: #F4EBD9;
 }
 
 @layer base {
+  *, *::before, *::after {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
-    @apply bg-wine-bg text-ink font-sans antialiased;
-    background: radial-gradient(circle at 50% 0%, var(--color-wine-accent) 0%, var(--color-wine-bg) 100%) no-repeat fixed;
-    background-size: cover;
+    background-color: #FBF9F5;
+    color: #1C1917;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    selection-background-color: rgba(114, 47, 55, 0.2);
+    selection-color: #722F37;
+  }
+
+  button, a, input, select, textarea, [role="button"] {
+    touch-action: manipulation;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-serif;
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    color: #1C1917;
   }
 }
 
-.glass-panel {
-  @apply bg-glass backdrop-blur-xl border border-glass-border;
+/* --- Clean Luxury Light Cards & Panels --- */
+.card-light {
+  background: #FFFFFF;
+  border: 1px solid #EBE7DF;
+  border-radius: 1rem;
+  box-shadow: 0 2px 12px rgba(28, 25, 23, 0.04);
+  transition: all 0.2s ease-out;
 }
 
-.gold-border {
-  @apply border border-gold/40 hover:border-gold transition-colors;
+.card-light:hover {
+  border-color: #DCD6CA;
+  box-shadow: 0 6px 20px rgba(28, 25, 23, 0.07);
 }
 
+.card-light-elevated {
+  background: #FFFFFF;
+  border: 1px solid #EBE7DF;
+  border-radius: 1.25rem;
+  box-shadow: 0 8px 30px rgba(28, 25, 23, 0.06);
+}
+
+/* --- Primary Burgundy Action Button --- */
+.btn-burgundy {
+  background-color: #722F37;
+  color: #FFFFFF;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 14px rgba(114, 47, 55, 0.25);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-burgundy:hover {
+  background-color: #5E2229;
+  box-shadow: 0 6px 20px rgba(114, 47, 55, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-burgundy:active {
+  transform: translateY(0px) scale(0.98);
+}
+
+/* --- Floating Bottom Navigation --- */
+.nav-bottom-floating {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid #EBE7DF;
+  box-shadow: 0 10px 35px -5px rgba(28, 25, 23, 0.12), 0 0 1px rgba(28, 25, 23, 0.1);
+}
+
+/* --- Scrollbar --- */
 .scroll-hide::-webkit-scrollbar {
   display: none;
 }
+.scroll-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 
-.wine-gradient {
-  background: radial-gradient(circle at 50% 0%, var(--color-wine-accent) 0%, var(--color-wine-bg) 100%) no-repeat fixed;
-  background-size: cover;
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #F7F5F0;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #DDD8CE;
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #722F37;
 }
