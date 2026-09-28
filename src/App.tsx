@@ -2068,19 +2068,67 @@ const GUEST_GRAPES_KEY = 'bottle_diary_guest_grapes';
 
 const loadCachedBottles = (uid?: string | null): WineBottle[] => {
   try {
+    if (typeof window === 'undefined') return DEMO_BOTTLES;
+
+    let bestCandidate: WineBottle[] = [];
+
+    const testCandidate = (raw: string | null) => {
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const validBottles = parsed.filter(item => 
+            item && typeof item === 'object' && ('name' in item || 'producer' in item || 'region' in item || 'type' in item)
+          );
+          if (validBottles.length > bestCandidate.length) {
+            bestCandidate = validBottles as WineBottle[];
+          }
+        }
+      } catch {}
+    };
+
+    // 1. Direct user UID keys
     if (uid) {
-      const userCached = localStorage.getItem(`${USER_BOTTLES_KEY_PREFIX}${uid}`);
-      if (userCached) return JSON.parse(userCached);
+      testCandidate(localStorage.getItem(`${USER_BOTTLES_KEY_PREFIX}${uid}`));
     }
-    const lastUid = typeof window !== 'undefined' ? localStorage.getItem(LAST_UID_KEY) : null;
+    const lastUid = localStorage.getItem(LAST_UID_KEY);
     if (lastUid) {
-      const userCached = localStorage.getItem(`${USER_BOTTLES_KEY_PREFIX}${lastUid}`);
-      if (userCached) return JSON.parse(userCached);
+      testCandidate(localStorage.getItem(`${USER_BOTTLES_KEY_PREFIX}${lastUid}`));
     }
-    const activeCached = typeof window !== 'undefined' ? localStorage.getItem(BOTTLES_CACHE_KEY) : null;
-    if (activeCached) return JSON.parse(activeCached);
-    const guestCached = typeof window !== 'undefined' ? localStorage.getItem(GUEST_BOTTLES_KEY) : null;
-    if (guestCached) return JSON.parse(guestCached);
+
+    // 2. Standard keys
+    testCandidate(localStorage.getItem(BOTTLES_CACHE_KEY));
+    testCandidate(localStorage.getItem(GUEST_BOTTLES_KEY));
+
+    // 3. Known legacy and alternate keys across versions
+    const knownKeys = [
+      'bottles',
+      'wines',
+      'cellar_wines',
+      'wine_collection',
+      'bottle_diary_bottles',
+      'sommelier_bottles',
+      'wine_cellar',
+      'my_wines',
+      'wine_bottles',
+      'saved_bottles',
+      'user_bottles'
+    ];
+    for (const key of knownKeys) {
+      testCandidate(localStorage.getItem(key));
+    }
+
+    // 4. Exhaustive scan across every key in localStorage to restore bottles if stored under another key
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key) {
+        testCandidate(localStorage.getItem(key));
+      }
+    }
+
+    if (bestCandidate.length > 0) {
+      return bestCandidate;
+    }
     return DEMO_BOTTLES;
   } catch {
     return DEMO_BOTTLES;
@@ -2089,19 +2137,58 @@ const loadCachedBottles = (uid?: string | null): WineBottle[] => {
 
 const loadCachedGrapes = (uid?: string | null): GrapeVariety[] => {
   try {
+    if (typeof window === 'undefined') return DEMO_GRAPES;
+
+    let bestCandidate: GrapeVariety[] = [];
+
+    const testCandidate = (raw: string | null) => {
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const validGrapes = parsed.filter(item => 
+            item && typeof item === 'object' && ('name' in item || 'skin' in item || 'aromaFlavor' in item || 'locations' in item)
+          );
+          if (validGrapes.length > bestCandidate.length) {
+            bestCandidate = validGrapes as GrapeVariety[];
+          }
+        }
+      } catch {}
+    };
+
     if (uid) {
-      const userCached = localStorage.getItem(`${USER_GRAPES_KEY_PREFIX}${uid}`);
-      if (userCached) return JSON.parse(userCached);
+      testCandidate(localStorage.getItem(`${USER_GRAPES_KEY_PREFIX}${uid}`));
     }
-    const lastUid = typeof window !== 'undefined' ? localStorage.getItem(LAST_UID_KEY) : null;
+    const lastUid = localStorage.getItem(LAST_UID_KEY);
     if (lastUid) {
-      const userCached = localStorage.getItem(`${USER_GRAPES_KEY_PREFIX}${lastUid}`);
-      if (userCached) return JSON.parse(userCached);
+      testCandidate(localStorage.getItem(`${USER_GRAPES_KEY_PREFIX}${lastUid}`));
     }
-    const activeCached = typeof window !== 'undefined' ? localStorage.getItem(GRAPES_CACHE_KEY) : null;
-    if (activeCached) return JSON.parse(activeCached);
-    const guestCached = typeof window !== 'undefined' ? localStorage.getItem(GUEST_GRAPES_KEY) : null;
-    if (guestCached) return JSON.parse(guestCached);
+
+    testCandidate(localStorage.getItem(GRAPES_CACHE_KEY));
+    testCandidate(localStorage.getItem(GUEST_GRAPES_KEY));
+
+    const knownKeys = [
+      'grapes',
+      'grape_varieties',
+      'bottle_diary_grapes',
+      'my_grapes',
+      'saved_grapes',
+      'user_grapes'
+    ];
+    for (const key of knownKeys) {
+      testCandidate(localStorage.getItem(key));
+    }
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key) {
+        testCandidate(localStorage.getItem(key));
+      }
+    }
+
+    if (bestCandidate.length > 0) {
+      return bestCandidate;
+    }
     return DEMO_GRAPES;
   } catch {
     return DEMO_GRAPES;
@@ -2148,8 +2235,22 @@ export default function App() {
   });
 
   // Seamlessly switch: if user is signed in, use their private Firestore collection. Otherwise, use guest bottles.
-  const bottles = user ? firestoreBottles : guestBottles;
-  const grapes = user ? firestoreGrapes : guestGrapes;
+  // Robust fallback: if the active array is empty, always check and load from cached wines in localStorage
+  const bottles = useMemo(() => {
+    const primary = user ? firestoreBottles : guestBottles;
+    if (primary && primary.length > 0) return primary;
+    const fallback = loadCachedBottles(user?.uid);
+    if (fallback && fallback.length > 0) return fallback;
+    return primary || [];
+  }, [user, firestoreBottles, guestBottles]);
+
+  const grapes = useMemo(() => {
+    const primary = user ? firestoreGrapes : guestGrapes;
+    if (primary && primary.length > 0) return primary;
+    const fallback = loadCachedGrapes(user?.uid);
+    if (fallback && fallback.length > 0) return fallback;
+    return primary || [];
+  }, [user, firestoreGrapes, guestGrapes]);
 
   // Stale-While-Revalidate loading check: only true if data is still fetching AND cache is empty
   const isDataLoading = (authLoading || (!!user && isCloudSyncLoading)) && bottles.length === 0;
@@ -2216,21 +2317,48 @@ export default function App() {
         const freshBottles = bottlesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id })) as WineBottle[];
         const freshGrapes = grapesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id })) as GrapeVariety[];
 
-        setFirestoreBottles(freshBottles);
-        setFirestoreGrapes(freshGrapes);
-        setIsCloudSyncLoading(false);
+        if (freshBottles.length > 0) {
+          setFirestoreBottles(freshBottles);
+          try {
+            localStorage.setItem(`${USER_BOTTLES_KEY_PREFIX}${user.uid}`, JSON.stringify(freshBottles));
+            localStorage.setItem(BOTTLES_CACHE_KEY, JSON.stringify(freshBottles));
+          } catch {}
+        } else {
+          // If Firestore returns 0 items (e.g. fresh DB index or quota), preserve existing cached wines
+          const existingCached = loadCachedBottles(user.uid);
+          if (existingCached.length > 0) {
+            setFirestoreBottles(existingCached);
+          }
+        }
 
-        try {
-          localStorage.setItem(`${USER_BOTTLES_KEY_PREFIX}${user.uid}`, JSON.stringify(freshBottles));
-          localStorage.setItem(BOTTLES_CACHE_KEY, JSON.stringify(freshBottles));
-          localStorage.setItem(`${USER_GRAPES_KEY_PREFIX}${user.uid}`, JSON.stringify(freshGrapes));
-          localStorage.setItem(GRAPES_CACHE_KEY, JSON.stringify(freshGrapes));
-        } catch {}
+        if (freshGrapes.length > 0) {
+          setFirestoreGrapes(freshGrapes);
+          try {
+            localStorage.setItem(`${USER_GRAPES_KEY_PREFIX}${user.uid}`, JSON.stringify(freshGrapes));
+            localStorage.setItem(GRAPES_CACHE_KEY, JSON.stringify(freshGrapes));
+          } catch {}
+        } else {
+          const existingCachedGrapes = loadCachedGrapes(user.uid);
+          if (existingCachedGrapes.length > 0) {
+            setFirestoreGrapes(existingCachedGrapes);
+          }
+        }
+
+        setIsCloudSyncLoading(false);
       } catch (error) {
         setIsCloudSyncLoading(false);
         const errMsg = error instanceof Error ? error.message : String(error);
         if (errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('resource-exhausted')) {
           setQuotaExceeded(true);
+        }
+        // Always ensure local state is populated with cache on error
+        const cachedB = loadCachedBottles(user.uid);
+        if (cachedB.length > 0) {
+          setFirestoreBottles(cachedB);
+        }
+        const cachedG = loadCachedGrapes(user.uid);
+        if (cachedG.length > 0) {
+          setFirestoreGrapes(cachedG);
         }
         console.warn('Initial Firestore query read notice (local cache active):', error);
       }
