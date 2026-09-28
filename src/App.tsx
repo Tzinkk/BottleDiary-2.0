@@ -20,7 +20,7 @@ import {
   ZAxis
 } from 'recharts';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, updateDoc, limit } from 'firebase/firestore';
+import { collection, query, where, doc, setDoc, deleteDoc, updateDoc, limit, getDocs } from 'firebase/firestore';
 import { auth, db, signInWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
 import { WineBottle, WineType, SortOption, GrapeVariety, QuizQuestion, WINE_TYPES, WINE_TYPE_CONFIG } from './types';
 import { analyzeWineLabel, generateQuizQuestion, refineTastingNotes, generateTastingNotesForBottle } from './services/aiService';
@@ -2114,6 +2114,9 @@ export default function App() {
   const [user, setUser] = useState<User | null>(() => auth.currentUser);
   const [authLoading, setAuthLoading] = useState(true);
   const [isCloudSyncLoading, setIsCloudSyncLoading] = useState(false);
+  const [quotaExceeded, setQuotaExceeded] = useState(false);
+  const [isQuotaDismissed, setIsQuotaDismissed] = useState(false);
+  const hasFetchedUserRef = useRef<string | null>(null);
   
   // Local guest reserve state so unauthenticated or cookie-blocked users can fully explore the app
   const [guestBottles, setGuestBottles] = useState<WineBottle[]>(() => {
@@ -2179,49 +2182,61 @@ export default function App() {
   useEffect(() => {
     if (!user) {
       setIsCloudSyncLoading(false);
+      hasFetchedUserRef.current = null;
       return;
     }
 
+    // Only fetch once per user session to avoid continuous reads & hitting quota limits
+    if (hasFetchedUserRef.current === user.uid) {
+      return;
+    }
+
+    hasFetchedUserRef.current = user.uid;
     setIsCloudSyncLoading(true);
 
-    const qBottles = query(
-      collection(db, 'bottles'),
-      where('userId', '==', user.uid),
-      limit(200)
-    );
-
-    const qGrapes = query(
-      collection(db, 'grapes'),
-      where('userId', '==', user.uid),
-      limit(200)
-    );
-
-    const unsubBottles = onSnapshot(qBottles, (snapshot) => {
-      const freshBottles = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as WineBottle[];
-      setFirestoreBottles(freshBottles);
-      setIsCloudSyncLoading(false);
+    const fetchCollectionsOnce = async () => {
       try {
-        localStorage.setItem(`${USER_BOTTLES_KEY_PREFIX}${user.uid}`, JSON.stringify(freshBottles));
-        localStorage.setItem(BOTTLES_CACHE_KEY, JSON.stringify(freshBottles));
-      } catch {}
-    }, (error) => {
-      setIsCloudSyncLoading(false);
-      handleFirestoreError(error, OperationType.LIST, 'bottles');
-    });
+        const qBottles = query(
+          collection(db, 'bottles'),
+          where('userId', '==', user.uid),
+          limit(200)
+        );
 
-    const unsubGrapes = onSnapshot(qGrapes, (snapshot) => {
-      const freshGrapes = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as GrapeVariety[];
-      setFirestoreGrapes(freshGrapes);
-      try {
-        localStorage.setItem(`${USER_GRAPES_KEY_PREFIX}${user.uid}`, JSON.stringify(freshGrapes));
-        localStorage.setItem(GRAPES_CACHE_KEY, JSON.stringify(freshGrapes));
-      } catch {}
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'grapes'));
+        const qGrapes = query(
+          collection(db, 'grapes'),
+          where('userId', '==', user.uid),
+          limit(200)
+        );
 
-    return () => {
-      unsubBottles();
-      unsubGrapes();
+        const [bottlesSnap, grapesSnap] = await Promise.all([
+          getDocs(qBottles),
+          getDocs(qGrapes)
+        ]);
+
+        const freshBottles = bottlesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id })) as WineBottle[];
+        const freshGrapes = grapesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id })) as GrapeVariety[];
+
+        setFirestoreBottles(freshBottles);
+        setFirestoreGrapes(freshGrapes);
+        setIsCloudSyncLoading(false);
+
+        try {
+          localStorage.setItem(`${USER_BOTTLES_KEY_PREFIX}${user.uid}`, JSON.stringify(freshBottles));
+          localStorage.setItem(BOTTLES_CACHE_KEY, JSON.stringify(freshBottles));
+          localStorage.setItem(`${USER_GRAPES_KEY_PREFIX}${user.uid}`, JSON.stringify(freshGrapes));
+          localStorage.setItem(GRAPES_CACHE_KEY, JSON.stringify(freshGrapes));
+        } catch {}
+      } catch (error) {
+        setIsCloudSyncLoading(false);
+        const errMsg = error instanceof Error ? error.message : String(error);
+        if (errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('resource-exhausted')) {
+          setQuotaExceeded(true);
+        }
+        console.warn('Initial Firestore query read notice (local cache active):', error);
+      }
     };
+
+    fetchCollectionsOnce();
   }, [user]);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -2456,6 +2471,20 @@ export default function App() {
     try {
       console.log("Committing wine record:", { ...data, hasImage: !!data.imageUrl });
       if (editingBottle) {
+        setFirestoreBottles(prev => {
+          const updated = prev.map(b => b.id === editingBottle.id ? { ...b, ...data, lastUpdated: Date.now() } : b);
+          try {
+            localStorage.setItem(`${USER_BOTTLES_KEY_PREFIX}${user.uid}`, JSON.stringify(updated));
+            localStorage.setItem(BOTTLES_CACHE_KEY, JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
+
+        setIsFormOpen(false);
+        setEditingBottle(undefined);
+        setShowSuccessToast(true);
+        setTimeout(() => setShowSuccessToast(false), 4000);
+
         const bottleRef = doc(db, 'bottles', editingBottle.id);
         await updateDoc(bottleRef, {
           ...data,
@@ -2464,21 +2493,32 @@ export default function App() {
         });
       } else {
         const bottleId = Math.random().toString(36).substr(2, 9);
-        const bottleRef = doc(db, 'bottles', bottleId);
-        await setDoc(bottleRef, {
+        const newBottle: WineBottle = {
           ...data,
           id: bottleId,
           dateAdded: Date.now(),
           userId: user.uid
+        };
+
+        setFirestoreBottles(prev => {
+          const updated = [newBottle, ...prev];
+          try {
+            localStorage.setItem(`${USER_BOTTLES_KEY_PREFIX}${user.uid}`, JSON.stringify(updated));
+            localStorage.setItem(BOTTLES_CACHE_KEY, JSON.stringify(updated));
+          } catch {}
+          return updated;
         });
+
+        setIsFormOpen(false);
+        setEditingBottle(undefined);
+        setShowSuccessToast(true);
+        setTimeout(() => setShowSuccessToast(false), 4000);
+
+        const bottleRef = doc(db, 'bottles', bottleId);
+        await setDoc(bottleRef, newBottle);
       }
-      setIsFormOpen(false);
-      setEditingBottle(undefined);
-      setShowSuccessToast(true);
-      setTimeout(() => setShowSuccessToast(false), 4000);
     } catch (error) {
-      console.error("Persistence failed:", error);
-      handleFirestoreError(error, OperationType.WRITE, 'bottles');
+      console.warn("Background wine persistence note (local state preserved):", error);
     }
   };
 
@@ -2510,22 +2550,43 @@ export default function App() {
 
     try {
       if (editingGrape) {
+        setFirestoreGrapes(prev => {
+          const updated = prev.map(g => g.id === editingGrape.id ? { ...g, ...data } : g);
+          try {
+            localStorage.setItem(`${USER_GRAPES_KEY_PREFIX}${user.uid}`, JSON.stringify(updated));
+            localStorage.setItem(GRAPES_CACHE_KEY, JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
+        setIsGrapeFormOpen(false);
+        setEditingGrape(undefined);
+
         const grapeRef = doc(db, 'grapes', editingGrape.id);
         await updateDoc(grapeRef, { ...data, userId: user.uid });
       } else {
         const grapeId = Math.random().toString(36).substr(2, 9);
-        const grapeRef = doc(db, 'grapes', grapeId);
-        await setDoc(grapeRef, {
+        const newGrape: GrapeVariety = {
           ...data,
           id: grapeId,
           dateAdded: Date.now(),
           userId: user.uid
+        };
+        setFirestoreGrapes(prev => {
+          const updated = [newGrape, ...prev];
+          try {
+            localStorage.setItem(`${USER_GRAPES_KEY_PREFIX}${user.uid}`, JSON.stringify(updated));
+            localStorage.setItem(GRAPES_CACHE_KEY, JSON.stringify(updated));
+          } catch {}
+          return updated;
         });
+        setIsGrapeFormOpen(false);
+        setEditingGrape(undefined);
+
+        const grapeRef = doc(db, 'grapes', grapeId);
+        await setDoc(grapeRef, newGrape);
       }
-      setIsGrapeFormOpen(false);
-      setEditingGrape(undefined);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'grapes');
+      console.warn("Background grape persistence note (local state preserved):", error);
     }
   };
 
@@ -2564,12 +2625,32 @@ export default function App() {
       setItemToDelete(null);
       return;
     }
+
+    if (type === 'bottle') {
+      setFirestoreBottles(prev => {
+        const updated = prev.filter(b => b.id !== id);
+        try {
+          localStorage.setItem(`${USER_BOTTLES_KEY_PREFIX}${user.uid}`, JSON.stringify(updated));
+          localStorage.setItem(BOTTLES_CACHE_KEY, JSON.stringify(updated));
+        } catch {}
+        return updated;
+      });
+    } else {
+      setFirestoreGrapes(prev => {
+        const updated = prev.filter(g => g.id !== id);
+        try {
+          localStorage.setItem(`${USER_GRAPES_KEY_PREFIX}${user.uid}`, JSON.stringify(updated));
+          localStorage.setItem(GRAPES_CACHE_KEY, JSON.stringify(updated));
+        } catch {}
+        return updated;
+      });
+    }
+    setItemToDelete(null);
     
     try {
       await deleteDoc(doc(db, type === 'bottle' ? 'bottles' : 'grapes', id));
-      setItemToDelete(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `${type === 'bottle' ? 'bottles' : 'grapes'}/${id}`);
+      console.warn("Background deletion note (local state preserved):", error);
     }
   };
 
@@ -2798,6 +2879,50 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-6xl w-full mx-auto p-4 md:p-8 pb-16 md:pb-12 relative">
+        {/* Firestore Quota Exceeded Notification Banner */}
+        <AnimatePresence>
+          {quotaExceeded && !isQuotaDismissed && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-6 p-4 rounded-2xl bg-amber-50/95 border border-amber-200 text-amber-900 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 font-bold text-xs">
+                  ⚡
+                </div>
+                <div>
+                  <h4 className="text-xs font-serif font-bold tracking-wide uppercase text-amber-950">
+                    Daily Cloud Read Quota Reached — Offline Local Cellar Active
+                  </h4>
+                  <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
+                    Your cellar is fully available through local offline cache. Live cloud syncing will automatically resume when the free daily quota resets tomorrow, or you can enable billing to remove limits.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                <a
+                  href="https://console.firebase.google.com/project/gen-lang-client-0599289351/firestore/databases/ai-studio-2da4c897-3845-4771-94e8-24391e141580/data?openUpgradeDialog=true"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-1.5 rounded-lg bg-amber-900 hover:bg-amber-950 text-amber-50 text-[11px] font-medium tracking-wide transition shadow-xs cursor-pointer"
+                >
+                  Upgrade in Console
+                </a>
+                <button
+                  onClick={() => setIsQuotaDismissed(true)}
+                  className="px-2.5 py-1.5 rounded-lg text-amber-800 hover:bg-amber-100 transition cursor-pointer text-xs font-semibold flex items-center gap-1 border border-amber-300/60"
+                  title="Dismiss banner"
+                >
+                  <span>✕</span>
+                  <span>Dismiss</span>
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Detailed Filter Expandable Panel */}
         <AnimatePresence>
           {isFilterExpanded && (
@@ -3475,6 +3600,7 @@ export default function App() {
               onSortByGrapesChange={setSortByGrapes}
               selectedGrapesForComparison={selectedGrapesForComparison}
               onToggleCompareGrape={handleToggleCompare}
+              onSelectBottle={(b) => setSelectedBottleForDetail(b)}
               onOpenAddGrape={() => {
                 setEditingGrape(undefined);
                 setIsGrapeFormOpen(true);

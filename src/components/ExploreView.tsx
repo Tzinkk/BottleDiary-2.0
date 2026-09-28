@@ -30,6 +30,7 @@ interface ExploreViewProps {
   isAnswerRevealed: boolean;
   onSelectAnswer: (option: string) => void;
   onFetchNewQuiz: () => void;
+  onSelectBottle?: (bottle: WineBottle) => void;
 }
 
 export const ExploreView: React.FC<ExploreViewProps> = ({
@@ -53,6 +54,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   isAnswerRevealed,
   onSelectAnswer,
   onFetchNewQuiz,
+  onSelectBottle,
 }) => {
   return (
     <motion.div
@@ -119,7 +121,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             <p className="text-xs text-stone-500 mb-4">
               Explore the geographic origins of your private collection on our real-time world cartography.
             </p>
-            <WorldMap bottles={bottles} />
+            <WorldMap bottles={bottles} onSelectBottle={onSelectBottle} />
           </div>
         </div>
       )}
