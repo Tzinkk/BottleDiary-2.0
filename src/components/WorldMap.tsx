@@ -38,6 +38,60 @@ const isCountryMatch = (c1?: string | null, c2?: string | null): boolean => {
   return n1 === n2 || n1.includes(n2) || n2.includes(n1);
 };
 
+const COUNTRY_FLAGS: Record<string, string> = {
+  'france': '🇫🇷',
+  'italy': '🇮🇹',
+  'spain': '🇪🇸',
+  'united states': '🇺🇸',
+  'usa': '🇺🇸',
+  'us': '🇺🇸',
+  'australia': '🇦🇺',
+  'germany': '🇩🇪',
+  'austria': '🇦🇹',
+  'new zealand': '🇳🇿',
+  'portugal': '🇵🇹',
+  'argentina': '🇦🇷',
+  'chile': '🇨🇱',
+  'south africa': '🇿🇦',
+  'greece': '🇬🇷',
+  'thailand': '🇹🇭',
+  'japan': '🇯🇵',
+  'united kingdom': '🇬🇧',
+  'uk': '🇬🇧',
+  'great britain': '🇬🇧',
+  'england': '🇬🇧',
+  'canada': '🇨🇦',
+  'switzerland': '🇨🇭',
+  'hungary': '🇭🇺',
+  'lebanon': '🇱🇧',
+  'israel': '🇮🇱',
+  'georgia': '🇬🇪',
+  'armenia': '🇦🇲',
+  'china': '🇨🇳',
+  'uruguay': '🇺🇾',
+  'mexico': '🇲🇽',
+  'slovenia': '🇸🇮',
+  'croatia': '🇭🇷',
+  'romania': '🇷🇴',
+  'bulgaria': '🇧🇬',
+  'brazil': '🇧🇷',
+  'turkey': '🇹🇷',
+  'india': '🇮🇳',
+};
+
+export const getCountryFlag = (country?: string | null): string => {
+  if (!country) return '🍷';
+  const clean = country.trim().toLowerCase();
+  if (COUNTRY_FLAGS[clean]) return COUNTRY_FLAGS[clean];
+  
+  for (const [key, flag] of Object.entries(COUNTRY_FLAGS)) {
+    if (clean.includes(key) || key.includes(clean)) {
+      return flag;
+    }
+  }
+  return '🍷';
+};
+
 export const WorldMap: React.FC<WorldMapProps> = ({ bottles, onSelectBottle }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const breakdownRef = useRef<HTMLDivElement>(null);
@@ -506,11 +560,12 @@ export const WorldMap: React.FC<WorldMapProps> = ({ bottles, onSelectBottle }) =
                     setSelectedRegion(null);
                     setSelectedGrapeFilter(null);
                   }}
-                  className={`font-semibold transition-colors cursor-pointer ${
+                  className={`font-semibold transition-colors cursor-pointer flex items-center gap-1.5 ${
                     selectedRegion ? 'text-stone-500 hover:text-[#722F37]' : 'text-[#722F37] font-bold'
                   }`}
                 >
-                  {selectedCountry}
+                  <span className="text-sm">{getCountryFlag(selectedCountry)}</span>
+                  <span>{selectedCountry}</span>
                 </button>
 
                 {selectedRegion && (
@@ -541,7 +596,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({ bottles, onSelectBottle }) =
             </div>
           )}
 
-          {/* LEVEL 1: Countries Breakdown (2-Column Grid Layout) */}
+          {/* LEVEL 1: Countries Breakdown (Full-Width List Layout) */}
           {!selectedCountry && (
             <div className="space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
@@ -558,36 +613,31 @@ export const WorldMap: React.FC<WorldMapProps> = ({ bottles, onSelectBottle }) =
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                {activeCountriesList.map(({ name, count }) => (
+              <div className="flex flex-col gap-2.5">
+                {activeCountriesList.map((country) => (
                   <button 
-                    key={name}
+                    key={country.name}
                     type="button"
                     onClick={() => {
-                      setSelectedCountry(name);
+                      setSelectedCountry(country.name);
                       setSelectedRegion(null);
                       setSelectedGrapeFilter(null);
                     }}
-                    className="flex items-center justify-between p-3.5 border border-[#EBE7DF] hover:border-[#722F37]/50 rounded-2xl bg-[#FBF9F5] hover:bg-white text-left transition-all shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 cursor-pointer group"
+                    className="w-full flex items-center justify-between py-3 px-4 rounded-xl bg-white border border-[#EBE5DC] shadow-xs hover:border-[#800020] hover:shadow-sm transition-all text-left cursor-pointer group"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0 pr-1">
-                      <div className="w-8 h-8 rounded-xl bg-[#722F37]/10 text-[#722F37] flex items-center justify-center font-bold text-xs shrink-0 group-hover:scale-105 transition-transform">
-                        <Globe size={15} />
-                      </div>
-                      <div className="min-w-0">
-                        <h5 className="text-xs sm:text-sm font-bold text-stone-900 truncate group-hover:text-[#722F37] transition-colors">
-                          {name}
-                        </h5>
-                        <p className="text-[10px] text-stone-500 font-sans">
-                          {count} {count === 1 ? 'bottle' : 'bottles'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <span className="text-xs text-[#722F37] font-mono bg-[#FDF2F4] border border-[#F5C2CB] px-2 py-0.5 rounded-lg font-bold">
-                        {count}
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-3">
+                      <span className="text-base sm:text-lg shrink-0 select-none leading-none">
+                        {getCountryFlag(country.name)}
                       </span>
-                      <ChevronRight size={14} className="text-stone-400 group-hover:text-[#722F37] group-hover:translate-x-0.5 transition-all" />
+                      <span className="text-sm font-serif font-semibold tracking-wide text-[#2C1810] uppercase group-hover:text-[#800020] transition-colors">
+                        {country.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-[#FDF0ED] text-[#800020] border border-[#F5C2CB]/50">
+                        {country.count} {country.count === 1 ? 'bottle' : 'bottles'}
+                      </span>
+                      <span className="text-sm text-[#800020] font-bold group-hover:translate-x-0.5 transition-transform">›</span>
                     </div>
                   </button>
                 ))}
@@ -601,7 +651,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({ bottles, onSelectBottle }) =
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="text-base font-serif font-bold text-stone-900 flex items-center gap-2">
-                    <MapPin size={16} className="text-[#722F37]" />
+                    <span className="text-lg">{getCountryFlag(selectedCountry)}</span>
                     <span>Appellations & Regions in {selectedCountry}</span>
                   </h4>
                   <p className="text-xs text-stone-500">
@@ -667,7 +717,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({ bottles, onSelectBottle }) =
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#F2EFE9] pb-3">
                 <div>
                   <h4 className="text-lg font-serif font-bold text-stone-900 flex items-center gap-2">
-                    <Wine size={18} className="text-[#722F37]" />
+                    <span className="text-lg">{getCountryFlag(selectedCountry)}</span>
                     <span>{selectedRegion}, {selectedCountry}</span>
                   </h4>
                   <p className="text-xs text-stone-500">
