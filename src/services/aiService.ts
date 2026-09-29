@@ -41,7 +41,7 @@ function getAIClient(): GoogleGenAI {
 }
 
 /**
- * Optimal client-side image preservation for OCR: max dimension 1600px with JPEG quality 0.92
+ * Single-pass client-side image compression for OCR: max dimension 1600px with JPEG quality 0.92
  * Ensures small vintage fonts, château engravings, and appellation text remain sharp and legible.
  */
 export async function compressImageForAI(imageSource: string | Blob | File): Promise<{ base64: string; mimeType: string; dataUrl: string }> {
@@ -105,36 +105,31 @@ export async function compressImageForAI(imageSource: string | Blob | File): Pro
 }
 
 /**
- * Converts imageUri (base64, blob URL, or remote URL) to compressed base64.
+ * Extracts raw base64 data directly without redundant re-compression.
  */
 async function imageUriToData(imageUri: string): Promise<{ base64: string; mimeType: string }> {
-  try {
-    const compressed = await compressImageForAI(imageUri);
-    return { base64: compressed.base64, mimeType: compressed.mimeType };
-  } catch (err) {
-    console.warn("[AI Service] Direct canvas compression fallback:", err);
-    if (imageUri.startsWith("data:")) {
-      const parts = imageUri.split(",");
-      const base64 = parts[1] || "";
-      const match = imageUri.match(/^data:([^;]+);/);
-      const mimeType = match ? match[1] : "image/jpeg";
-      return { base64, mimeType };
-    }
-
-    const response = await fetch(imageUri);
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const dataUrl = reader.result as string;
-        const parts = dataUrl.split(",");
-        const base64 = parts[1] || "";
-        resolve({ base64, mimeType: blob.type || "image/jpeg" });
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
+  if (imageUri.startsWith("data:")) {
+    const parts = imageUri.split(",");
+    const base64 = parts[1] || "";
+    const match = imageUri.match(/^data:([^;]+);/);
+    const mimeType = match ? match[1] : "image/jpeg";
+    return { base64, mimeType };
   }
+
+  // Handle blob URLs and remote URLs by fetching and converting to base64
+  const response = await fetch(imageUri);
+  const blob = await response.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result as string;
+      const parts = dataUrl.split(",");
+      const base64 = parts[1] || "";
+      resolve({ base64, mimeType: blob.type || "image/jpeg" });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 /**
@@ -199,11 +194,11 @@ async function generateWithRetryAndFallback(
 }
 
 /**
- * Analyzes the wine label image directly using Gemini 2.5 Flash with fast client-side compression.
+ * Analyzes the wine label image directly using Gemini 2.5 Flash with strict literal OCR.
  * @param imageUri base64 Data URI or blob/remote URL
  */
 export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBottle> & { mainTastingNotes?: string; alcohol?: string }> {
-  console.log("[AI Service] Scanning label with Precision Two-Step Sommelier OCR...");
+  console.log("[AI Service] Scanning label with strict literal OCR (gemini-2.5-flash, temp 0.0)...");
   if (!imageUri || typeof imageUri !== "string") {
     console.error("[AI Service] Error: Invalid image URI provided to analyzeWineLabel.");
     throw new Error("Invalid image URI provided");
@@ -212,14 +207,15 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
   const { base64, mimeType } = await imageUriToData(imageUri);
   const ai = getAIClient();
 
-  const systemInstruction = `You are a master sommelier and precision OCR extraction engine.
-Step 1: Transcribe all visible text on this wine label verbatim, including winery/château, vintage year, appellation/region, grape mentions, and alcohol percentage.
-Step 2: Carefully map the transcribed text into the following fields. If a field (like vintage or grape) is NOT explicitly mentioned on the label, infer it only if it is standard for that specific prestigious appellation (e.g. Saint-Émilion = Merlot/Cabernet Franc blend), otherwise set null. Do NOT fabricate fictitious names.`;
+  const systemInstruction = `You are a strict, literal OCR engine for wine labels.
+1. Do NOT guess or infer grapes/regions if they are not explicitly printed on the label. Return null or empty list instead.
+2. Transcribe verbatim: Wine Name, Producer/Château, Vintage Year (e.g. 2020 or NV), and Region/Appellation as printed on the label.
+3. Never hallucinate fictional names.`;
 
   const response = await generateWithRetryAndFallback(ai, {
     model: "gemini-2.5-flash",
     contents: [
-      "Perform precision two-step OCR on this wine label image and return structured JSON.",
+      "Transcribe all text from this wine label verbatim and extract structured wine details into JSON.",
       {
         inlineData: {
           data: base64,
@@ -229,6 +225,7 @@ Step 2: Carefully map the transcribed text into the following fields. If a field
     ],
     config: {
       systemInstruction,
+      temperature: 0.0,
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
@@ -251,7 +248,7 @@ Step 2: Carefully map the transcribed text into the following fields. If a field
           viticulture: { type: Type.STRING },
           additionalNote: { type: Type.STRING },
         },
-        required: ["name", "producer", "vintage", "wineType", "country", "region", "tastingNotes"],
+        required: ["name", "producer", "vintage", "wineType", "country", "region"],
       },
     },
   });
@@ -279,10 +276,10 @@ Step 2: Carefully map the transcribed text into the following fields. If a field
      rawType.toLowerCase().includes('pet') ? 'Pet Nat' : 'Red');
 
   const rawGrapes = parsedData.grapes || parsedData.grapeVarieties || parsedData.grape || [];
-  const grapesList = Array.isArray(rawGrapes) ? rawGrapes : (typeof rawGrapes === 'string' ? rawGrapes.split(',').map((s: string) => s.trim()) : []);
+  const grapesList = Array.isArray(rawGrapes) ? rawGrapes.filter((g: any) => typeof g === 'string' && g.trim()) : (typeof rawGrapes === 'string' && rawGrapes.trim() ? rawGrapes.split(',').map((s: string) => s.trim()).filter(Boolean) : []);
 
   const rawPairings = parsedData.foodPairing || parsedData.foodPairings || [];
-  const pairingsList = Array.isArray(rawPairings) ? rawPairings : (typeof rawPairings === 'string' ? [rawPairings] : []);
+  const pairingsList = Array.isArray(rawPairings) ? rawPairings.filter((p: any) => typeof p === 'string' && p.trim()) : (typeof rawPairings === 'string' && rawPairings.trim() ? [rawPairings.trim()] : []);
 
   return {
     name: parsedData.name || parsedData.wineName || "",

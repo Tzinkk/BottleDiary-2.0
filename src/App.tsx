@@ -1397,7 +1397,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     }
   };
 
-  // Fast client-side image compression: max 1024px, JPEG quality 0.8
+  // Single-pass client-side image compression: max 1600px, JPEG quality 0.92
   const compressImage = async (file: File | Blob | string): Promise<string> => {
     try {
       const result = await compressImageForAI(file);
@@ -1429,12 +1429,12 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     try {
       let targetUrl = imageUrl;
       
-      // If we have the raw file, generate fast compressed base64 (max 1024px, quality 0.8)
-      if (lastSelectedFileRef.current) {
+      // If we have the raw file and it is not yet compressed, prepare optimal 1600px OCR base64
+      if (lastSelectedFileRef.current && !targetUrl.startsWith('data:')) {
         try {
           targetUrl = await compressImage(lastSelectedFileRef.current);
         } catch (compressErr) {
-          console.warn("Fast compression fallback:", compressErr);
+          console.warn("Optimal OCR image compression fallback:", compressErr);
         }
       }
 
