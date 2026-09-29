@@ -34,6 +34,7 @@ import { ProfileView } from './components/ProfileView';
 import { ExploreView } from './components/ExploreView';
 import { WineGridCard } from './components/WineGridCard';
 import { WineDetailModal } from './components/WineDetailModal';
+import { SommelierAssistantModal } from './components/SommelierAssistantModal';
 
 // --- Configuration ---
 
@@ -2462,10 +2463,11 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'bottle' | 'grape' } | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [isSommelierOpen, setIsSommelierOpen] = useState(false);
 
   // Prevent background scrolling while modal or sheet is open
   useEffect(() => {
-    if (isFormOpen || isGrapeFormOpen || itemToDelete || selectedBottleForDetail) {
+    if (isFormOpen || isGrapeFormOpen || itemToDelete || selectedBottleForDetail || isSommelierOpen) {
       const prevOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       return () => {
@@ -2847,6 +2849,60 @@ export default function App() {
       await deleteDoc(doc(db, type === 'bottle' ? 'bottles' : 'grapes', id));
     } catch (error) {
       console.warn("Background deletion note (local state preserved):", error);
+    }
+  };
+
+  const handleImportBackup = (importedData: { bottles?: WineBottle[]; grapes?: GrapeVariety[] }) => {
+    if (importedData.bottles && importedData.bottles.length > 0) {
+      if (!user) {
+        setGuestBottles(prev => {
+          const existingIds = new Set(prev.map(b => b.id));
+          const newOnes = importedData.bottles!.filter(b => !existingIds.has(b.id));
+          const updated = [...newOnes, ...prev];
+          try {
+            localStorage.setItem(GUEST_BOTTLES_KEY, JSON.stringify(updated));
+            localStorage.setItem(BOTTLES_CACHE_KEY, JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
+      } else {
+        setFirestoreBottles(prev => {
+          const existingIds = new Set(prev.map(b => b.id));
+          const newOnes = importedData.bottles!.filter(b => !existingIds.has(b.id));
+          const updated = [...newOnes, ...prev];
+          try {
+            localStorage.setItem(`${USER_BOTTLES_KEY_PREFIX}${user.uid}`, JSON.stringify(updated));
+            localStorage.setItem(BOTTLES_CACHE_KEY, JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
+      }
+    }
+
+    if (importedData.grapes && importedData.grapes.length > 0) {
+      if (!user) {
+        setGuestGrapes(prev => {
+          const existingIds = new Set(prev.map(g => g.id));
+          const newOnes = importedData.grapes!.filter(g => !existingIds.has(g.id));
+          const updated = [...newOnes, ...prev];
+          try {
+            localStorage.setItem(GUEST_GRAPES_KEY, JSON.stringify(updated));
+            localStorage.setItem(GRAPES_CACHE_KEY, JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
+      } else {
+        setFirestoreGrapes(prev => {
+          const existingIds = new Set(prev.map(g => g.id));
+          const newOnes = importedData.grapes!.filter(g => !existingIds.has(g.id));
+          const updated = [...newOnes, ...prev];
+          try {
+            localStorage.setItem(`${USER_GRAPES_KEY_PREFIX}${user.uid}`, JSON.stringify(updated));
+            localStorage.setItem(GRAPES_CACHE_KEY, JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
+      }
     }
   };
 
@@ -3797,6 +3853,7 @@ export default function App() {
               selectedGrapesForComparison={selectedGrapesForComparison}
               onToggleCompareGrape={handleToggleCompare}
               onSelectBottle={(b) => setSelectedBottleForDetail(b)}
+              onOpenSommelierChat={() => setIsSommelierOpen(true)}
               onOpenAddGrape={() => {
                 setEditingGrape(undefined);
                 setIsGrapeFormOpen(true);
@@ -3849,6 +3906,7 @@ export default function App() {
               colors={COLORS}
               onLogin={handleLogin}
               onLogout={logout}
+              onImportBackup={handleImportBackup}
             />
           )}
         </AnimatePresence>
@@ -3974,6 +4032,17 @@ export default function App() {
         onDelete={(id) => {
           setSelectedBottleForDetail(null);
           handleDeleteBottle(id);
+        }}
+      />
+
+      {/* AI Sommelier Cellar Assistant Modal */}
+      <SommelierAssistantModal
+        isOpen={isSommelierOpen}
+        onClose={() => setIsSommelierOpen(false)}
+        bottles={bottles}
+        onSelectBottle={(bottle) => {
+          setIsSommelierOpen(false);
+          setSelectedBottleForDetail(bottle);
         }}
       />
 
