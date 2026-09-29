@@ -34,6 +34,7 @@ import { ProfileView } from './components/ProfileView';
 import { ExploreView } from './components/ExploreView';
 import { WineGridCard } from './components/WineGridCard';
 import { WineDetailModal } from './components/WineDetailModal';
+import { GrapeDetailModal } from './components/GrapeDetailModal';
 import { SommelierAssistantModal } from './components/SommelierAssistantModal';
 
 // --- Configuration ---
@@ -309,13 +310,17 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ title, message, o
 
 interface GrapeCardProps {
   grape: GrapeVariety;
+  onSelect: (grape: GrapeVariety) => void;
   onEdit: (grape: GrapeVariety) => void;
   onDelete: (id: string) => void;
   isComparing: boolean;
   onToggleCompare: (id: string) => void;
 }
 
-const GrapeCard: React.FC<GrapeCardProps> = ({ grape, onEdit, onDelete, isComparing, onToggleCompare }) => {
+const GrapeCard: React.FC<GrapeCardProps> = ({ grape, onSelect, onEdit, onDelete, isComparing, onToggleCompare }) => {
+  const isRed = grape.type === 'Red';
+  const topLocations = (grape.locations || []).slice(0, 2);
+
   return (
     <motion.div
       variants={cardVariants}
@@ -325,106 +330,112 @@ const GrapeCard: React.FC<GrapeCardProps> = ({ grape, onEdit, onDelete, isCompar
       whileHover={{ scale: 1.01, transition: { duration: 0.15, ease: "easeOut" } }}
       whileTap={{ scale: 0.99 }}
       style={{ willChange: "transform, opacity" }}
-      className={`bg-white border border-[#EBE7DF] hover:border-[#D6CFBF] p-6 flex flex-col h-full group relative transition-all duration-200 ease-out rounded-2xl shadow-[0_2px_12px_rgba(28,25,23,0.04)] hover:shadow-[0_6px_24px_rgba(28,25,23,0.08)] ${grape.type === 'Red' ? 'border-l-4 border-l-[#800020]' : 'border-l-4 border-l-[#CA8A04]'}`}
+      className={`bg-white border border-[#EBE7DF] hover:border-[#D6CFBF] p-4 sm:p-5 flex flex-col justify-between group relative transition-all duration-200 ease-out rounded-2xl shadow-[0_2px_12px_rgba(28,25,23,0.04)] hover:shadow-[0_6px_24px_rgba(28,25,23,0.08)] ${
+        isRed ? 'border-l-4 border-l-[#800020]' : 'border-l-4 border-l-[#CA8A04]'
+      }`}
     >
-      <div className="flex justify-between items-start mb-5">
-        <div className="flex items-center gap-2.5">
-          <button 
-            onClick={() => onToggleCompare(grape.id)}
-            className={`w-7 h-7 rounded-lg border flex items-center justify-center transition-all cursor-pointer ${
-              isComparing 
-                ? 'bg-[#722F37] text-white border-[#722F37] shadow-sm' 
-                : 'border-[#E5E0D8] bg-[#F7F5F0] hover:bg-[#EBE7DF] text-stone-600 hover:text-stone-900'
-            }`}
-            title={isComparing ? 'Remove from comparison' : 'Add to comparison'}
-          >
-            <Plus size={14} strokeWidth={2.5} className={isComparing ? 'transform rotate-45' : ''} />
-          </button>
-          <span className={`text-[10px] uppercase tracking-wider font-semibold px-2.5 py-0.5 rounded-full border ${grape.type === 'Red' ? 'bg-[#FDF2F4] text-[#800020] border-[#F5C2CB]' : 'bg-[#FEFCE8] text-[#854D0E] border-[#FEF08A]'}`}>
-            {grape.type}
-          </span>
-        </div>
-        <div className="flex space-x-1.5">
-          <button 
-            onClick={() => onEdit(grape)} 
-            className="p-2 rounded-lg border border-[#E5E0D8] bg-[#F7F5F0] hover:bg-[#EBE7DF] text-stone-700 hover:text-stone-900 transition-all cursor-pointer"
-            title="Edit Variety"
-          >
-            <Edit2 size={13} />
-          </button>
-          <button 
-            onClick={() => onDelete(grape.id)} 
-            className="p-2 rounded-lg border border-[#F5C2CB] bg-[#FDF2F4] hover:bg-[#FEE2E2] text-[#800020] transition-all cursor-pointer"
-            title="Delete Variety"
-          >
-            <Trash2 size={13} />
-          </button>
-        </div>
-      </div>
-
-      <div className="mb-5">
-        <h3 className="font-serif text-2xl font-bold text-stone-900 tracking-tight leading-tight">{grape.name}</h3>
-        <div className="flex flex-wrap gap-1.5 mt-2">
-          {(grape.locations || []).map((loc, i) => (
-            <span key={i} className="text-xs bg-[#F7F5F0] border border-[#EBE7DF] font-medium px-2 py-0.5 rounded-md text-stone-700">
-              {loc}
+      {/* Top Row: Name, Badge, Action Icons */}
+      <div>
+        <div className="flex justify-between items-start gap-2 mb-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <button 
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleCompare(grape.id);
+              }}
+              className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                isComparing 
+                  ? 'bg-[#722F37] text-white border-[#722F37] shadow-xs' 
+                  : 'border-[#E5E0D8] bg-[#F7F5F0] hover:bg-[#EBE7DF] text-stone-600 hover:text-stone-900'
+              }`}
+              title={isComparing ? 'Remove from comparison' : 'Add to comparison'}
+            >
+              <Plus size={12} strokeWidth={2.5} className={isComparing ? 'transform rotate-45' : ''} />
+            </button>
+            <span className={`text-[9px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full border shrink-0 ${
+              isRed ? 'bg-[#FDF2F4] text-[#800020] border-[#F5C2CB]' : 'bg-[#FEFCE8] text-[#854D0E] border-[#FEF08A]'
+            }`}>
+              {grape.type}
             </span>
-          ))}
+          </div>
+
+          <div className="flex items-center space-x-1 shrink-0">
+            <button 
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(grape);
+              }} 
+              className="p-1.5 rounded-lg border border-[#E5E0D8] bg-[#F7F5F0] hover:bg-[#EBE7DF] text-stone-700 hover:text-stone-900 transition-all cursor-pointer"
+              title="Edit Variety"
+            >
+              <Edit2 size={12} />
+            </button>
+            <button 
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(grape.id);
+              }} 
+              className="p-1.5 rounded-lg border border-[#F5C2CB] bg-[#FDF2F4] hover:bg-[#FEE2E2] text-[#800020] transition-all cursor-pointer"
+              title="Delete Variety"
+            >
+              <Trash2 size={12} />
+            </button>
+          </div>
+        </div>
+
+        {/* Grape Name */}
+        <h3 className="font-serif text-lg md:text-xl font-bold text-stone-900 tracking-tight leading-snug truncate">
+          {grape.name}
+        </h3>
+
+        {/* Middle: Top 2-3 origin regions as concise pills */}
+        <div className="flex flex-wrap items-center gap-1.5 my-2.5 min-h-[22px]">
+          {topLocations.length > 0 ? (
+            topLocations.map((loc, i) => (
+              <span key={i} className="text-[10px] bg-[#FAF8F5] border border-[#EBE7DF] font-medium px-2 py-0.5 rounded-md text-stone-700 truncate max-w-[150px]">
+                {loc}
+              </span>
+            ))
+          ) : (
+            <span className="text-[10px] text-stone-400 italic">Global Distribution</span>
+          )}
+          {(grape.locations || []).length > 2 && (
+            <span className="text-[9px] text-stone-500 font-medium">
+              +{grape.locations!.length - 2} more
+            </span>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 mb-5 p-3.5 bg-[#FAF8F3] border border-[#EBE7DF] rounded-xl">
-        <div className="space-y-0.5">
-          <p className="text-[9px] text-stone-400 uppercase tracking-wider font-semibold">Skin</p>
-          <p className="text-xs font-semibold text-stone-800">{grape.skin || '—'}</p>
+      {/* Bottom Row: Compact Horizontal Metric Bar & View Details Action */}
+      <div className="space-y-2.5 pt-2 border-t border-[#F2EFE9]">
+        <div className="grid grid-cols-3 gap-1 bg-[#FAF8F5] p-1.5 rounded-xl border border-[#EBE7DF] text-center">
+          <div className="space-y-0.5">
+            <p className="text-[8px] text-stone-400 uppercase tracking-wider font-bold">Body</p>
+            <p className="text-[10px] font-bold text-stone-800 truncate">{grape.body || 'Medium'}</p>
+          </div>
+          <div className="space-y-0.5 border-x border-[#EBE7DF]">
+            <p className="text-[8px] text-stone-400 uppercase tracking-wider font-bold">Acidity</p>
+            <p className="text-[10px] font-bold text-stone-800 truncate">{grape.acidity || 'Med+'}</p>
+          </div>
+          <div className="space-y-0.5">
+            <p className="text-[8px] text-stone-400 uppercase tracking-wider font-bold">Tannin</p>
+            <p className="text-[10px] font-bold text-stone-800 truncate">{grape.tannin || (isRed ? 'Medium' : 'None')}</p>
+          </div>
         </div>
-        <div className="space-y-0.5">
-          <p className="text-[9px] text-stone-400 uppercase tracking-wider font-semibold">Body</p>
-          <p className="text-xs font-semibold text-stone-800">{grape.body || '—'}</p>
-        </div>
-        <div className="space-y-0.5">
-          <p className="text-[9px] text-stone-400 uppercase tracking-wider font-semibold">Acidity</p>
-          <p className="text-xs font-semibold text-stone-800">{grape.acidity || '—'}</p>
-        </div>
-        <div className="space-y-0.5">
-          <p className="text-[9px] text-stone-400 uppercase tracking-wider font-semibold">Tannin</p>
-          <p className="text-xs font-semibold text-stone-800">{grape.tannin || '—'}</p>
-        </div>
-      </div>
 
-      <div className="space-y-3 flex-1 text-stone-700">
-        {grape.aromaFlavor && (
-          <div>
-            <p className="text-[9px] text-stone-400 uppercase tracking-wider font-semibold mb-0.5">Aroma & Flavor</p>
-            <p className="text-xs font-normal italic text-stone-700 line-clamp-2 leading-relaxed">{grape.aromaFlavor}</p>
-          </div>
-        )}
-        {grape.otherNotes && (
-          <div>
-            <p className="text-[9px] text-stone-400 uppercase tracking-wider font-semibold mb-0.5">Other Notes</p>
-            <p className="text-xs font-normal text-stone-500 line-clamp-2 leading-relaxed">{grape.otherNotes}</p>
-          </div>
-        )}
-        {Array.isArray(grape.foodPairing) && grape.foodPairing.length > 0 && (
-          <div>
-            <p className="text-[9px] text-stone-400 uppercase tracking-wider font-semibold mb-1">Food Pairing</p>
-            <div className="flex flex-wrap gap-1">
-              {grape.foodPairing.map((fp, i) => (
-                <span key={i} className="text-[10px] bg-[#FDF2F4] border border-[#F5C2CB] text-[#800020] px-2 py-0.5 rounded-md font-medium">
-                  {fp}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+        <button 
+          type="button"
+          onClick={() => onSelect(grape)}
+          className="w-full py-1.5 px-3 bg-[#F7F5F0] hover:bg-[#722F37] hover:text-white border border-[#E5E0D8] rounded-xl text-stone-800 font-semibold text-[11px] tracking-wider uppercase transition-all duration-200 cursor-pointer flex items-center justify-center gap-1 group/btn"
+        >
+          <span>View Details</span>
+          <ChevronRight size={13} className="group-hover/btn:translate-x-0.5 transition-transform" />
+        </button>
       </div>
-
-      <button 
-        onClick={() => onEdit(grape)}
-        className="mt-6 w-full py-2.5 bg-[#F7F5F0] hover:bg-[#722F37] hover:text-white border border-[#E5E0D8] rounded-xl text-stone-800 font-medium text-xs tracking-wider transition-all duration-200 cursor-pointer"
-      >
-        View Details
-      </button>
     </motion.div>
   );
 };
@@ -2411,6 +2422,7 @@ export default function App() {
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedBottleForDetail, setSelectedBottleForDetail] = useState<WineBottle | null>(null);
+  const [selectedGrapeForDetail, setSelectedGrapeForDetail] = useState<GrapeVariety | null>(null);
 
   const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 100000 });
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
@@ -2429,14 +2441,14 @@ export default function App() {
 
   // Prevent background scrolling while modal or sheet is open
   useEffect(() => {
-    if (isFormOpen || isGrapeFormOpen || itemToDelete || selectedBottleForDetail || isSommelierOpen) {
+    if (isFormOpen || isGrapeFormOpen || itemToDelete || selectedBottleForDetail || selectedGrapeForDetail || isSommelierOpen) {
       const prevOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       return () => {
         document.body.style.overflow = prevOverflow;
       };
     }
-  }, [isFormOpen, isGrapeFormOpen, itemToDelete, selectedBottleForDetail]);
+  }, [isFormOpen, isGrapeFormOpen, itemToDelete, selectedBottleForDetail, selectedGrapeForDetail, isSommelierOpen]);
 
   // AI Wine Tutor States
   const [quizQuestion, setQuizQuestion] = useState<QuizQuestion | null>(null);
@@ -3829,6 +3841,7 @@ export default function App() {
                 <GrapeCard
                   key={grape.id}
                   grape={grape}
+                  onSelect={(g) => setSelectedGrapeForDetail(g)}
                   onEdit={(g) => {
                     setEditingGrape(g);
                     setIsGrapeFormOpen(true);
@@ -3994,6 +4007,18 @@ export default function App() {
         onDelete={(id) => {
           setSelectedBottleForDetail(null);
           handleDeleteBottle(id);
+        }}
+      />
+
+      {/* Grape Sensory Dossier Inspection Modal */}
+      <GrapeDetailModal
+        grape={selectedGrapeForDetail}
+        isOpen={!!selectedGrapeForDetail}
+        onClose={() => setSelectedGrapeForDetail(null)}
+        onEdit={(grape) => {
+          setSelectedGrapeForDetail(null);
+          setEditingGrape(grape);
+          setIsGrapeFormOpen(true);
         }}
       />
 

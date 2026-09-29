@@ -58,6 +58,20 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   onSelectBottle,
   onOpenSommelierChat,
 }) => {
+  const [grapeTypeFilter, setGrapeTypeFilter] = React.useState<'ALL' | 'Red' | 'White'>('ALL');
+
+  const redGrapesCount = React.useMemo(() => grapes.filter(g => g.type === 'Red').length, [grapes]);
+  const whiteGrapesCount = React.useMemo(() => grapes.filter(g => g.type === 'White').length, [grapes]);
+  const totalGrapesCount = grapes.length;
+
+  const displayedGrapes = React.useMemo(() => {
+    return filteredGrapes.filter(g => {
+      if (grapeTypeFilter === 'Red') return g.type === 'Red';
+      if (grapeTypeFilter === 'White') return g.type === 'White';
+      return true;
+    });
+  }, [filteredGrapes, grapeTypeFilter]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -130,25 +144,96 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
 
       {/* SubTab 2: Grape Varieties Encyclopedia */}
       {activeSubTab === 'grapes' && (
-        <div className="space-y-6">
-          {/* Header Controls */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-stone-500">
-                {grapes.length} Varieties Documented
-              </span>
+        <div className="space-y-5">
+          {/* Category Filter Pills (ALL / RED / WHITE) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 md:p-3.5 rounded-2xl border border-[#EBE7DF] shadow-xs">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scroll-hide">
+              <button
+                type="button"
+                onClick={() => setGrapeTypeFilter('ALL')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs uppercase tracking-wider font-bold transition-all cursor-pointer whitespace-nowrap border shrink-0 ${
+                  grapeTypeFilter === 'ALL'
+                    ? 'bg-[#722F37] text-white border-[#722F37] shadow-xs'
+                    : 'bg-[#FAF8F5] text-stone-700 border-[#E5E0D8] hover:bg-[#F2EFE9]'
+                }`}
+              >
+                <span>ALL</span>
+                <span className={`px-2 py-0.5 text-[10px] rounded-full font-mono ${
+                  grapeTypeFilter === 'ALL' ? 'bg-white/20 text-white' : 'bg-stone-200 text-stone-700'
+                }`}>
+                  {totalGrapesCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setGrapeTypeFilter('Red')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs uppercase tracking-wider font-bold transition-all cursor-pointer whitespace-nowrap border shrink-0 ${
+                  grapeTypeFilter === 'Red'
+                    ? 'bg-[#800020] text-white border-[#800020] shadow-xs'
+                    : 'bg-[#FDF2F4] text-[#800020] border-[#F5C2CB] hover:bg-[#FCE7EB]'
+                }`}
+              >
+                <span>🍷 RED GRAPES</span>
+                <span className={`px-2 py-0.5 text-[10px] rounded-full font-mono ${
+                  grapeTypeFilter === 'Red' ? 'bg-white/20 text-white' : 'bg-[#F5C2CB] text-[#800020]'
+                }`}>
+                  {redGrapesCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setGrapeTypeFilter('White')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs uppercase tracking-wider font-bold transition-all cursor-pointer whitespace-nowrap border shrink-0 ${
+                  grapeTypeFilter === 'White'
+                    ? 'bg-[#CA8A04] text-white border-[#CA8A04] shadow-xs'
+                    : 'bg-[#FEFCE8] text-[#854D0E] border-[#FEF08A] hover:bg-[#FEF9C3]'
+                }`}
+              >
+                <span>🥂 WHITE GRAPES</span>
+                <span className={`px-2 py-0.5 text-[10px] rounded-full font-mono ${
+                  grapeTypeFilter === 'White' ? 'bg-white/20 text-white' : 'bg-[#FEF08A] text-[#854D0E]'
+                }`}>
+                  {whiteGrapesCount}
+                </span>
+              </button>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+              <span className="text-[11px] uppercase font-bold text-stone-400 font-mono tracking-wider">
+                {displayedGrapes.length} of {totalGrapesCount} Varietals
+              </span>
+            </div>
+          </div>
+
+          {/* Search Bar & Secondary Controls (Sort + Register) */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            {/* Search */}
+            <div className="relative group flex-1 max-w-md">
+              <Search
+                size={15}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 group-focus-within:text-[#722F37] transition-colors"
+              />
+              <input
+                type="text"
+                placeholder="Search grape varieties, regions, flavors..."
+                value={grapeSearchQuery}
+                onChange={(e) => onGrapeSearchChange(e.target.value)}
+                className="w-full bg-white border border-[#EBE7DF] pl-9 pr-3 py-2.5 text-xs rounded-xl text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-[#722F37] transition-all shadow-xs"
+              />
+            </div>
+
+            <div className="flex items-center gap-2.5 shrink-0 justify-between sm:justify-end">
               {/* Sort pills */}
-              <div className="flex items-center gap-1 p-1 bg-white border border-[#EBE7DF] rounded-xl shadow-sm">
+              <div className="flex items-center gap-1 p-1 bg-white border border-[#EBE7DF] rounded-xl shadow-xs">
                 {(['newest', 'name', 'type'] as const).map((opt) => (
                   <button
                     key={opt}
                     onClick={() => onSortByGrapesChange(opt)}
                     className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
                       sortByGrapes === opt
-                        ? 'bg-[#722F37] text-white shadow-sm font-bold'
+                        ? 'bg-[#722F37] text-white shadow-xs font-bold'
                         : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50'
                     }`}
                   >
@@ -157,24 +242,10 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 ))}
               </div>
 
-              {/* Search */}
-              <div className="relative group min-w-[200px]">
-                <Search
-                  size={15}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 group-focus-within:text-[#722F37] transition-colors"
-                />
-                <input
-                  type="text"
-                  placeholder="Search varietals..."
-                  value={grapeSearchQuery}
-                  onChange={(e) => onGrapeSearchChange(e.target.value)}
-                  className="w-full bg-white border border-[#EBE7DF] pl-9 pr-3 py-2 text-xs rounded-xl text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-[#722F37] transition-all shadow-sm"
-                />
-              </div>
-
               <button
+                type="button"
                 onClick={onOpenAddGrape}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-[#722F37] hover:bg-[#5c242c] text-white rounded-xl text-xs font-semibold uppercase tracking-wider transition-all shadow-sm active:scale-[0.98] cursor-pointer"
+                className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#722F37] hover:bg-[#5c242c] text-white rounded-xl text-xs font-semibold uppercase tracking-wider transition-all shadow-xs active:scale-[0.98] cursor-pointer"
               >
                 <Plus size={14} />
                 <span>Register Variety</span>
@@ -183,19 +254,21 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           </div>
 
           {/* Grapes Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredGrapes.map((grape) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {displayedGrapes.map((grape) => (
               <React.Fragment key={grape.id}>
                 {renderGrapeCard(grape)}
               </React.Fragment>
             ))}
 
-            {filteredGrapes.length === 0 && (
-              <div className="col-span-full py-16 bg-white border border-dashed border-[#EBE7DF] rounded-2xl flex flex-col items-center justify-center text-center p-8 shadow-sm">
+            {displayedGrapes.length === 0 && (
+              <div className="col-span-full py-16 bg-white border border-dashed border-[#EBE7DF] rounded-3xl flex flex-col items-center justify-center text-center p-8 shadow-xs">
                 <FlaskConical size={36} className="text-stone-300 mb-3" />
-                <h4 className="font-serif text-lg font-bold text-stone-800">No Varieties Match</h4>
+                <h4 className="font-serif text-lg font-bold text-stone-800">No Varieties Match Filter</h4>
                 <p className="text-xs text-stone-500 mt-1 max-w-sm">
-                  Adjust your search or register a new grape variety to expand your encyclopedia.
+                  {grapeTypeFilter !== 'ALL' 
+                    ? `There are no ${grapeTypeFilter.toLowerCase()} grape varieties matching your search criteria.` 
+                    : 'Adjust your search or register a new grape variety to expand your encyclopedia.'}
                 </p>
               </div>
             )}
