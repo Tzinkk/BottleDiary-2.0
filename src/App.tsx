@@ -23,7 +23,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { collection, query, where, doc, setDoc, deleteDoc, updateDoc, limit, getDocs } from 'firebase/firestore';
 import { auth, db, signInWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
 import { WineBottle, WineType, SortOption, GrapeVariety, QuizQuestion, WINE_TYPES, WINE_TYPE_CONFIG } from './types';
-import { analyzeWineLabel, generateQuizQuestion, refineTastingNotes, generateTastingNotesForBottle } from './services/aiService';
+import { analyzeWineLabel, generateQuizQuestion, refineTastingNotes, generateTastingNotesForBottle, fetchGrapeProfile } from './services/aiService';
 import { WorldMap } from './components/WorldMap';
 import { TopHeader } from './components/TopHeader';
 import { DashboardGrid } from './components/DashboardGrid';
@@ -452,6 +452,47 @@ const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
 
   const [locationInput, setLocationInput] = useState('');
   const [pairingInput, setPairingInput] = useState('');
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
+  const [autoFillWarning, setAutoFillWarning] = useState<string | null>(null);
+  const [autoFillSuccess, setAutoFillSuccess] = useState(false);
+
+  const handleAIAutoFill = async () => {
+    if (!formData.name.trim()) {
+      setAutoFillWarning("Please enter a grape variety name first");
+      setTimeout(() => setAutoFillWarning(null), 4000);
+      return;
+    }
+
+    setIsAutoFilling(true);
+    setAutoFillWarning(null);
+    setAutoFillSuccess(false);
+
+    try {
+      const profile = await fetchGrapeProfile(formData.name.trim());
+      setFormData(prev => ({
+        ...prev,
+        type: profile.type || prev.type,
+        skin: profile.skin || prev.skin,
+        body: profile.body || prev.body,
+        locations: profile.locations && profile.locations.length > 0 ? profile.locations : prev.locations,
+        acidity: profile.acidity || prev.acidity,
+        tannin: profile.tannin || prev.tannin,
+        sweetness: profile.sweetness || prev.sweetness,
+        aromaFlavor: profile.aromaFlavor || prev.aromaFlavor,
+        otherNotes: profile.otherNotes || prev.otherNotes,
+        foodPairing: profile.foodPairing && profile.foodPairing.length > 0 ? profile.foodPairing : prev.foodPairing,
+        additionalNotes: profile.additionalNotes || prev.additionalNotes,
+      }));
+      setAutoFillSuccess(true);
+      setTimeout(() => setAutoFillSuccess(false), 3500);
+    } catch (err: any) {
+      console.error("Auto-fill grape error:", err);
+      setAutoFillWarning(err?.message || "Failed to auto-generate grape profile. Please try again.");
+      setTimeout(() => setAutoFillWarning(null), 5000);
+    } finally {
+      setIsAutoFilling(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -502,14 +543,41 @@ const GrapeForm = ({ grape, onSave, onClose }: GrapeFormProps) => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Variety Name</label>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Variety Name</label>
+              <button
+                type="button"
+                disabled={isAutoFilling}
+                onClick={handleAIAutoFill}
+                className="px-3 py-1 rounded-xl text-xs font-semibold tracking-wide border border-[#722F37] text-[#722F37] hover:bg-[#722F37] hover:text-white bg-white transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group active:scale-95"
+                title="Auto-fill grape profile with authentic sommelier & ampelography data"
+              >
+                {isAutoFilling ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin text-[#722F37] group-hover:text-white" />
+                    <span>Generating grape profile...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={13} className="text-[#722F37] group-hover:text-white" />
+                    <span>{autoFillSuccess ? '✨ Profile Auto-Filled!' : '✨ Auto-Fill with AI'}</span>
+                  </>
+                )}
+              </button>
+            </div>
             <input
               required value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
               className="w-full bg-white border border-[#E5E0D8] rounded-xl px-4 py-2.5 text-stone-900 font-semibold text-lg focus:outline-none focus:border-[#722F37] focus:ring-1 focus:ring-[#722F37]/30 transition-all placeholder:text-stone-400"
-              placeholder="e.g. Pinot Noir"
+              placeholder="e.g. Pinot Noir, Nebbiolo, Riesling"
             />
+            {autoFillWarning && (
+              <div className="p-2.5 bg-[#FDF2F4] border border-[#F5C2CB] rounded-xl text-xs text-[#800020] font-medium flex items-center gap-1.5">
+                <Info size={14} className="shrink-0" />
+                <span>{autoFillWarning}</span>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3">

@@ -80,10 +80,9 @@ async function generateWithRetryAndFallback(
   }
 ) {
   const modelsToTry = [
-    options.model || "gemini-3.5-flash",
+    options.model || "gemini-3.8-flash",
     "gemini-3.1-flash-lite",
     "gemini-2.5-flash",
-    "gemini-2.0-flash-lite-001",
   ];
   const uniqueModels = Array.from(new Set(modelsToTry));
 
@@ -164,7 +163,7 @@ Be extremely descriptive and precise with the analytical profile fields:
 - additionalNote: A short, elegant note with serving recommendation, potential cellaring time, or background details.`;
 
   const response = await generateWithRetryAndFallback(ai, {
-    model: "gemini-3.5-flash",
+    model: "gemini-3.8-flash",
     contents: [
       "Identify this wine label details. Provide rich tasting notes and food pairings.",
       {
@@ -243,7 +242,7 @@ export async function generateQuizQuestion(): Promise<QuizQuestion> {
   const ai = getAIClient();
 
   const response = await generateWithRetryAndFallback(ai, {
-    model: "gemini-3.5-flash",
+    model: "gemini-3.8-flash",
     contents: "Generate a highly engaging, unique, and informative multiple choice question about wine. Topics can include wine history, grape varieties, regions, production techniques, or food pairings. Ensure the options are plausible but only one is correct. Provide a helpful, educational 1-2 sentence 'Did you know?' style explanation.",
     config: {
       systemInstruction: "You are an expert sommelier and dynamic wine quiz master. Your task is to generate one high-quality multiple choice question about wine in raw JSON format.",
@@ -287,7 +286,7 @@ export async function getWineRecommendations(bottles: WineBottle[]): Promise<Rec
     )}, suggest 3 wine recommendations that I would love. For each recommendation, provide name, producer, type, region, country, grape varieties, and a concise reason.`;
 
     const response = await generateWithRetryAndFallback(ai, {
-      model: "gemini-3.5-flash",
+      model: "gemini-3.8-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -328,7 +327,7 @@ export async function getWineRecommendations(bottles: WineBottle[]): Promise<Rec
 }
 
 /**
- * Rewrites raw bullet-point or rough tasting notes into a professional, elegant paragraph using gemini-3.5-flash.
+ * Rewrites raw bullet-point or rough tasting notes into a professional, elegant paragraph using gemini-3.8-flash.
  */
 export async function refineTastingNotes(rawNotes: string): Promise<string> {
   if (!rawNotes || !rawNotes.trim()) {
@@ -342,7 +341,7 @@ Rough notes:
 ${rawNotes}`;
 
   const response = await generateWithRetryAndFallback(ai, {
-    model: "gemini-3.5-flash",
+    model: "gemini-3.8-flash",
     contents: prompt,
   });
 
@@ -355,7 +354,7 @@ ${rawNotes}`;
 }
 
 /**
- * Generates tasting notes and analytical profile for a bottle that has no detailed notes using gemini-3.5-flash.
+ * Generates tasting notes and analytical profile for a bottle that has no detailed notes using gemini-3.8-flash.
  */
 export async function generateTastingNotesForBottle(bottle: WineBottle): Promise<Partial<WineBottle>> {
   console.log(`[AI Service] Generating tasting notes for ${bottle.name}...`);
@@ -370,7 +369,7 @@ export async function generateTastingNotesForBottle(bottle: WineBottle): Promise
   - Grape Varieties: ${bottle.grape ? (Array.isArray(bottle.grape) ? bottle.grape.join(', ') : bottle.grape) : 'Unknown'}`;
 
   const response = await generateWithRetryAndFallback(ai, {
-    model: "gemini-3.5-flash",
+    model: "gemini-3.8-flash",
     contents: prompt,
     config: {
       systemInstruction: "You are an expert sommelier. Generate detailed wine tasting profiles in raw JSON format.",
@@ -405,3 +404,184 @@ export async function generateTastingNotesForBottle(bottle: WineBottle): Promise
 
   return JSON.parse(cleanText);
 }
+
+export interface AIGrapeProfile {
+  type: 'Red' | 'White';
+  skin: string;
+  body: string;
+  locations: string[];
+  acidity: string;
+  tannin: string;
+  sweetness: string;
+  aromaFlavor: string;
+  otherNotes: string;
+  foodPairing: string[];
+  additionalNotes?: string;
+}
+
+/**
+ * Auto-generates authentic oenological data for a grape variety using Gemini API.
+ */
+export async function fetchGrapeProfile(varietyName: string): Promise<AIGrapeProfile> {
+  if (!varietyName || !varietyName.trim()) {
+    throw new Error("Please enter a grape variety name first");
+  }
+
+  console.log(`[AI Service] Generating grape profile for "${varietyName}"...`);
+  const ai = getAIClient();
+
+  const prompt = `You are a Master of Wine and ampelographer. Provide authentic, precise oenological and viticultural data for the grape variety "${varietyName.trim()}".
+Return the data in structured JSON matching this schema:
+- type: Either "Red" or "White" (or default to the standard categorization).
+- skin: Thickness and characteristics (e.g. "Thin, delicate skin" or "Thick, dark-blue skin").
+- body: Typical body (e.g. "Light-Medium", "Medium-Full", "Full").
+- locations: Array of prominent regions/countries where this grape thrives (formatted as "Region / Country", e.g., ["Burgundy / France", "Oregon / United States"]).
+- acidity: Acidity level (e.g., "High", "Medium-High", "Medium", "Low").
+- tannin: Tannin level (e.g., "Very High", "High", "Medium", "Low", "None").
+- sweetness: Typical wine sweetness style (e.g., "Dry", "Off-Dry", "Sweet").
+- aromaFlavor: Detailed sensory notes (primary fruit, florals, earth, herbs, spice).
+- otherNotes: Viticultural characteristics, aging potential, sensitivity to terroir.
+- foodPairing: Array of 3-4 classic food pairing dishes.
+- additionalNotes: Historical origin, genetic parentage, or interesting sommelier trivia.`;
+
+  const response = await generateWithRetryAndFallback(ai, {
+    model: "gemini-3.8-flash",
+    contents: prompt,
+    config: {
+      systemInstruction: "You are a master ampelographer and sommelier. Generate structured grape variety profile data in raw JSON format.",
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          type: { type: Type.STRING, enum: ["Red", "White"] },
+          skin: { type: Type.STRING },
+          body: { type: Type.STRING },
+          locations: { type: Type.ARRAY, items: { type: Type.STRING } },
+          acidity: { type: Type.STRING },
+          tannin: { type: Type.STRING },
+          sweetness: { type: Type.STRING },
+          aromaFlavor: { type: Type.STRING },
+          otherNotes: { type: Type.STRING },
+          foodPairing: { type: Type.ARRAY, items: { type: Type.STRING } },
+          additionalNotes: { type: Type.STRING },
+        },
+        required: ["type", "skin", "body", "locations", "acidity", "tannin", "sweetness", "aromaFlavor", "otherNotes", "foodPairing"],
+      },
+    },
+  });
+
+  const resText = response.text;
+  if (!resText) {
+    throw new Error("No response from AI Sommelier");
+  }
+
+  let cleaned = resText.trim();
+  if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  }
+
+  const parsed = JSON.parse(cleaned);
+  return {
+    type: parsed.type === "White" ? "White" : "Red",
+    skin: parsed.skin || "",
+    body: parsed.body || "",
+    locations: Array.isArray(parsed.locations) ? parsed.locations : [],
+    acidity: parsed.acidity || "",
+    tannin: parsed.tannin || "",
+    sweetness: parsed.sweetness || "Dry",
+    aromaFlavor: parsed.aromaFlavor || "",
+    otherNotes: parsed.otherNotes || "",
+    foodPairing: Array.isArray(parsed.foodPairing) ? parsed.foodPairing : [],
+    additionalNotes: parsed.additionalNotes || "",
+  };
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  recommendedBottles?: string[];
+  timestamp: number;
+}
+
+/**
+ * Context-aware AI Sommelier cellar assistant that provides pairing & recommendation advice
+ * grounded in the user's specific collection of bottles.
+ */
+export async function askSommelierAssistant(
+  userQuery: string,
+  bottles: WineBottle[],
+  history: { role: 'user' | 'assistant'; content: string }[] = []
+): Promise<{ text: string; recommendedBottles?: string[] }> {
+  if (!userQuery.trim()) {
+    throw new Error("Please enter your question for the Sommelier.");
+  }
+
+  const ai = getAIClient();
+
+  // Create an inventory summary of the user's private reserve
+  const inventorySummary = bottles.map((b, idx) => {
+    return `${idx + 1}. "${b.name}" | Producer: ${b.producer} | Vintage: ${b.year || 'NV'} | Classification: ${b.type} | Region: ${b.region}, ${b.country} | Grapes: ${(b.grape || []).join(', ')} | Price: ฿${(b.price || 0).toLocaleString()} | Notes: ${b.tastingNotes ? b.tastingNotes.slice(0, 160) : 'None'}`;
+  }).join('\n');
+
+  const systemInstruction = `You are a distinguished, knowledgeable Master Sommelier and Private Cellar Curator.
+The user has a private wine cellar with the following bottles currently in stock:
+
+--- CURRENT USER CELLAR INVENTORY (${bottles.length} bottles) ---
+${inventorySummary}
+---------------------------------------------------------------
+
+Your role:
+1. Provide elegant, authentic, highly perceptive sommelier advice for wine pairings, drinking order, peak maturity, vintage context, or style comparisons.
+2. Whenever the user asks for what to drink, food pairing, or specific recommendations, ALWAYS check their cellar inventory first and prioritize recommending SPECIFIC bottles that exist in their collection.
+3. Clearly mention the bottle name, producer, vintage, and why it matches the request (tannin structure, acidity, terroir, aromatic profile).
+4. If appropriate, recommend 1 to 3 specific bottles from their cellar by their exact names.
+5. Keep your tone warm, sophisticated, welcoming, and knowledgeable (concise yet insightful).
+
+At the very end of your response, if you recommended any specific bottles from the user's cellar, append a JSON block on a new line with the exact bottle names:
+<!--RECOMMENDED_BOTTLES: ["Exact Bottle Name 1", "Exact Bottle Name 2"]-->`;
+
+  const conversationContents: any[] = [];
+  
+  // Add previous conversational context (up to last 6 messages)
+  const recentHistory = history.slice(-6);
+  for (const msg of recentHistory) {
+    conversationContents.push({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg.content }]
+    });
+  }
+
+  // Add the current user query
+  conversationContents.push({
+    role: 'user',
+    parts: [{ text: userQuery }]
+  });
+
+  const response = await generateWithRetryAndFallback(ai, {
+    model: "gemini-3.8-flash",
+    contents: conversationContents,
+    config: {
+      systemInstruction,
+      temperature: 0.7,
+    }
+  });
+
+  let rawText = response.text || "I am currently unable to review the cellar inventory. Please try asking again.";
+  let recommendedBottles: string[] | undefined = undefined;
+
+  // Extract recommended bottle names if present
+  const match = rawText.match(/<!--RECOMMENDED_BOTTLES:\s*(\[.*?\])-->/s);
+  if (match) {
+    try {
+      recommendedBottles = JSON.parse(match[1]);
+    } catch {}
+    rawText = rawText.replace(/<!--RECOMMENDED_BOTTLES:\s*\[.*?\]-->/s, '').trim();
+  }
+
+  return {
+    text: rawText,
+    recommendedBottles
+  };
+}
+

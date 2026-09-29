@@ -31,6 +31,7 @@ interface ExploreViewProps {
   onSelectAnswer: (option: string) => void;
   onFetchNewQuiz: () => void;
   onSelectBottle?: (bottle: WineBottle) => void;
+  onOpenSommelierChat?: () => void;
 }
 
 export const ExploreView: React.FC<ExploreViewProps> = ({
@@ -55,6 +56,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   onSelectAnswer,
   onFetchNewQuiz,
   onSelectBottle,
+  onOpenSommelierChat,
 }) => {
   return (
     <motion.div
@@ -201,9 +203,41 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
         </div>
       )}
 
-      {/* SubTab 3: AI Wine Tutor */}
+      {/* SubTab 3: AI Wine Tutor & Cellar Assistant */}
       {activeSubTab === 'tutor' && (
         <div className="space-y-6 max-w-3xl mx-auto">
+          {/* Sommelier Cellar Chat Assistant Banner */}
+          <div className="p-6 md:p-7 bg-gradient-to-br from-[#722F37] via-[#5E1E26] to-[#401217] text-white rounded-3xl shadow-lg relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+            <div className="space-y-2 relative z-10 max-w-lg">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase tracking-widest font-bold px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-200 border border-amber-300/30">
+                  ✨ Live Cellar Intelligence
+                </span>
+                <span className="text-xs text-stone-300">• {bottles.length} Bottles in Reserve</span>
+              </div>
+              <h3 className="text-2xl font-serif font-bold text-white tracking-tight">
+                AI Sommelier Cellar Assistant
+              </h3>
+              <p className="text-xs text-stone-200 leading-relaxed">
+                Consult your private sommelier for customized dinner pairings, tasting orders, and recommendations directly matching the bottles in your cellar.
+              </p>
+            </div>
+
+            <div className="relative z-10 shrink-0">
+              <button
+                type="button"
+                onClick={onOpenSommelierChat}
+                className="w-full sm:w-auto px-5 py-3 bg-white hover:bg-amber-50 text-[#722F37] font-semibold text-xs tracking-wider uppercase rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2 group font-serif"
+              >
+                <Sparkles size={16} className="text-amber-600 group-hover:rotate-12 transition-transform" />
+                <span>Ask Sommelier</span>
+                <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+
+            <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/5 rounded-full blur-2xl pointer-events-none" />
+          </div>
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 bg-white border border-[#EBE7DF] rounded-2xl shadow-sm">
             <div className="space-y-1">
               <span className="text-[10px] uppercase tracking-widest font-bold text-[#722F37]">
