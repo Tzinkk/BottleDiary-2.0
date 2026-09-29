@@ -41,31 +41,101 @@ function getAIClient(): GoogleGenAI {
 }
 
 /**
- * Converts imageUri (which might be a base64 data URI, blob URL, or remote URL) to base64.
+ * Fast client-side image compression to max dimension 1024px with JPEG quality 0.8
+ * Drastically reduces payload size for rapid 1-2 second scan responses.
+ */
+export async function compressImageForAI(imageSource: string | Blob | File): Promise<{ base64: string; mimeType: string; dataUrl: string }> {
+  return new Promise((resolve, reject) => {
+    let src = '';
+    let isCreatedBlob = false;
+    if (typeof imageSource === 'string') {
+      src = imageSource;
+    } else {
+      src = URL.createObjectURL(imageSource);
+      isCreatedBlob = true;
+    }
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
+        const MAX_SIZE = 1024;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height = Math.round((height * MAX_SIZE) / width);
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width = Math.round((width * MAX_SIZE) / height);
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          throw new Error('Canvas 2D context unavailable');
+        }
+
+        // Fill white background in case of transparent PNG/WebP
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        const base64 = dataUrl.split(',')[1] || '';
+        if (isCreatedBlob) URL.revokeObjectURL(src);
+        resolve({ base64, mimeType: 'image/jpeg', dataUrl });
+      } catch (err) {
+        if (isCreatedBlob) URL.revokeObjectURL(src);
+        reject(err);
+      }
+    };
+    img.onerror = () => {
+      if (isCreatedBlob) URL.revokeObjectURL(src);
+      // Fallback if image failed to load directly via src
+      reject(new Error('Failed to load image for compression'));
+    };
+    img.src = src;
+  });
+}
+
+/**
+ * Converts imageUri (base64, blob URL, or remote URL) to compressed base64.
  */
 async function imageUriToData(imageUri: string): Promise<{ base64: string; mimeType: string }> {
-  if (imageUri.startsWith("data:")) {
-    const parts = imageUri.split(",");
-    const base64 = parts[1] || "";
-    const match = imageUri.match(/^data:([^;]+);/);
-    const mimeType = match ? match[1] : "image/jpeg";
-    return { base64, mimeType };
-  }
-
-  // Handle blob URLs and remote URLs by fetching and converting to base64
-  const response = await fetch(imageUri);
-  const blob = await response.blob();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const dataUrl = reader.result as string;
-      const parts = dataUrl.split(",");
+  try {
+    const compressed = await compressImageForAI(imageUri);
+    return { base64: compressed.base64, mimeType: compressed.mimeType };
+  } catch (err) {
+    console.warn("[AI Service] Direct canvas compression fallback:", err);
+    if (imageUri.startsWith("data:")) {
+      const parts = imageUri.split(",");
       const base64 = parts[1] || "";
-      resolve({ base64, mimeType: blob.type || "image/jpeg" });
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+      const match = imageUri.match(/^data:([^;]+);/);
+      const mimeType = match ? match[1] : "image/jpeg";
+      return { base64, mimeType };
+    }
+
+    const response = await fetch(imageUri);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        const parts = dataUrl.split(",");
+        const base64 = parts[1] || "";
+        resolve({ base64, mimeType: blob.type || "image/jpeg" });
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
 }
 
 /**
@@ -80,9 +150,9 @@ async function generateWithRetryAndFallback(
   }
 ) {
   const modelsToTry = [
-    options.model || "gemini-3.8-flash",
+    options.model || "gemini-2.5-flash",
+    "gemini-3.8-flash",
     "gemini-3.1-flash-lite",
-    "gemini-2.5-flash",
   ];
   const uniqueModels = Array.from(new Set(modelsToTry));
 
@@ -130,11 +200,11 @@ async function generateWithRetryAndFallback(
 }
 
 /**
- * Analyzes the wine label image directly using Google Gen AI client.
+ * Analyzes the wine label image directly using Gemini 2.5 Flash with fast client-side compression.
  * @param imageUri base64 Data URI or blob/remote URL
  */
-export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBottle> & { mainTastingNotes?: string }> {
-  console.log("[AI Service] Scanning label directly with Gemini...");
+export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBottle> & { mainTastingNotes?: string; alcohol?: string }> {
+  console.log("[AI Service] Scanning label with Gemini 2.5 Flash OCR...");
   if (!imageUri || typeof imageUri !== "string") {
     console.error("[AI Service] Error: Invalid image URI provided to analyzeWineLabel.");
     throw new Error("Invalid image URI provided");
@@ -143,29 +213,31 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
   const { base64, mimeType } = await imageUriToData(imageUri);
   const ai = getAIClient();
 
-  const systemInstruction = `You are a professional sommelier. Analyze the wine label in the image and extract information into structured JSON.
-Be extremely descriptive and precise with the analytical profile fields:
-- wineName: The full, complete name of the wine.
-- producer: The estate, winery, or producer name.
-- vintage: The harvest year (e.g., '2020') or 'NV' if Non-Vintage.
-- region: The wine region (e.g., 'Napa Valley', 'Bordeaux').
-- grapeVarieties: List of grape varieties (e.g., ['Cabernet Sauvignon', 'Merlot']).
-- type: Guessed wine classification (Red, White, Rosé, Sparkling, Orange, Natural Red, Natural White, Pet Nat).
-- country: The country of origin.
-- appearance: Detailed appearance and color (e.g., color, robe, clarity, intensity).
-- aromatics: The Nose description (primary fruits, fermentation notes, herbs, etc.).
-- palate: Palate & Structure profile (body, acidity, tannins, alcohol, balance).
-- finish: The Finish description (length, persistence, final impressions).
-- foodPairings: Array of string suggestions based on the wine style.
-- winemakingPhilosophy: Winemaking approach or philosophy (e.g. organic, natural, biodynamic, oak aging, minimal intervention, wild yeast, etc.).
-- viticulture: Viticulture and vineyard details (e.g. organic/biodynamic farming, soil type, vine age, climate, elevation).
-- notes: The main summary/editorial note.
-- additionalNote: A short, elegant note with serving recommendation, potential cellaring time, or background details.`;
+  const systemInstruction = `You are an expert Sommelier OCR scanner. Analyze the wine bottle label carefully and extract authentic details in structured JSON:
+{
+  name: 'Full wine/château name (e.g., Chateau Grand Corbin)',
+  producer: 'Estate/Producer name',
+  vintage: 'Harvest year as a number or string (e.g. 2020)',
+  wineType: 'Red' | 'White' | 'Rosé' | 'Sparkling' | 'Natural Red' | 'Natural White' | 'Pet Nat' | 'Orange' | 'Sato' | 'Sake',
+  country: 'Country of origin (e.g. France)',
+  region: 'Appellation/Region (e.g. Saint-Émilion Grand Cru, Bordeaux)',
+  grapes: ['Grape 1', 'Grape 2'],
+  alcohol: 'ABV percentage',
+  tastingNotes: 'Brief extracted aromatic and palate notes',
+  appearance: 'Visual color and clarity',
+  nose: 'Primary aromatic bouquet',
+  palate: 'Palate structure, acidity, and tannins',
+  finish: 'Length and persistent finish',
+  foodPairing: ['Classic Pairing 1', 'Classic Pairing 2'],
+  winemakingPhilosophy: 'Winemaking philosophy (e.g. organic, biodynamic, oak aging)',
+  viticulture: 'Viticulture & terroir',
+  additionalNote: 'Sommelier cellar advice & serving temperature'
+}`;
 
   const response = await generateWithRetryAndFallback(ai, {
-    model: "gemini-3.8-flash",
+    model: "gemini-2.5-flash",
     contents: [
-      "Identify this wine label details. Provide rich tasting notes and food pairings.",
+      "Extract all wine label details into structured JSON.",
       {
         inlineData: {
           data: base64,
@@ -179,24 +251,25 @@ Be extremely descriptive and precise with the analytical profile fields:
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          wineName: { type: Type.STRING },
+          name: { type: Type.STRING },
           producer: { type: Type.STRING },
           vintage: { type: Type.STRING },
-          region: { type: Type.STRING },
-          grapeVarieties: { type: Type.ARRAY, items: { type: Type.STRING } },
-          type: { type: Type.STRING },
+          wineType: { type: Type.STRING },
           country: { type: Type.STRING },
+          region: { type: Type.STRING },
+          grapes: { type: Type.ARRAY, items: { type: Type.STRING } },
+          alcohol: { type: Type.STRING },
+          tastingNotes: { type: Type.STRING },
           appearance: { type: Type.STRING },
-          aromatics: { type: Type.STRING },
+          nose: { type: Type.STRING },
           palate: { type: Type.STRING },
           finish: { type: Type.STRING },
-          foodPairings: { type: Type.ARRAY, items: { type: Type.STRING } },
+          foodPairing: { type: Type.ARRAY, items: { type: Type.STRING } },
           winemakingPhilosophy: { type: Type.STRING },
           viticulture: { type: Type.STRING },
-          notes: { type: Type.STRING },
           additionalNote: { type: Type.STRING },
         },
-        required: ["wineName", "producer", "vintage", "region", "grapeVarieties", "notes"],
+        required: ["name", "producer", "vintage", "wineType", "country", "region", "tastingNotes"],
       },
     },
   });
@@ -213,24 +286,41 @@ Be extremely descriptive and precise with the analytical profile fields:
 
   const parsedData = JSON.parse(cleanText);
 
+  // Normalize wineType
+  const rawType = parsedData.wineType || parsedData.type || "Red";
+  const validTypes = ['Red', 'White', 'Rosé', 'Sparkling', 'Natural Red', 'Natural White', 'Pet Nat', 'Orange', 'Sato', 'Sake'];
+  const matchedType = validTypes.find(t => t.toLowerCase() === rawType.toLowerCase()) || 
+    (rawType.toLowerCase().includes('white') ? 'White' : 
+     rawType.toLowerCase().includes('sparkl') ? 'Sparkling' : 
+     rawType.toLowerCase().includes('ros') ? 'Rosé' : 
+     rawType.toLowerCase().includes('orange') ? 'Orange' : 
+     rawType.toLowerCase().includes('pet') ? 'Pet Nat' : 'Red');
+
+  const rawGrapes = parsedData.grapes || parsedData.grapeVarieties || parsedData.grape || [];
+  const grapesList = Array.isArray(rawGrapes) ? rawGrapes : (typeof rawGrapes === 'string' ? rawGrapes.split(',').map((s: string) => s.trim()) : []);
+
+  const rawPairings = parsedData.foodPairing || parsedData.foodPairings || [];
+  const pairingsList = Array.isArray(rawPairings) ? rawPairings : (typeof rawPairings === 'string' ? [rawPairings] : []);
+
   return {
-    name: parsedData.wineName || "",
+    name: parsedData.name || parsedData.wineName || "",
     producer: parsedData.producer || "",
-    year: parsedData.vintage ? String(parsedData.vintage) : "NV",
+    year: parsedData.vintage ? String(parsedData.vintage) : (parsedData.year ? String(parsedData.year) : "NV"),
     region: parsedData.region || "",
-    grape: parsedData.grapeVarieties || [],
-    tastingNotes: parsedData.notes || "",
-    type: parsedData.type || "Red",
     country: parsedData.country || "",
+    type: matchedType as any,
+    grape: grapesList,
+    tastingNotes: parsedData.tastingNotes || parsedData.notes || "",
     appearance: parsedData.appearance || "",
-    nose: parsedData.aromatics || "",
+    nose: parsedData.nose || parsedData.aromatics || "",
     palate: parsedData.palate || "",
     finish: parsedData.finish || "",
     winemakingPhilosophy: parsedData.winemakingPhilosophy || "",
     viticulture: parsedData.viticulture || "",
-    foodPairing: parsedData.foodPairings || [],
+    foodPairing: pairingsList,
     additionalNote: parsedData.additionalNote || "",
-    mainTastingNotes: parsedData.notes || "",
+    mainTastingNotes: parsedData.tastingNotes || parsedData.notes || "",
+    alcohol: parsedData.alcohol || "",
   };
 }
 

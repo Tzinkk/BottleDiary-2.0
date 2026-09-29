@@ -23,7 +23,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { collection, query, where, doc, setDoc, deleteDoc, updateDoc, limit, getDocs } from 'firebase/firestore';
 import { auth, db, signInWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
 import { WineBottle, WineType, SortOption, GrapeVariety, QuizQuestion, WINE_TYPES, WINE_TYPE_CONFIG } from './types';
-import { analyzeWineLabel, generateQuizQuestion, refineTastingNotes, generateTastingNotesForBottle, fetchGrapeProfile } from './services/aiService';
+import { analyzeWineLabel, generateQuizQuestion, refineTastingNotes, generateTastingNotesForBottle, fetchGrapeProfile, compressImageForAI } from './services/aiService';
 import { WorldMap } from './components/WorldMap';
 import { TopHeader } from './components/TopHeader';
 import { DashboardGrid } from './components/DashboardGrid';
@@ -1397,52 +1397,21 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     }
   };
 
-  // Helper to compress image for Firestore fallback (max 1MB)
-  const compressImage = async (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target?.result as string;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          
-          const MAX_DIM = 800; // Efficient size for mobile viewing
-          if (width > height) {
-            if (width > MAX_DIM) {
-              height *= MAX_DIM / width;
-              width = MAX_DIM;
-            }
-          } else {
-            if (height > MAX_DIM) {
-              width *= MAX_DIM / height;
-              height = MAX_DIM;
-            }
-          }
-          
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          
-          let quality = 0.6;
-          let dataUrl = canvas.toDataURL('image/jpeg', quality);
-          
-          // Ensure it's under 500KB to be safe for Firestore strings
-          while (dataUrl.length > 500000 && quality > 0.1) {
-            quality -= 0.1;
-            dataUrl = canvas.toDataURL('image/jpeg', quality);
-          }
-          
-          resolve(dataUrl);
-        };
-        img.onerror = (e) => reject(new Error("Image loading failed"));
-      };
-      reader.onerror = (e) => reject(new Error("File reading failed"));
-    });
+  // Fast client-side image compression: max 1024px, JPEG quality 0.8
+  const compressImage = async (file: File | Blob | string): Promise<string> => {
+    try {
+      const result = await compressImageForAI(file);
+      return result.dataUrl;
+    } catch (err) {
+      console.warn("Canvas compression error, using FileReader fallback:", err);
+      if (typeof file === 'string') return file;
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = (e) => reject(new Error("File reading failed"));
+        reader.readAsDataURL(file);
+      });
+    }
   };
 
   useEffect(() => {
@@ -1460,26 +1429,18 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     try {
       let targetUrl = imageUrl;
       
-      // If the URL is not a base64 data URI, and we have the raw file, use the compressed base64 of the file
-      if (!targetUrl.startsWith('data:') && lastSelectedFileRef.current) {
+      // If we have the raw file, generate fast compressed base64 (max 1024px, quality 0.8)
+      if (lastSelectedFileRef.current) {
         try {
           targetUrl = await compressImage(lastSelectedFileRef.current);
         } catch (compressErr) {
-          console.warn("Failed to compress image for scan, trying raw FileReader:", compressErr);
-          try {
-            targetUrl = await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result as string);
-              reader.onerror = () => reject(new Error("Failed to read file"));
-              reader.readAsDataURL(lastSelectedFileRef.current!);
-            });
-          } catch (readErr) {
-            console.error("Failed to read raw file as fallback:", readErr);
-          }
+          console.warn("Fast compression fallback:", compressErr);
         }
       }
 
       const analysis = await analyzeWineLabel(targetUrl);
+      
+      // Auto-populate all form fields from structured OCR extraction
       setFormData(prev => ({
         ...prev,
         name: analysis.name || prev.name,
@@ -1488,22 +1449,23 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
         type: (analysis.type as WineType) || prev.type,
         region: analysis.region || prev.region,
         country: analysis.country || prev.country,
-        grape: Array.isArray(analysis.grape) ? [...new Set([...(prev.grape || []), ...analysis.grape])] : (prev.grape || []),
+        grape: Array.isArray(analysis.grape) && analysis.grape.length > 0 ? analysis.grape : prev.grape,
         appearance: analysis.appearance || prev.appearance,
         nose: analysis.nose || prev.nose,
         palate: analysis.palate || prev.palate,
         finish: analysis.finish || prev.finish,
         winemakingPhilosophy: analysis.winemakingPhilosophy || prev.winemakingPhilosophy,
         viticulture: analysis.viticulture || prev.viticulture,
-        foodPairing: Array.isArray(analysis.foodPairing) ? [...new Set([...(prev.foodPairing || []), ...analysis.foodPairing])] : (prev.foodPairing || []),
+        foodPairing: Array.isArray(analysis.foodPairing) && analysis.foodPairing.length > 0 ? analysis.foodPairing : prev.foodPairing,
         additionalNote: analysis.additionalNote || prev.additionalNote,
         tastingNotes: analysis.mainTastingNotes || analysis.tastingNotes || prev.tastingNotes,
       }));
+      setUploadError(null);
       setAnalysisSuccess(true);
     } catch (err: any) {
       console.error("AI Analysis failed:", err);
-      const errMsg = err?.message || "AI label analysis timed out or failed";
-      setUploadError(`${errMsg}. Note: your photo is uploaded successfully, so you can still save the wine manually.`);
+      const errMsg = err?.message || "AI label analysis failed";
+      setUploadError(`${errMsg}. Your image is saved and you can review or complete details manually.`);
     } finally {
       setIsAnalyzing(false);
     }
