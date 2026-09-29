@@ -1,4 +1,4 @@
-import { WineBottle, QuizQuestion } from "../types";
+import { WineBottle, WineType, QuizQuestion } from "../types";
 import { GoogleGenAI, Type } from "@google/genai";
 
 export interface Recommendation {
@@ -194,11 +194,33 @@ async function generateWithRetryAndFallback(
 }
 
 /**
- * Analyzes the wine label image directly using Gemini 2.5 Flash with strict literal OCR.
+ * Sanitizes string values to prevent literal "null", "undefined", or "N/A" artifacts.
+ */
+function sanitizeField(val: any, fallback = ''): string {
+  if (val === null || val === undefined) return fallback;
+  const str = String(val).trim();
+  const lower = str.toLowerCase();
+  if (lower === 'null' || lower === 'undefined' || lower === 'none' || lower === 'n/a' || lower === 'unknown') {
+    return fallback;
+  }
+  return str;
+}
+
+const WHITE_GRAPES = new Set([
+  'müller-thurgau', 'muller-thurgau', 'muller thurgau', 'riesling', 'chardonnay',
+  'sauvignon blanc', 'chenin blanc', 'grüner veltliner', 'gruner veltliner',
+  'pinot blanc', 'weissburgunder', 'weißer burgunder', 'pinot gris', 'grauburgunder',
+  'silvaner', 'scheurebe', 'gewürztraminer', 'gewurztraminer', 'viognier',
+  'albariño', 'albarino', 'verdejo', 'trebbiano', 'garganega', 'assyrtiko',
+  'muscadet', 'melon de bourgogne', 'semillon', 'sémillon', 'torrontés', 'torrontes'
+]);
+
+/**
+ * Analyzes the wine label image directly using Gemini 2.5 Flash with precision Sommelier OCR.
  * @param imageUri base64 Data URI or blob/remote URL
  */
 export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBottle> & { mainTastingNotes?: string; alcohol?: string }> {
-  console.log("[AI Service] Scanning label with strict literal OCR (gemini-2.5-flash, temp 0.0)...");
+  console.log("[AI Service] Scanning label with precision Sommelier OCR (gemini-2.5-flash)...");
   if (!imageUri || typeof imageUri !== "string") {
     console.error("[AI Service] Error: Invalid image URI provided to analyzeWineLabel.");
     throw new Error("Invalid image URI provided");
@@ -207,15 +229,35 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
   const { base64, mimeType } = await imageUriToData(imageUri);
   const ai = getAIClient();
 
-  const systemInstruction = `You are a strict, literal OCR engine for wine labels.
-1. Do NOT guess or infer grapes/regions if they are not explicitly printed on the label. Return null or empty list instead.
-2. Transcribe verbatim: Wine Name, Producer/Château, Vintage Year (e.g. 2020 or NV), and Region/Appellation as printed on the label.
-3. Never hallucinate fictional names.`;
+  const systemInstruction = `You are a Master Sommelier and precision multilingual OCR engine for wine labels.
+Analyze the wine bottle label carefully and extract authentic details in structured JSON:
+
+1. CLASSIFICATION & COLOR ACCURACY:
+- Determine the true classification accurately from the label text, grape varietals, and winemaking style.
+- If the wine mentions "Pét-Nat", "Pet Nat", "Pétillant Naturel", "Méthode Ancestrale", or natural bubbles, classification MUST be "Pet Nat" (or "Sparkling").
+- White grape varieties (such as Müller-Thurgau, Riesling, Chardonnay, Sauvignon Blanc, Chenin Blanc, Grüner Veltliner, Weissburgunder, Grauburgunder) MUST NEVER be classified as "Red".
+- If it is skin-contact / amber, classify as "Orange". If minimal intervention / natural, classify as "Natural White" or "Natural Red" or "Pet Nat".
+- Allowed classifications: "Red", "White", "Rosé", "Sparkling", "Natural Red", "Natural White", "Pet Nat", "Orange".
+
+2. CLEAN NULL VALUES & INTELLIGENT DEFAULTS:
+- Never return the raw string "null", "undefined", or "N/A" for any field.
+- If the region is not explicitly printed, infer the producer's prominent home region (e.g. for [trub:stoff] in Germany -> "Rheinhessen", for Burgundy producers -> "Burgundy") or return "".
+
+3. TRANSLATE & POPULATE SENSORY LEDGER (ENGLISH ONLY):
+- If the back label contains foreign text (German, French, Italian, Spanish, etc.), DO NOT dump raw foreign sentences into tasting notes. Translate and synthesize all descriptions into vivid, professional English sommelier tasting notes across ALL fields:
+  * appearance: Visual color, robe, clarity, bubbles (e.g., "Hazy golden straw with delicate, lively natural spritz").
+  * nose: Primary fruit, florals, fermentation notes, yeast (e.g., "Crisp green apple, white peach, elderflower, yeasty brioche").
+  * palate: Body, acidity, texture, spritz (e.g., "Bright vibrant acidity, refreshing natural effervescence, juicy citrus, light-bodied").
+  * finish: Length, persistence, minerality (e.g., "Dry, clean, mineral-driven with a refreshing citrusy finish").
+  * viticulture: Farming practices, terroir (e.g., "Biodynamic / organic farming, hand-harvested grapes").
+  * winemakingPhilosophy: Ancestral method, fermentation, unfiltered, zero dosage (e.g., "Méthode Ancestrale / Pét-Nat, bottled before primary fermentation completes, unfiltered, zero dosage, no added sulfites").
+  * tastingNotes: A concise, elegant English sommelier note synthesizing the wine's profile.
+  * foodPairing: 2 to 3 harmonious culinary pairings (e.g. ["Thai spicy pomelo salad", "Crispy tempura", "Fresh goat cheese"]).`;
 
   const response = await generateWithRetryAndFallback(ai, {
     model: "gemini-2.5-flash",
     contents: [
-      "Transcribe all text from this wine label verbatim and extract structured wine details into JSON.",
+      "Analyze this wine label. Transcribe text, infer canonical region/classification, and generate full English sommelier tasting notes.",
       {
         inlineData: {
           data: base64,
@@ -225,7 +267,7 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
     ],
     config: {
       systemInstruction,
-      temperature: 0.0,
+      temperature: 0.1,
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
@@ -248,7 +290,7 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
           viticulture: { type: Type.STRING },
           additionalNote: { type: Type.STRING },
         },
-        required: ["name", "producer", "vintage", "wineType", "country", "region"],
+        required: ["name", "producer", "vintage", "wineType", "country", "region", "tastingNotes"],
       },
     },
   });
@@ -265,41 +307,90 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
 
   const parsedData = JSON.parse(cleanText);
 
-  // Normalize wineType
-  const rawType = parsedData.wineType || parsedData.type || "Red";
-  const validTypes = ['Red', 'White', 'Rosé', 'Sparkling', 'Natural Red', 'Natural White', 'Pet Nat', 'Orange', 'Sato', 'Sake'];
-  const matchedType = validTypes.find(t => t.toLowerCase() === rawType.toLowerCase()) || 
-    (rawType.toLowerCase().includes('white') ? 'White' : 
-     rawType.toLowerCase().includes('sparkl') ? 'Sparkling' : 
-     rawType.toLowerCase().includes('ros') ? 'Rosé' : 
-     rawType.toLowerCase().includes('orange') ? 'Orange' : 
-     rawType.toLowerCase().includes('pet') ? 'Pet Nat' : 'Red');
+  // Extract clean fields
+  const wineName = sanitizeField(parsedData.name || parsedData.wineName);
+  const producer = sanitizeField(parsedData.producer);
+  const vintage = sanitizeField(parsedData.vintage || parsedData.year, 'NV');
+  let country = sanitizeField(parsedData.country);
+  let region = sanitizeField(parsedData.region);
+  const rawType = sanitizeField(parsedData.wineType || parsedData.type, 'White');
 
+  // Grapes list sanitation
   const rawGrapes = parsedData.grapes || parsedData.grapeVarieties || parsedData.grape || [];
-  const grapesList = Array.isArray(rawGrapes) ? rawGrapes.filter((g: any) => typeof g === 'string' && g.trim()) : (typeof rawGrapes === 'string' && rawGrapes.trim() ? rawGrapes.split(',').map((s: string) => s.trim()).filter(Boolean) : []);
+  const grapesList: string[] = (Array.isArray(rawGrapes) ? rawGrapes : (typeof rawGrapes === 'string' ? rawGrapes.split(',') : []))
+    .map((g: any) => sanitizeField(g))
+    .filter(Boolean);
 
+  // Intelligent regional default for known producers if region is blank
+  if (!region && producer.toLowerCase().includes('trub:stoff')) {
+    region = 'Rheinhessen';
+    if (!country) country = 'Germany';
+  } else if (!region && producer.toLowerCase().includes('bordeaux')) {
+    region = 'Bordeaux';
+    if (!country) country = 'France';
+  }
+
+  // Determine correct classification
+  const fullTextContext = `${wineName} ${producer} ${vintage} ${rawType} ${grapesList.join(' ')} ${sanitizeField(parsedData.tastingNotes)} ${sanitizeField(parsedData.winemakingPhilosophy)}`.toLowerCase();
+  
+  let finalType: WineType = 'White';
+  const isPetNat = fullTextContext.includes('pét-nat') || fullTextContext.includes('pet nat') || fullTextContext.includes('pétillant') || fullTextContext.includes('ancestrale');
+  const isSparkling = isPetNat || fullTextContext.includes('sparkling') || fullTextContext.includes('sekt') || fullTextContext.includes('champagne') || fullTextContext.includes('cava') || fullTextContext.includes('cremant') || fullTextContext.includes('crémant') || fullTextContext.includes('spumante') || fullTextContext.includes('prosecco');
+  const isOrange = fullTextContext.includes('orange') || fullTextContext.includes('skin contact') || fullTextContext.includes('macerated') || fullTextContext.includes('amber');
+  const isRose = fullTextContext.includes('rosé') || fullTextContext.includes('rose') || fullTextContext.includes('rosato') || fullTextContext.includes('rosado');
+  const hasWhiteGrape = grapesList.some(g => WHITE_GRAPES.has(g.toLowerCase()));
+
+  if (isPetNat) {
+    finalType = 'Pet Nat';
+  } else if (isOrange) {
+    finalType = 'Orange';
+  } else if (isRose) {
+    finalType = 'Rosé';
+  } else if (isSparkling) {
+    finalType = 'Sparkling';
+  } else if (hasWhiteGrape) {
+    if (fullTextContext.includes('natural') || fullTextContext.includes('unfiltered') || fullTextContext.includes('biodynamic')) {
+      finalType = 'Natural White';
+    } else {
+      finalType = 'White';
+    }
+  } else {
+    const validTypes: WineType[] = ['Red', 'White', 'Rosé', 'Sparkling', 'Natural Red', 'Natural White', 'Pet Nat', 'Orange', 'Sato', 'Sake'];
+    const matched = validTypes.find(t => t.toLowerCase() === rawType.toLowerCase());
+    if (matched) {
+      finalType = matched;
+    } else if (rawType.toLowerCase().includes('red')) {
+      finalType = hasWhiteGrape ? 'Natural White' : 'Red';
+    } else {
+      finalType = 'White';
+    }
+  }
+
+  // Food pairings
   const rawPairings = parsedData.foodPairing || parsedData.foodPairings || [];
-  const pairingsList = Array.isArray(rawPairings) ? rawPairings.filter((p: any) => typeof p === 'string' && p.trim()) : (typeof rawPairings === 'string' && rawPairings.trim() ? [rawPairings.trim()] : []);
+  const pairingsList: string[] = (Array.isArray(rawPairings) ? rawPairings : (typeof rawPairings === 'string' ? [rawPairings] : []))
+    .map((p: any) => sanitizeField(p))
+    .filter(Boolean);
 
   return {
-    name: parsedData.name || parsedData.wineName || "",
-    producer: parsedData.producer || "",
-    year: parsedData.vintage ? String(parsedData.vintage) : (parsedData.year ? String(parsedData.year) : "NV"),
-    region: parsedData.region || "",
-    country: parsedData.country || "",
-    type: matchedType as any,
+    name: wineName,
+    producer: producer,
+    year: vintage,
+    region: region,
+    country: country,
+    type: finalType,
     grape: grapesList,
-    tastingNotes: parsedData.tastingNotes || parsedData.notes || "",
-    appearance: parsedData.appearance || "",
-    nose: parsedData.nose || parsedData.aromatics || "",
-    palate: parsedData.palate || "",
-    finish: parsedData.finish || "",
-    winemakingPhilosophy: parsedData.winemakingPhilosophy || "",
-    viticulture: parsedData.viticulture || "",
+    tastingNotes: sanitizeField(parsedData.tastingNotes || parsedData.notes),
+    appearance: sanitizeField(parsedData.appearance),
+    nose: sanitizeField(parsedData.nose || parsedData.aromatics),
+    palate: sanitizeField(parsedData.palate),
+    finish: sanitizeField(parsedData.finish),
+    winemakingPhilosophy: sanitizeField(parsedData.winemakingPhilosophy),
+    viticulture: sanitizeField(parsedData.viticulture),
     foodPairing: pairingsList,
-    additionalNote: parsedData.additionalNote || "",
-    mainTastingNotes: parsedData.tastingNotes || parsedData.notes || "",
-    alcohol: parsedData.alcohol || "",
+    additionalNote: sanitizeField(parsedData.additionalNote),
+    mainTastingNotes: sanitizeField(parsedData.tastingNotes || parsedData.notes),
+    alcohol: sanitizeField(parsedData.alcohol),
   };
 }
 
