@@ -656,6 +656,141 @@ Return the data in structured JSON matching this schema:
   };
 }
 
+export interface AIWineNameProfile {
+  producer: string;
+  vintage: string;
+  classification: string;
+  country: string;
+  region: string;
+  grapes: string[];
+  appearance: string;
+  noseAromatics: string;
+  palateStructure: string;
+  finish: string;
+  viticulture: string;
+  winemaking: string;
+  mainSummary: string;
+  suggestedFoodPairings: string[];
+}
+
+/**
+ * Auto-generates comprehensive sommelier profile for a wine by Name & Vintage.
+ */
+export async function fetchWineProfileByName(
+  bottleName: string,
+  vintage?: string
+): Promise<AIWineNameProfile> {
+  if (!bottleName || !bottleName.trim()) {
+    throw new Error("Please enter a wine name first");
+  }
+
+  const cleanName = bottleName.trim();
+  const cleanVintage = (vintage || "").trim();
+  const queryStr = cleanVintage ? `${cleanName} ${cleanVintage}` : cleanName;
+
+  console.log(`[AI Service] Fetching wine profile by name: "${queryStr}"...`);
+  const ai = getAIClient();
+
+  const systemInstruction = `You are a master sommelier encyclopedia. Given the wine name and vintage: '${queryStr}', return an accurate, comprehensive profile in JSON:
+{
+  "producer": string,
+  "vintage": string,
+  "classification": 'RED' | 'WHITE' | 'ROSÉ' | 'SPARKLING' | 'NATURAL RED' | 'NATURAL WHITE' | 'PET NAT' | 'ORANGE',
+  "country": string,
+  "region": string,
+  "grapes": string[],
+  "appearance": string,
+  "noseAromatics": string,
+  "palateStructure": string,
+  "finish": string,
+  "viticulture": string,
+  "winemaking": string,
+  "mainSummary": string,
+  "suggestedFoodPairings": string[]
+}`;
+
+  const prompt = `Provide the authentic sommelier dossier for '${queryStr}'. If vintage is not specified, use the most acclaimed or standard vintage, or 'NV' for Champagne/Sparkling. Provide vivid, professional English sommelier tasting notes across all sensory fields.`;
+
+  const response = await generateWithRetryAndFallback(ai, {
+    model: "gemini-2.5-flash",
+    contents: prompt,
+    config: {
+      systemInstruction,
+      temperature: 0.1,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          producer: { type: Type.STRING },
+          vintage: { type: Type.STRING },
+          classification: { type: Type.STRING },
+          country: { type: Type.STRING },
+          region: { type: Type.STRING },
+          grapes: { type: Type.ARRAY, items: { type: Type.STRING } },
+          appearance: { type: Type.STRING },
+          noseAromatics: { type: Type.STRING },
+          palateStructure: { type: Type.STRING },
+          finish: { type: Type.STRING },
+          viticulture: { type: Type.STRING },
+          winemaking: { type: Type.STRING },
+          mainSummary: { type: Type.STRING },
+          suggestedFoodPairings: { type: Type.ARRAY, items: { type: Type.STRING } },
+        },
+        required: [
+          "producer",
+          "vintage",
+          "classification",
+          "country",
+          "region",
+          "grapes",
+          "mainSummary"
+        ],
+      },
+    },
+  });
+
+  const resText = response.text;
+  if (!resText) {
+    throw new Error("No response from AI Sommelier");
+  }
+
+  let cleaned = resText.trim();
+  if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  }
+
+  const parsed = JSON.parse(cleaned);
+
+  const grapesList: string[] = Array.isArray(parsed.grapes)
+    ? parsed.grapes
+    : typeof parsed.grapes === "string"
+    ? parsed.grapes.split(",")
+    : [];
+
+  const pairingsList: string[] = Array.isArray(parsed.suggestedFoodPairings)
+    ? parsed.suggestedFoodPairings
+    : Array.isArray(parsed.foodPairing)
+    ? parsed.foodPairing
+    : [];
+
+  return {
+    producer: sanitizeField(parsed.producer),
+    vintage: sanitizeField(parsed.vintage, cleanVintage || "NV"),
+    classification: sanitizeField(parsed.classification, "RED"),
+    country: sanitizeField(parsed.country),
+    region: sanitizeField(parsed.region),
+    grapes: grapesList.map((g) => sanitizeField(g)).filter(Boolean),
+    appearance: sanitizeField(parsed.appearance),
+    noseAromatics: sanitizeField(parsed.noseAromatics || parsed.nose),
+    palateStructure: sanitizeField(parsed.palateStructure || parsed.palate),
+    finish: sanitizeField(parsed.finish),
+    viticulture: sanitizeField(parsed.viticulture),
+    winemaking: sanitizeField(parsed.winemaking || parsed.winemakingPhilosophy),
+    mainSummary: sanitizeField(parsed.mainSummary || parsed.tastingNotes),
+    suggestedFoodPairings: pairingsList.map((p) => sanitizeField(p)).filter(Boolean),
+  };
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';

@@ -23,7 +23,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { collection, query, where, doc, setDoc, deleteDoc, updateDoc, limit, getDocs } from 'firebase/firestore';
 import { auth, db, signInWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
 import { WineBottle, WineType, SortOption, GrapeVariety, QuizQuestion, WINE_TYPES, WINE_TYPE_CONFIG } from './types';
-import { analyzeWineLabel, generateQuizQuestion, refineTastingNotes, generateTastingNotesForBottle, fetchGrapeProfile, compressImageForAI } from './services/aiService';
+import { analyzeWineLabel, generateQuizQuestion, refineTastingNotes, generateTastingNotesForBottle, fetchGrapeProfile, fetchWineProfileByName, compressImageForAI } from './services/aiService';
 import { WorldMap } from './components/WorldMap';
 import { TopHeader } from './components/TopHeader';
 import { DashboardGrid } from './components/DashboardGrid';
@@ -1392,6 +1392,77 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
   const [analysisSuccess, setAnalysisSuccess] = useState(false);
   const [isRefiningNotes, setIsRefiningNotes] = useState(false);
   const [refineError, setRefineError] = useState<string | null>(null);
+  const [isAutoFillingByName, setIsAutoFillingByName] = useState(false);
+  const [autoFillByNameSuccess, setAutoFillByNameSuccess] = useState(false);
+  const [autoFillByNameWarning, setAutoFillByNameWarning] = useState<string | null>(null);
+
+  const handleAIAutoFillByName = async () => {
+    if (!formData.name.trim()) {
+      setAutoFillByNameWarning("Please enter a wine name first");
+      setTimeout(() => setAutoFillByNameWarning(null), 4000);
+      return;
+    }
+
+    setIsAutoFillingByName(true);
+    setAutoFillByNameWarning(null);
+    setAutoFillByNameSuccess(false);
+
+    try {
+      const profile = await fetchWineProfileByName(formData.name.trim(), formData.year);
+
+      // Map classification to valid WineType
+      let resolvedType: WineType = formData.type;
+      const rawClass = (profile.classification || '').toUpperCase();
+      if (rawClass.includes('PET') || rawClass.includes('PÉT')) {
+        resolvedType = 'Pet Nat';
+      } else if (rawClass.includes('NATURAL WHITE')) {
+        resolvedType = 'Natural White';
+      } else if (rawClass.includes('NATURAL RED')) {
+        resolvedType = 'Natural Red';
+      } else if (rawClass.includes('SPARKLING')) {
+        resolvedType = 'Sparkling';
+      } else if (rawClass.includes('ORANGE') || rawClass.includes('AMBER')) {
+        resolvedType = 'Orange';
+      } else if (rawClass.includes('ROSÉ') || rawClass.includes('ROSE')) {
+        resolvedType = 'Rosé';
+      } else if (rawClass.includes('WHITE')) {
+        resolvedType = 'White';
+      } else if (rawClass.includes('RED')) {
+        resolvedType = 'Red';
+      } else if (rawClass.includes('SAKE')) {
+        resolvedType = 'Sake';
+      } else if (rawClass.includes('SATO')) {
+        resolvedType = 'Sato';
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        producer: profile.producer || prev.producer,
+        year: profile.vintage || prev.year,
+        type: resolvedType,
+        region: profile.region || prev.region,
+        country: profile.country || prev.country,
+        grape: Array.isArray(profile.grapes) && profile.grapes.length > 0 ? profile.grapes : prev.grape,
+        appearance: profile.appearance || prev.appearance,
+        nose: profile.noseAromatics || prev.nose,
+        palate: profile.palateStructure || prev.palate,
+        finish: profile.finish || prev.finish,
+        viticulture: profile.viticulture || prev.viticulture,
+        winemakingPhilosophy: profile.winemaking || prev.winemakingPhilosophy,
+        tastingNotes: profile.mainSummary || prev.tastingNotes,
+        foodPairing: Array.isArray(profile.suggestedFoodPairings) && profile.suggestedFoodPairings.length > 0 ? profile.suggestedFoodPairings : prev.foodPairing,
+      }));
+
+      setAutoFillByNameSuccess(true);
+      setTimeout(() => setAutoFillByNameSuccess(false), 3500);
+    } catch (err: any) {
+      console.error("Auto-fill by name error:", err);
+      setAutoFillByNameWarning(err?.message || "Failed to auto-fill wine profile. Please try again.");
+      setTimeout(() => setAutoFillByNameWarning(null), 5000);
+    } finally {
+      setIsAutoFillingByName(false);
+    }
+  };
 
   const handleRefineNotes = async () => {
     if (!formData.tastingNotes.trim()) return;
@@ -1509,14 +1580,6 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     const localUrl = URL.createObjectURL(file);
     setFormData(prev => ({ ...prev, imageUrl: localUrl }));
     
-    // Start scan and upload in parallel. Pass compressed base64 to AI scan as local blob URLs cannot be fetched by server.
-    compressImage(file).then(base64Url => {
-      handleAIScan(base64Url);
-    }).catch(err => {
-      console.error("Failed to compress image for preview scan:", err);
-      handleAIScan(localUrl);
-    });
-    
     const task = uploadFile(file);
     uploadTaskRef.current = task;
     
@@ -1527,11 +1590,9 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     }).catch(async (err) => {
       console.error('Auto-upload failed, preparing fallback:', err);
       try {
-        // Prepare base64 fallback in background if remote upload fails
         const base64 = await compressImage(file);
-        // We don't set it yet, just prepare it for handleSubmit if needed
-        // or we can set it as the preview if the user wants to see it's "ready"
-        setUploadError(null); // Clear errors because we have a fallback
+        setFormData(prev => ({ ...prev, imageUrl: base64 }));
+        setUploadError(null);
       } catch (fallbackErr) {
         setUploadError('Background upload failed. Will try to save again on commit.');
       }
@@ -1668,15 +1729,42 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Bottle/Estate Name</label>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Bottle/Estate Name</label>
+              <button
+                type="button"
+                disabled={isAutoFillingByName}
+                onClick={handleAIAutoFillByName}
+                className="px-3 py-1 rounded-xl text-xs font-semibold tracking-wide border border-[#722F37] text-[#722F37] hover:bg-[#722F37] hover:text-white bg-white transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group active:scale-95"
+                title="Auto-fill wine profile, grapes, region, and tasting ledger with AI"
+              >
+                {isAutoFillingByName ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin text-[#722F37] group-hover:text-white" />
+                    <span>Generating sommelier profile...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={13} className="text-[#722F37] group-hover:text-white" />
+                    <span>{autoFillByNameSuccess ? '✨ Wine Profile Auto-Filled!' : '✨ Auto-Fill by Name'}</span>
+                  </>
+                )}
+              </button>
+            </div>
             <input
               required
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
               className="w-full bg-white border border-[#E5E0D8] rounded-xl px-4 py-2.5 text-stone-900 font-semibold text-lg focus:outline-none focus:border-[#722F37] focus:ring-1 focus:ring-[#722F37]/30 transition-all placeholder:text-stone-400"
-              placeholder="e.g. Château Margaux"
+              placeholder="e.g. Château Margaux, Tignanello, Trimbach Clos Sainte Hune"
             />
+            {autoFillByNameWarning && (
+              <div className="p-2.5 bg-[#FDF2F4] border border-[#F5C2CB] rounded-xl text-xs text-[#800020] font-medium flex items-center gap-1.5">
+                <Info size={14} className="shrink-0" />
+                <span>{autoFillByNameWarning}</span>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -1818,7 +1906,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
 
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Bottle Photo & AI Scanner</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Bottle Photo (Optional Attachment)</label>
               
               <div 
                 onDragOver={e => e.preventDefault()}
@@ -1828,15 +1916,12 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
                   isUploading ? 'opacity-50 cursor-wait' : ''
                 }`}
               >
-                {isUploading || isAnalyzing ? (
+                {isUploading ? (
                   <div className="flex flex-col items-center gap-3 text-stone-800">
                     <Loader2 size={30} className="animate-spin text-[#722F37]" />
                     <span className="text-xs uppercase tracking-wider font-semibold text-stone-800">
-                      {isUploading && !isAnalyzing ? 'Uploading to cloud...' : isAnalyzing ? 'AI Analyzing Label...' : 'Processing...'}
+                      Attaching photo...
                     </span>
-                    {isAnalyzing && (
-                      <p className="text-[10px] text-stone-500 font-medium animate-pulse">Extracting Producer, Year, Region & Tasting Notes...</p>
-                    )}
                   </div>
                 ) : formData.imageUrl ? (
                   <>
@@ -1859,8 +1944,8 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
                       <Upload size={22} className="text-stone-600 group-hover:text-[#722F37]" />
                     </div>
                     <div className="text-center">
-                      <p className="text-xs uppercase tracking-wider font-semibold text-stone-800">Upload Wine Photo</p>
-                      <p className="text-[10px] text-stone-400 mt-0.5">Click or drag & drop</p>
+                      <p className="text-xs uppercase tracking-wider font-semibold text-stone-800">Upload Bottle Photo</p>
+                      <p className="text-[10px] text-stone-400 mt-0.5">Click or drag & drop to attach</p>
                     </div>
                   </div>
                 )}
