@@ -41,8 +41,8 @@ function getAIClient(): GoogleGenAI {
 }
 
 /**
- * Fast client-side image compression to max dimension 1024px with JPEG quality 0.8
- * Drastically reduces payload size for rapid 1-2 second scan responses.
+ * Optimal client-side image preservation for OCR: max dimension 1600px with JPEG quality 0.92
+ * Ensures small vintage fonts, château engravings, and appellation text remain sharp and legible.
  */
 export async function compressImageForAI(imageSource: string | Blob | File): Promise<{ base64: string; mimeType: string; dataUrl: string }> {
   return new Promise((resolve, reject) => {
@@ -61,7 +61,7 @@ export async function compressImageForAI(imageSource: string | Blob | File): Pro
       try {
         const canvas = document.createElement('canvas');
         let { width, height } = img;
-        const MAX_SIZE = 1024;
+        const MAX_SIZE = 1600;
 
         if (width > height) {
           if (width > MAX_SIZE) {
@@ -82,12 +82,12 @@ export async function compressImageForAI(imageSource: string | Blob | File): Pro
           throw new Error('Canvas 2D context unavailable');
         }
 
-        // Fill white background in case of transparent PNG/WebP
+        // Fill clean white background in case of transparent PNG/WebP
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
 
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
         const base64 = dataUrl.split(',')[1] || '';
         if (isCreatedBlob) URL.revokeObjectURL(src);
         resolve({ base64, mimeType: 'image/jpeg', dataUrl });
@@ -98,8 +98,7 @@ export async function compressImageForAI(imageSource: string | Blob | File): Pro
     };
     img.onerror = () => {
       if (isCreatedBlob) URL.revokeObjectURL(src);
-      // Fallback if image failed to load directly via src
-      reject(new Error('Failed to load image for compression'));
+      reject(new Error('Failed to load image for OCR preparation'));
     };
     img.src = src;
   });
@@ -204,7 +203,7 @@ async function generateWithRetryAndFallback(
  * @param imageUri base64 Data URI or blob/remote URL
  */
 export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBottle> & { mainTastingNotes?: string; alcohol?: string }> {
-  console.log("[AI Service] Scanning label with Gemini 2.5 Flash OCR...");
+  console.log("[AI Service] Scanning label with Precision Two-Step Sommelier OCR...");
   if (!imageUri || typeof imageUri !== "string") {
     console.error("[AI Service] Error: Invalid image URI provided to analyzeWineLabel.");
     throw new Error("Invalid image URI provided");
@@ -213,31 +212,14 @@ export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBo
   const { base64, mimeType } = await imageUriToData(imageUri);
   const ai = getAIClient();
 
-  const systemInstruction = `You are an expert Sommelier OCR scanner. Analyze the wine bottle label carefully and extract authentic details in structured JSON:
-{
-  name: 'Full wine/château name (e.g., Chateau Grand Corbin)',
-  producer: 'Estate/Producer name',
-  vintage: 'Harvest year as a number or string (e.g. 2020)',
-  wineType: 'Red' | 'White' | 'Rosé' | 'Sparkling' | 'Natural Red' | 'Natural White' | 'Pet Nat' | 'Orange' | 'Sato' | 'Sake',
-  country: 'Country of origin (e.g. France)',
-  region: 'Appellation/Region (e.g. Saint-Émilion Grand Cru, Bordeaux)',
-  grapes: ['Grape 1', 'Grape 2'],
-  alcohol: 'ABV percentage',
-  tastingNotes: 'Brief extracted aromatic and palate notes',
-  appearance: 'Visual color and clarity',
-  nose: 'Primary aromatic bouquet',
-  palate: 'Palate structure, acidity, and tannins',
-  finish: 'Length and persistent finish',
-  foodPairing: ['Classic Pairing 1', 'Classic Pairing 2'],
-  winemakingPhilosophy: 'Winemaking philosophy (e.g. organic, biodynamic, oak aging)',
-  viticulture: 'Viticulture & terroir',
-  additionalNote: 'Sommelier cellar advice & serving temperature'
-}`;
+  const systemInstruction = `You are a master sommelier and precision OCR extraction engine.
+Step 1: Transcribe all visible text on this wine label verbatim, including winery/château, vintage year, appellation/region, grape mentions, and alcohol percentage.
+Step 2: Carefully map the transcribed text into the following fields. If a field (like vintage or grape) is NOT explicitly mentioned on the label, infer it only if it is standard for that specific prestigious appellation (e.g. Saint-Émilion = Merlot/Cabernet Franc blend), otherwise set null. Do NOT fabricate fictitious names.`;
 
   const response = await generateWithRetryAndFallback(ai, {
     model: "gemini-2.5-flash",
     contents: [
-      "Extract all wine label details into structured JSON.",
+      "Perform precision two-step OCR on this wine label image and return structured JSON.",
       {
         inlineData: {
           data: base64,
