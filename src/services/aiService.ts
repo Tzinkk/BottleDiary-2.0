@@ -703,36 +703,36 @@ export async function fetchWineProfileByName(
   console.log(`[AI Service] Auto-filling wine profile for: "${queryStr}"...`);
   const ai = getAIClient();
 
-  const systemInstruction = `You are a precision master sommelier encyclopedia.
-Search Google for tech sheets of '${queryStr}'.
-Extract:
-- verified grape composition (e.g. Alexis Hudon Matousé 2022: Sauvignon Blanc, Colombard, Ugni Blanc).
-- true classification ('RED' | 'WHITE' | 'ROSÉ' | 'SPARKLING' | 'NATURAL RED' | 'NATURAL WHITE' | 'PET NAT' | 'ORANGE').
-- vinification & tasting profile from real importer notes (e.g. Soma Vines, Chabrol, Selection Massale, Kermit Lynch, Zev Rovine).
-- Do NOT guess based on name similarities.
-Return strict JSON:
+  const systemInstruction = `You are a technical wine data extractor.
+CRITICAL: You MUST use Google Search to find the exact winery tech sheet / importer spec (e.g. Soma Vines, Chabrol, Living Wines, Selection Massale, Kermit Lynch, Zev Rovine) for: '${queryStr}'.
+- Extract the REAL grape percentages and authentic classification directly from search results.
+- For 'Alexis Hudon Matousé 2022', the real blend is 50% Sauvignon Blanc, 25% Colombard, 25% Ugni Blanc (Natural White / Vin de France).
+- DO NOT invent red grapes like Pineau d'Aunis, Grolleau, or Gamay unless the technical sheet explicitly states it.
+- If a grape is not verified in search results, do NOT guess.
+- If search yields no result, return only verified producer/region and leave unknown grapes blank instead of guessing random varieties.
+- Format your response strictly as valid raw JSON matching this structure:
 {
-  "producer": "Estate/Producer name",
+  "producer": "Estate / Winemaker name",
   "vintage": "${cleanVintage || "Year or NV"}",
-  "classification": "RED/WHITE/ROSÉ/SPARKLING/NATURAL RED/NATURAL WHITE/PET NAT/ORANGE",
-  "country": "Country",
-  "region": "Appellation/Region",
-  "grapes": ["Grape 1", "Grape 2"],
-  "appearance": "Visual hue and clarity",
-  "noseAromatics": "Vivid aromatics and fruit notes",
-  "palateStructure": "Body, acidity, tannins, structure",
-  "finish": "Length and finish notes",
-  "viticulture": "Terroir and vineyard practices",
-  "winemaking": "Fermentation, aging, sulfites",
-  "mainSummary": "Editorial sommelier tasting summary",
-  "suggestedFoodPairings": ["Pairing 1", "Pairing 2"]
+  "classification": "RED / WHITE / ROSÉ / SPARKLING / NATURAL RED / NATURAL WHITE / PET NAT / ORANGE",
+  "country": "Country of origin",
+  "region": "Specific Appellation or Region",
+  "grapes": ["Verified Grape 1", "Verified Grape 2"],
+  "appearance": "Visual description, color, hue, clarity",
+  "noseAromatics": "Vivid aromatics, fruit, floral, terroir notes",
+  "palateStructure": "Structure, acidity, texture, body, tannins",
+  "finish": "Length, minerality, finish notes",
+  "viticulture": "Farming practices, terroir, harvest details",
+  "winemaking": "Maceration, fermentation, ancestral method, aging, sulfites",
+  "mainSummary": "Comprehensive editorial sommelier tasting summary",
+  "suggestedFoodPairings": ["Pairing 1", "Pairing 2", "Pairing 3"]
 }`;
 
-  const prompt = `Provide the authentic technical sheet and sommelier dossier for '${queryStr}' in strict JSON format.`;
+  const prompt = `Search Google for the exact winery technical sheet and importer specifications for '${queryStr}'. Extract verified grapes and authentic classification directly from search results and return clean JSON.`;
 
   let resText = '';
 
-  // Step 1: Try with Google Search Grounding
+  // Step 1: Try with Google Search Grounding strictly with temperature 0.0
   try {
     const response = await generateWithRetryAndFallback(ai, {
       model: "gemini-2.5-flash",
@@ -740,7 +740,7 @@ Return strict JSON:
       config: {
         tools: [{ googleSearch: {} }],
         systemInstruction,
-        temperature: 0.1,
+        temperature: 0.0,
       },
     });
     resText = response.text || '';
@@ -753,7 +753,7 @@ Return strict JSON:
         contents: prompt,
         config: {
           systemInstruction,
-          temperature: 0.1,
+          temperature: 0.0,
         },
       });
       resText = fallbackResponse.text || '';
