@@ -1457,8 +1457,15 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
       setTimeout(() => setAutoFillByNameSuccess(false), 3500);
     } catch (err: any) {
       console.error("Auto-fill by name error:", err);
-      setAutoFillByNameWarning(err?.message || "Failed to auto-fill wine profile. Please try again.");
-      setTimeout(() => setAutoFillByNameWarning(null), 5000);
+      const rawMsg = String(err?.message || JSON.stringify(err) || err);
+      let friendlyMsg = "AI quota reached for the moment. Please wait a minute and try again, or enter details manually.";
+      if (rawMsg.includes("Please enter a wine name first")) {
+        friendlyMsg = "Please enter a wine name first";
+      } else if (!rawMsg.includes("429") && !rawMsg.includes("quota") && !rawMsg.includes("RESOURCE_EXHAUSTED") && !rawMsg.startsWith("{")) {
+        friendlyMsg = err?.message || friendlyMsg;
+      }
+      setAutoFillByNameWarning(friendlyMsg);
+      setTimeout(() => setAutoFillByNameWarning(null), 6000);
     } finally {
       setIsAutoFillingByName(false);
     }

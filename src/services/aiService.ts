@@ -133,7 +133,7 @@ async function imageUriToData(imageUri: string): Promise<{ base64: string; mimeT
 }
 
 /**
- * Generates content using Gemini API with automatic retry and model fallbacks for 503 / high demand errors.
+ * Generates content using Gemini API with automatic retry and model fallbacks for 503 / 429 / high demand errors.
  */
 async function generateWithRetryAndFallback(
   ai: GoogleGenAI,
@@ -153,7 +153,7 @@ async function generateWithRetryAndFallback(
   let lastError: any = null;
 
   for (const model of uniqueModels) {
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         console.log(`[AI Service] Calling Gemini API (${model}, attempt ${attempt})...`);
         const result = await ai.models.generateContent({
@@ -170,15 +170,17 @@ async function generateWithRetryAndFallback(
           errStr.includes("429") ||
           errStr.includes("UNAVAILABLE") ||
           errStr.includes("RESOURCE_EXHAUSTED") ||
+          errStr.includes("QUOTA") ||
+          errStr.includes("quota") ||
+          errStr.includes("RATE_LIMIT") ||
           errStr.includes("TEMPORARY");
 
         console.warn(`[AI Service] Model ${model} attempt ${attempt} failed:`, errStr);
 
-        if (isTransient && attempt < 3) {
-          // Wait before retrying (1.5s, 3.0s)
-          await new Promise((resolve) => setTimeout(resolve, 1500 * attempt));
+        if (isTransient && attempt < 2) {
+          // Exponential backoff of 2 seconds
+          await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
         } else {
-          // If max attempts reached for this model or non-transient error, try next model
           break;
         }
       }
@@ -186,11 +188,21 @@ async function generateWithRetryAndFallback(
   }
 
   const lastMsg = String(lastError?.message || JSON.stringify(lastError) || lastError);
-  if (lastMsg.includes("503") || lastMsg.includes("HIGH DEMAND") || lastMsg.includes("UNAVAILABLE")) {
-    throw new Error("Gemini AI ၏ Server အသုံးပြုမှု များနေသောကြောင့် ယာယီ မအားလပ်ပါ (High Demand 503 Error)။ ခဏစောင့်ပြီး ပြန်လည် စမ်းသပ်ပေးပါ။");
+  if (
+    lastMsg.includes("429") ||
+    lastMsg.includes("RESOURCE_EXHAUSTED") ||
+    lastMsg.includes("Quota") ||
+    lastMsg.includes("quota") ||
+    lastMsg.includes("RATE_LIMIT")
+  ) {
+    throw new Error("AI quota reached for the moment. Please wait a minute and try again, or enter details manually.");
   }
 
-  throw lastError || new Error("Gemini AI ဖြင့် ချိတ်ဆက်ရာတွင် အမှားအယွင်း ဖြစ်ပေါ်ခဲ့ပါသည်။");
+  if (lastMsg.includes("503") || lastMsg.includes("HIGH DEMAND") || lastMsg.includes("UNAVAILABLE")) {
+    throw new Error("AI service is temporarily busy (High Demand 503). Please wait a moment and try again.");
+  }
+
+  throw new Error("AI quota reached for the moment. Please wait a minute and try again, or enter details manually.");
 }
 
 /**
@@ -674,7 +686,7 @@ export interface AIWineNameProfile {
 }
 
 /**
- * Auto-generates comprehensive sommelier profile for a wine by Name & Vintage using Google Search Grounding.
+ * Auto-generates comprehensive sommelier profile for a wine by Name & Vintage using Google Search Grounding with fallback.
  */
 export async function fetchWineProfileByName(
   bottleName: string,
@@ -688,48 +700,80 @@ export async function fetchWineProfileByName(
   const cleanVintage = (vintage || "").trim();
   const queryStr = cleanVintage ? `${cleanName} ${cleanVintage}` : cleanName;
 
-  console.log(`[AI Service] Fetching grounded wine profile via Google Search for: "${queryStr}"...`);
+  console.log(`[AI Service] Auto-filling wine profile for: "${queryStr}"...`);
   const ai = getAIClient();
 
-  const systemInstruction = `You are a precision master sommelier encyclopedia powered by real-time Google Search technical wine sheets.
-Search Google for the exact wine technical sheet: '${queryStr}'.
-- Extract the verified grape composition (e.g. for Alexis Hudon Matousé 2022: 50% Sauvignon Blanc, 25% Colombard, 25% Ugni Blanc).
-- Extract the true classification ('RED' | 'WHITE' | 'ROSÉ' | 'SPARKLING' | 'NATURAL RED' | 'NATURAL WHITE' | 'PET NAT' | 'ORANGE').
-- Extract the actual vinification method and tasting profile from real importer notes (e.g. Soma Vines, Chabrol, Selection Massale, Kermit Lynch, Zev Rovine, Winemc2, etc.).
-- Do NOT assume or guess based on name similarities (e.g. do not confuse Alexis Hudon Matousé with Portuguese Mateus Rosé).
-- Format your response strictly as valid raw JSON matching this structure:
+  const systemInstruction = `You are a precision master sommelier encyclopedia.
+Search Google for tech sheets of '${queryStr}'.
+Extract:
+- verified grape composition (e.g. Alexis Hudon Matousé 2022: Sauvignon Blanc, Colombard, Ugni Blanc).
+- true classification ('RED' | 'WHITE' | 'ROSÉ' | 'SPARKLING' | 'NATURAL RED' | 'NATURAL WHITE' | 'PET NAT' | 'ORANGE').
+- vinification & tasting profile from real importer notes (e.g. Soma Vines, Chabrol, Selection Massale, Kermit Lynch, Zev Rovine).
+- Do NOT guess based on name similarities.
+Return strict JSON:
 {
-  "producer": "Estate / Winemaker name",
+  "producer": "Estate/Producer name",
   "vintage": "${cleanVintage || "Year or NV"}",
-  "classification": "RED / WHITE / ROSÉ / SPARKLING / NATURAL RED / NATURAL WHITE / PET NAT / ORANGE",
-  "country": "Country of origin",
-  "region": "Specific Appellation or Region (e.g. Touraine, Loire Valley)",
+  "classification": "RED/WHITE/ROSÉ/SPARKLING/NATURAL RED/NATURAL WHITE/PET NAT/ORANGE",
+  "country": "Country",
+  "region": "Appellation/Region",
   "grapes": ["Grape 1", "Grape 2"],
-  "appearance": "Visual description, color, hue, clarity",
-  "noseAromatics": "Vivid aromatics, fruit, floral, terroir notes",
-  "palateStructure": "Structure, acidity, texture, body, tannins",
-  "finish": "Length, minerality, finish notes",
-  "viticulture": "Farming practices, terroir, harvest details",
-  "winemaking": "Maceration, fermentation, ancestral method, aging, sulfites",
-  "mainSummary": "Comprehensive editorial sommelier tasting summary",
-  "suggestedFoodPairings": ["Pairing 1", "Pairing 2", "Pairing 3"]
+  "appearance": "Visual hue and clarity",
+  "noseAromatics": "Vivid aromatics and fruit notes",
+  "palateStructure": "Body, acidity, tannins, structure",
+  "finish": "Length and finish notes",
+  "viticulture": "Terroir and vineyard practices",
+  "winemaking": "Fermentation, aging, sulfites",
+  "mainSummary": "Editorial sommelier tasting summary",
+  "suggestedFoodPairings": ["Pairing 1", "Pairing 2"]
 }`;
 
-  const prompt = `Search Google for the exact wine technical sheet and importer specifications for '${queryStr}'. Extract verified grapes, authentic classification, and vinification dossier, and return clean JSON.`;
+  const prompt = `Provide the authentic technical sheet and sommelier dossier for '${queryStr}' in strict JSON format.`;
 
-  const response = await generateWithRetryAndFallback(ai, {
-    model: "gemini-2.5-flash",
-    contents: prompt,
-    config: {
-      tools: [{ googleSearch: {} }],
-      systemInstruction,
-      temperature: 0.1,
-    },
-  });
+  let resText = '';
 
-  const resText = response.text;
+  // Step 1: Try with Google Search Grounding
+  try {
+    const response = await generateWithRetryAndFallback(ai, {
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }],
+        systemInstruction,
+        temperature: 0.1,
+      },
+    });
+    resText = response.text || '';
+  } catch (searchErr: any) {
+    console.warn("[AI Service] Search grounding notice, attempting lightweight knowledge fallback:", searchErr?.message);
+    // Step 2: Graceful fallback to direct fast model knowledge if search tool hits quota/rate limits
+    try {
+      const fallbackResponse = await generateWithRetryAndFallback(ai, {
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: {
+          systemInstruction,
+          temperature: 0.1,
+        },
+      });
+      resText = fallbackResponse.text || '';
+    } catch (fallbackErr: any) {
+      const errStr = String(fallbackErr?.message || '');
+      if (
+        errStr.includes("quota") ||
+        errStr.includes("Quota") ||
+        errStr.includes("429") ||
+        errStr.includes("RESOURCE_EXHAUSTED") ||
+        errStr.includes("RATE_LIMIT")
+      ) {
+        throw new Error("AI quota reached for the moment. Please wait a minute and try again, or enter details manually.");
+      }
+      throw fallbackErr;
+    }
+  }
+
   if (!resText) {
-    throw new Error("No response from AI Sommelier");
+    throw new Error("AI quota reached for the moment. Please wait a minute and try again, or enter details manually.");
   }
 
   let cleaned = resText.trim();
@@ -748,7 +792,12 @@ Search Google for the exact wine technical sheet: '${queryStr}'.
     }
   }
 
-  const parsed = JSON.parse(cleaned);
+  let parsed: any = {};
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    throw new Error("AI quota reached for the moment. Please wait a minute and try again, or enter details manually.");
+  }
 
   const grapesList: string[] = Array.isArray(parsed.grapes)
     ? parsed.grapes
