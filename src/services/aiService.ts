@@ -674,7 +674,7 @@ export interface AIWineNameProfile {
 }
 
 /**
- * Auto-generates comprehensive sommelier profile for a wine by Name & Vintage.
+ * Auto-generates comprehensive sommelier profile for a wine by Name & Vintage using Google Search Grounding.
  */
 export async function fetchWineProfileByName(
   bottleName: string,
@@ -688,64 +688,42 @@ export async function fetchWineProfileByName(
   const cleanVintage = (vintage || "").trim();
   const queryStr = cleanVintage ? `${cleanName} ${cleanVintage}` : cleanName;
 
-  console.log(`[AI Service] Fetching wine profile by name: "${queryStr}"...`);
+  console.log(`[AI Service] Fetching grounded wine profile via Google Search for: "${queryStr}"...`);
   const ai = getAIClient();
 
-  const systemInstruction = `You are a master sommelier encyclopedia. Given the wine name and vintage: '${queryStr}', return an accurate, comprehensive profile in JSON:
+  const systemInstruction = `You are a precision master sommelier encyclopedia powered by real-time Google Search technical wine sheets.
+Search Google for the exact wine technical sheet: '${queryStr}'.
+- Extract the verified grape composition (e.g. for Alexis Hudon Matousé 2022: 50% Sauvignon Blanc, 25% Colombard, 25% Ugni Blanc).
+- Extract the true classification ('RED' | 'WHITE' | 'ROSÉ' | 'SPARKLING' | 'NATURAL RED' | 'NATURAL WHITE' | 'PET NAT' | 'ORANGE').
+- Extract the actual vinification method and tasting profile from real importer notes (e.g. Soma Vines, Chabrol, Selection Massale, Kermit Lynch, Zev Rovine, Winemc2, etc.).
+- Do NOT assume or guess based on name similarities (e.g. do not confuse Alexis Hudon Matousé with Portuguese Mateus Rosé).
+- Format your response strictly as valid raw JSON matching this structure:
 {
-  "producer": string,
-  "vintage": string,
-  "classification": 'RED' | 'WHITE' | 'ROSÉ' | 'SPARKLING' | 'NATURAL RED' | 'NATURAL WHITE' | 'PET NAT' | 'ORANGE',
-  "country": string,
-  "region": string,
-  "grapes": string[],
-  "appearance": string,
-  "noseAromatics": string,
-  "palateStructure": string,
-  "finish": string,
-  "viticulture": string,
-  "winemaking": string,
-  "mainSummary": string,
-  "suggestedFoodPairings": string[]
+  "producer": "Estate / Winemaker name",
+  "vintage": "${cleanVintage || "Year or NV"}",
+  "classification": "RED / WHITE / ROSÉ / SPARKLING / NATURAL RED / NATURAL WHITE / PET NAT / ORANGE",
+  "country": "Country of origin",
+  "region": "Specific Appellation or Region (e.g. Touraine, Loire Valley)",
+  "grapes": ["Grape 1", "Grape 2"],
+  "appearance": "Visual description, color, hue, clarity",
+  "noseAromatics": "Vivid aromatics, fruit, floral, terroir notes",
+  "palateStructure": "Structure, acidity, texture, body, tannins",
+  "finish": "Length, minerality, finish notes",
+  "viticulture": "Farming practices, terroir, harvest details",
+  "winemaking": "Maceration, fermentation, ancestral method, aging, sulfites",
+  "mainSummary": "Comprehensive editorial sommelier tasting summary",
+  "suggestedFoodPairings": ["Pairing 1", "Pairing 2", "Pairing 3"]
 }`;
 
-  const prompt = `Provide the authentic sommelier dossier for '${queryStr}'. If vintage is not specified, use the most acclaimed or standard vintage, or 'NV' for Champagne/Sparkling. Provide vivid, professional English sommelier tasting notes across all sensory fields.`;
+  const prompt = `Search Google for the exact wine technical sheet and importer specifications for '${queryStr}'. Extract verified grapes, authentic classification, and vinification dossier, and return clean JSON.`;
 
   const response = await generateWithRetryAndFallback(ai, {
     model: "gemini-2.5-flash",
     contents: prompt,
     config: {
+      tools: [{ googleSearch: {} }],
       systemInstruction,
       temperature: 0.1,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          producer: { type: Type.STRING },
-          vintage: { type: Type.STRING },
-          classification: { type: Type.STRING },
-          country: { type: Type.STRING },
-          region: { type: Type.STRING },
-          grapes: { type: Type.ARRAY, items: { type: Type.STRING } },
-          appearance: { type: Type.STRING },
-          noseAromatics: { type: Type.STRING },
-          palateStructure: { type: Type.STRING },
-          finish: { type: Type.STRING },
-          viticulture: { type: Type.STRING },
-          winemaking: { type: Type.STRING },
-          mainSummary: { type: Type.STRING },
-          suggestedFoodPairings: { type: Type.ARRAY, items: { type: Type.STRING } },
-        },
-        required: [
-          "producer",
-          "vintage",
-          "classification",
-          "country",
-          "region",
-          "grapes",
-          "mainSummary"
-        ],
-      },
     },
   });
 
@@ -755,8 +733,19 @@ export async function fetchWineProfileByName(
   }
 
   let cleaned = resText.trim();
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  if (cleaned.includes("```")) {
+    const match = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (match) {
+      cleaned = match[1].trim();
+    } else {
+      cleaned = cleaned.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+    }
+  } else {
+    const startIdx = cleaned.indexOf("{");
+    const endIdx = cleaned.lastIndexOf("}");
+    if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+      cleaned = cleaned.substring(startIdx, endIdx + 1);
+    }
   }
 
   const parsed = JSON.parse(cleaned);
@@ -790,6 +779,8 @@ export async function fetchWineProfileByName(
     suggestedFoodPairings: pairingsList.map((p) => sanitizeField(p)).filter(Boolean),
   };
 }
+
+export const autoFillWineByName = fetchWineProfileByName;
 
 export interface ChatMessage {
   id: string;
