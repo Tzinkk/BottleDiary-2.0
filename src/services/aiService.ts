@@ -703,13 +703,13 @@ export async function fetchWineProfileByName(
   console.log(`[AI Service] Auto-filling wine profile for: "${queryStr}"...`);
   const ai = getAIClient();
 
-  const systemInstruction = `You are a technical wine data extractor.
-CRITICAL: You MUST use Google Search to find the exact winery tech sheet / importer spec (e.g. Soma Vines, Chabrol, Living Wines, Selection Massale, Kermit Lynch, Zev Rovine) for: '${queryStr}'.
-- Extract the REAL grape percentages and authentic classification directly from search results.
-- For 'Alexis Hudon Matousé 2022', the real blend is 50% Sauvignon Blanc, 25% Colombard, 25% Ugni Blanc (Natural White / Vin de France).
-- DO NOT invent red grapes like Pineau d'Aunis, Grolleau, or Gamay unless the technical sheet explicitly states it.
-- If a grape is not verified in search results, do NOT guess.
-- If search yields no result, return only verified producer/region and leave unknown grapes blank instead of guessing random varieties.
+  const systemInstruction = `You are an expert Sommelier and technical wine data extractor.
+Search Google for the verified tech sheet / importer profile for: '${queryStr}'.
+- Extract true grape varieties and exact percentages (e.g., Alexis Hudon Matousé 2022 is 50% Sauvignon Blanc, 25% Colombard, 25% Ugni Blanc).
+- Extract true classification ('RED' | 'WHITE' | 'ROSÉ' | 'SPARKLING' | 'NATURAL RED' | 'NATURAL WHITE' | 'PET NAT' | 'ORANGE').
+- Do NOT hallucinate or guess random grape varieties (never substitute with Grolleau, Pineau d'Aunis, or Gamay unless verified).
+- Synthesize authentic English sensory notes (Appearance, Nose, Palate, Finish, Viticulture, Winemaking, Food Pairings).
+- If search yields no verified technical sheet, return only verified producer/region and leave unknown grapes blank without guessing.
 - Format your response strictly as valid raw JSON matching this structure:
 {
   "producer": "Estate / Winemaker name",
@@ -728,11 +728,11 @@ CRITICAL: You MUST use Google Search to find the exact winery tech sheet / impor
   "suggestedFoodPairings": ["Pairing 1", "Pairing 2", "Pairing 3"]
 }`;
 
-  const prompt = `Search Google for the exact winery technical sheet and importer specifications for '${queryStr}'. Extract verified grapes and authentic classification directly from search results and return clean JSON.`;
+  const prompt = `Search Google for the exact winery technical sheet and importer profile for '${queryStr}'. Extract true grape varieties, authentic classification, and tasting notes directly from verified tech sheets and return clean JSON.`;
 
   let resText = '';
 
-  // Step 1: Try with Google Search Grounding strictly with temperature 0.0
+  // Step 1: Try with Google Search Grounding strictly with temperature 0.0 and application/json
   try {
     const response = await generateWithRetryAndFallback(ai, {
       model: "gemini-2.5-flash",
@@ -741,6 +741,7 @@ CRITICAL: You MUST use Google Search to find the exact winery tech sheet / impor
         tools: [{ googleSearch: {} }],
         systemInstruction,
         temperature: 0.0,
+        responseMimeType: "application/json",
       },
     });
     resText = response.text || '';
@@ -754,6 +755,7 @@ CRITICAL: You MUST use Google Search to find the exact winery tech sheet / impor
         config: {
           systemInstruction,
           temperature: 0.0,
+          responseMimeType: "application/json",
         },
       });
       resText = fallbackResponse.text || '';
