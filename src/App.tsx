@@ -23,7 +23,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { collection, query, where, doc, setDoc, deleteDoc, updateDoc, limit, getDocs } from 'firebase/firestore';
 import { auth, db, signInWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
 import { WineBottle, WineType, SortOption, GrapeVariety, QuizQuestion, WINE_TYPES, WINE_TYPE_CONFIG } from './types';
-import { analyzeWineLabel, generateQuizQuestion, refineTastingNotes, generateTastingNotesForBottle, fetchGrapeProfile, fetchWineProfileByName, compressImageForAI } from './services/aiService';
+import { analyzeWineLabel, generateQuizQuestion, refineTastingNotes, generateTastingNotesForBottle, fetchGrapeProfile, fetchWineProfileByName, parseWineType, compressImageForAI } from './services/aiService';
 import { WorldMap } from './components/WorldMap';
 import { TopHeader } from './components/TopHeader';
 import { DashboardGrid } from './components/DashboardGrid';
@@ -1361,7 +1361,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
   const [formData, setFormData] = useState({
     name: bottle?.name || '',
     producer: bottle?.producer || '',
-    year: bottle?.year || new Date().getFullYear().toString(),
+    year: bottle?.year || '',
     type: bottle?.type || 'Red' as WineType,
     region: bottle?.region || '',
     country: bottle?.country || '',
@@ -1408,37 +1408,19 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     setAutoFillByNameSuccess(false);
 
     try {
-      const profile = await fetchWineProfileByName(formData.name.trim(), formData.year);
+      const profile = await fetchWineProfileByName(
+        formData.name.trim(),
+        formData.producer.trim(),
+        formData.year.trim()
+      );
 
-      // Map classification to valid WineType
-      let resolvedType: WineType = formData.type;
-      const rawClass = (profile.classification || '').toUpperCase();
-      if (rawClass.includes('PET') || rawClass.includes('PÉT')) {
-        resolvedType = 'Pet Nat';
-      } else if (rawClass.includes('NATURAL WHITE')) {
-        resolvedType = 'Natural White';
-      } else if (rawClass.includes('NATURAL RED')) {
-        resolvedType = 'Natural Red';
-      } else if (rawClass.includes('SPARKLING')) {
-        resolvedType = 'Sparkling';
-      } else if (rawClass.includes('ORANGE') || rawClass.includes('AMBER')) {
-        resolvedType = 'Orange';
-      } else if (rawClass.includes('ROSÉ') || rawClass.includes('ROSE')) {
-        resolvedType = 'Rosé';
-      } else if (rawClass.includes('WHITE')) {
-        resolvedType = 'White';
-      } else if (rawClass.includes('RED')) {
-        resolvedType = 'Red';
-      } else if (rawClass.includes('SAKE')) {
-        resolvedType = 'Sake';
-      } else if (rawClass.includes('SATO')) {
-        resolvedType = 'Sato';
-      }
+      // Direct classification output mapping without heuristic keyword overrides
+      const resolvedType: WineType = parseWineType(profile.classification) || formData.type;
 
       setFormData(prev => ({
         ...prev,
         producer: profile.producer || prev.producer,
-        year: profile.vintage || prev.year,
+        year: profile.vintage !== undefined && profile.vintage !== null ? profile.vintage : prev.year,
         type: resolvedType,
         region: profile.region || prev.region,
         country: profile.country || prev.country,
@@ -1457,14 +1439,8 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
       setTimeout(() => setAutoFillByNameSuccess(false), 3500);
     } catch (err: any) {
       console.error("Auto-fill by name error:", err);
-      const rawMsg = String(err?.message || JSON.stringify(err) || err);
-      let friendlyMsg = "AI quota reached for the moment. Please wait a minute and try again, or enter details manually.";
-      if (rawMsg.includes("Please enter a wine name first")) {
-        friendlyMsg = "Please enter a wine name first";
-      } else if (!rawMsg.includes("429") && !rawMsg.includes("quota") && !rawMsg.includes("RESOURCE_EXHAUSTED") && !rawMsg.startsWith("{")) {
-        friendlyMsg = err?.message || friendlyMsg;
-      }
-      setAutoFillByNameWarning(friendlyMsg);
+      const rawMsg = err?.message || "Auto-fill failed. Please try again or enter details manually.";
+      setAutoFillByNameWarning(rawMsg);
       setTimeout(() => setAutoFillByNameWarning(null), 6000);
     } finally {
       setIsAutoFillingByName(false);
@@ -1788,11 +1764,10 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
             <div className="space-y-1.5">
               <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Vintage (NV or Year)</label>
               <input
-                required
                 value={formData.year}
                 onChange={e => setFormData({ ...formData, year: e.target.value })}
                 className="w-full bg-white border border-[#E5E0D8] rounded-xl px-3.5 py-2 text-stone-900 font-mono font-medium focus:outline-none focus:border-[#722F37] transition-all text-xs"
-                placeholder="2018 or NV"
+                placeholder="e.g. 2018 or NV"
               />
             </div>
           </div>
