@@ -686,7 +686,8 @@ export interface AIWineNameProfile {
 }
 
 /**
- * Auto-generates comprehensive sommelier profile for a wine by Name & Vintage using Google Search Grounding with fallback.
+ * Auto-generates comprehensive sommelier profile for a wine by Name & Vintage using a 2-Step
+ * Google Search Grounding & JSON synthesis pipeline.
  */
 export async function fetchWineProfileByName(
   bottleName: string,
@@ -700,17 +701,50 @@ export async function fetchWineProfileByName(
   const cleanVintage = (vintage || "").trim();
   const queryStr = cleanVintage ? `${cleanName} ${cleanVintage}` : cleanName;
 
-  console.log(`[AI Service] Auto-filling wine profile for: "${queryStr}"...`);
+  console.log(`[AI Service] Starting 2-step grounded wine profile extraction for: "${queryStr}"...`);
   const ai = getAIClient();
 
-  const systemInstruction = `You are an expert Sommelier and technical wine data extractor.
-Search Google for the verified tech sheet / importer profile for: '${queryStr}'.
-- Extract true grape varieties and exact percentages (e.g., Alexis Hudon Matousé 2022 is 50% Sauvignon Blanc, 25% Colombard, 25% Ugni Blanc).
-- Extract true classification ('RED' | 'WHITE' | 'ROSÉ' | 'SPARKLING' | 'NATURAL RED' | 'NATURAL WHITE' | 'PET NAT' | 'ORANGE').
-- Do NOT hallucinate or guess random grape varieties (never substitute with Grolleau, Pineau d'Aunis, or Gamay unless verified).
-- Synthesize authentic English sensory notes (Appearance, Nose, Palate, Finish, Viticulture, Winemaking, Food Pairings).
-- If search yields no verified technical sheet, return only verified producer/region and leave unknown grapes blank without guessing.
-- Format your response strictly as valid raw JSON matching this structure:
+  // STEP 1: FACTUAL GOOGLE SEARCH (No JSON schema/MIME constraints)
+  let factualResearch = "";
+  try {
+    const searchStepResponse = await generateWithRetryAndFallback(ai, {
+      model: "gemini-2.5-flash",
+      contents: `Search Google for the official winery technical sheet, importer profile, grape varieties/percentages, vinification, and tasting notes for: '${queryStr}'. Provide detailed factual bullet points.`,
+      config: {
+        tools: [{ googleSearch: {} }],
+        systemInstruction: `You are a meticulous wine researcher. Given a wine query, search Google thoroughly for its official technical sheet, producer notes, or importer profiles (e.g. Kermit Lynch, Becky Wasserman, Soma Vines, Different Drop, etc.).
+Extract verified facts:
+1. Real grape varietal composition and percentages (do NOT guess classic varieties if the producer uses an unusual blend).
+2. Actual wine classification (e.g. Red, White, Rosé, Sparkling, Natural Red, Natural White, Pet Nat, Orange).
+3. Country, Region / Appellation, and Producer.
+4. Authentic sensory notes (appearance, nose, palate, finish), viticulture, winemaking, and food pairings directly from the tech sheet / sommelier notes.
+Synthesize all factual findings in clear, concise bullet points.`,
+        temperature: 0.0,
+      },
+    });
+    factualResearch = searchStepResponse.text || "";
+    console.log(`[AI Service] Step 1 Google Search Grounding completed (${factualResearch.length} chars)`);
+  } catch (searchErr: any) {
+    console.warn("[AI Service] Step 1 search grounding notice, proceeding with direct sommelier synthesis:", searchErr?.message);
+    factualResearch = `Wine: ${queryStr}`;
+  }
+
+  // STEP 2: STRUCTURED JSON SYNTHESIZER (No tools, responseMimeType: "application/json")
+  const jsonSystemInstruction = `You are a master sommelier data serializer. Convert the factual wine technical dossier into the required JSON schema accurately.
+CRITICAL RULES:
+- Map accurately: producer, vintage (use "${cleanVintage || "NV"}" if not specified), classification ('RED' | 'WHITE' | 'ROSÉ' | 'SPARKLING' | 'NATURAL RED' | 'NATURAL WHITE' | 'PET NAT' | 'ORANGE'), country, region, and grapes.
+- Do not invent, guess, or substitute fictional grape varieties that are not in the dossier.
+- Return authentic English sommelier descriptions for appearance, noseAromatics, palateStructure, finish, viticulture, winemaking, mainSummary, and suggestedFoodPairings.
+- Format output strictly as JSON.`;
+
+  const jsonPrompt = `Convert the following wine technical research into structured JSON:
+
+Wine Query: ${queryStr}
+
+Research Dossier:
+${factualResearch || `Wine: ${queryStr}`}
+
+Required JSON Format:
 {
   "producer": "Estate / Winemaker name",
   "vintage": "${cleanVintage || "Year or NV"}",
@@ -728,50 +762,30 @@ Search Google for the verified tech sheet / importer profile for: '${queryStr}'.
   "suggestedFoodPairings": ["Pairing 1", "Pairing 2", "Pairing 3"]
 }`;
 
-  const prompt = `Search Google for the exact winery technical sheet and importer profile for '${queryStr}'. Extract true grape varieties, authentic classification, and tasting notes directly from verified tech sheets and return clean JSON.`;
-
-  let resText = '';
-
-  // Step 1: Try with Google Search Grounding strictly with temperature 0.0 and application/json
+  let resText = "";
   try {
-    const response = await generateWithRetryAndFallback(ai, {
+    const jsonStepResponse = await generateWithRetryAndFallback(ai, {
       model: "gemini-2.5-flash",
-      contents: prompt,
+      contents: jsonPrompt,
       config: {
-        tools: [{ googleSearch: {} }],
-        systemInstruction,
+        systemInstruction: jsonSystemInstruction,
         temperature: 0.0,
         responseMimeType: "application/json",
       },
     });
-    resText = response.text || '';
-  } catch (searchErr: any) {
-    console.warn("[AI Service] Search grounding notice, attempting lightweight knowledge fallback:", searchErr?.message);
-    // Step 2: Graceful fallback to direct fast model knowledge if search tool hits quota/rate limits
-    try {
-      const fallbackResponse = await generateWithRetryAndFallback(ai, {
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-          systemInstruction,
-          temperature: 0.0,
-          responseMimeType: "application/json",
-        },
-      });
-      resText = fallbackResponse.text || '';
-    } catch (fallbackErr: any) {
-      const errStr = String(fallbackErr?.message || '');
-      if (
-        errStr.includes("quota") ||
-        errStr.includes("Quota") ||
-        errStr.includes("429") ||
-        errStr.includes("RESOURCE_EXHAUSTED") ||
-        errStr.includes("RATE_LIMIT")
-      ) {
-        throw new Error("AI quota reached for the moment. Please wait a minute and try again, or enter details manually.");
-      }
-      throw fallbackErr;
+    resText = jsonStepResponse.text || "";
+  } catch (synthErr: any) {
+    const errStr = String(synthErr?.message || "");
+    if (
+      errStr.includes("quota") ||
+      errStr.includes("Quota") ||
+      errStr.includes("429") ||
+      errStr.includes("RESOURCE_EXHAUSTED") ||
+      errStr.includes("RATE_LIMIT")
+    ) {
+      throw new Error("AI quota reached for the moment. Please wait a minute and try again, or enter details manually.");
     }
+    throw synthErr;
   }
 
   if (!resText) {
