@@ -649,19 +649,34 @@ export async function fetchWineProfileByName(
 
   // STEP 1: Google Search grounded research
   let factualResearch = "";
+  const searchPrompt = `Find the exact wine "${queryStr}". Search for the producer's / importer's official technical sheet and reviews. Report: exact producer, exact vintage${cleanVintage ? "" : " (if the query has no year, say the wine is a multi-vintage and do not pick a year)"}, country, region/appellation, grape varieties with percentages, wine style (red/white/rosé/sparkling/orange/natural/pet-nat), farming, winemaking, tasting notes and food pairings. Only report facts found in search results for this exact wine. If a detail is not found, write "not found". If you cannot find this exact wine, say "NOT FOUND" and do not describe a different wine.`;
+
   try {
-    const searchStepResponse = await generateWithRetryAndFallback(ai, {
+    // Attempt A: with strict settings
+    const r = await generateWithRetryAndFallback(ai, {
       model: "gemini-3.5-flash",
-      contents: `Find the exact wine "${queryStr}". Search for the producer's / importer's official technical sheet and reviews. Report: exact producer, exact vintage${cleanVintage ? "" : " (if the query has no year, say the wine is a multi-vintage and do not pick a year)"}, country, region/appellation, grape varieties with percentages, wine style (red/white/rosé/sparkling/orange/natural/pet-nat), farming, winemaking, tasting notes and food pairings. If you cannot find this exact wine, say "NOT FOUND" and do not describe a different wine.`,
+      contents: searchPrompt,
       config: {
         tools: [{ googleSearch: {} }],
-        systemInstruction: `You are a meticulous wine researcher. Only report facts you actually found in search results for the exact wine requested. Never guess grape varieties or details. If a detail is not found, write "not found" for it.`,
+        systemInstruction: "You are a meticulous wine researcher. Never guess grape varieties or details.",
         temperature: 0,
       },
     });
-    factualResearch = searchStepResponse.text || "";
-  } catch (searchErr: any) {
-    throw new Error("Could not search for this wine right now. Please try again in a moment.");
+    factualResearch = r.text || "";
+  } catch (errA: any) {
+    console.warn("[AI Service] Grounded search attempt A failed:", errA?.message);
+    try {
+      // Attempt B: minimal config (some models reject extra settings together with search)
+      const r = await generateWithRetryAndFallback(ai, {
+        model: "gemini-3.5-flash",
+        contents: searchPrompt,
+        config: { tools: [{ googleSearch: {} }] },
+      });
+      factualResearch = r.text || "";
+    } catch (errB: any) {
+      // Show the real reason instead of hiding it
+      throw new Error(errB?.message || errA?.message || "Search request failed");
+    }
   }
 
   if (!factualResearch.trim() || /NOT FOUND/i.test(factualResearch.slice(0, 300))) {
