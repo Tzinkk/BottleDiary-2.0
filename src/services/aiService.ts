@@ -143,67 +143,68 @@ async function generateWithRetryAndFallback(
     config?: any;
   }
 ) {
+  // Newer Gemini models reject temperature / topP / topK, so never send them.
+  const cleanConfig = { ...(options.config || {}) };
+  delete cleanConfig.temperature;
+  delete cleanConfig.topP;
+  delete cleanConfig.topK;
+
   const modelsToTry = [
-    options.model || "gemini-3.5-flash",
-    "gemini-3.8-flash",
-    "gemini-2.5-flash",
+    options.model || "gemini-3.8-flash",
+    "gemini-3.5-flash",
+    "gemini-3.6-flash",
   ];
   const uniqueModels = Array.from(new Set(modelsToTry));
 
-  let lastError: any = null;
+  const errorsByModel: string[] = [];
+  let sawQuota = false;
+  let sawBusy = false;
 
   for (const model of uniqueModels) {
+    let lastModelErr = "";
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         console.log(`[AI Service] Calling Gemini API (${model}, attempt ${attempt})...`);
         const result = await ai.models.generateContent({
           ...options,
+          config: cleanConfig,
           model,
         });
         return result;
       } catch (err: any) {
-        lastError = err;
         const errStr = String(err?.message || JSON.stringify(err) || err);
-        const isTransient =
-          errStr.includes("503") ||
-          errStr.includes("HIGH DEMAND") ||
-          errStr.includes("429") ||
-          errStr.includes("UNAVAILABLE") ||
-          errStr.includes("RESOURCE_EXHAUSTED") ||
-          errStr.includes("QUOTA") ||
-          errStr.includes("quota") ||
-          errStr.includes("RATE_LIMIT") ||
-          errStr.includes("TEMPORARY");
+        lastModelErr = errStr;
+        const isQuota =
+          errStr.includes("429") || errStr.includes("RESOURCE_EXHAUSTED") ||
+          errStr.includes("QUOTA") || errStr.includes("quota") || errStr.includes("RATE_LIMIT");
+        const isBusy =
+          errStr.includes("503") || errStr.includes("HIGH DEMAND") ||
+          errStr.includes("UNAVAILABLE") || errStr.includes("TEMPORARY");
+        if (isQuota) sawQuota = true;
+        if (isBusy) sawBusy = true;
 
         console.warn(`[AI Service] Model ${model} attempt ${attempt} failed:`, errStr);
 
-        if (isTransient && attempt < 2) {
-          // Exponential backoff of 2 seconds
+        if ((isQuota || isBusy) && attempt < 2) {
           await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
         } else {
           break;
         }
       }
     }
+    // keep a short, readable version of each model's error
+    const msgMatch = lastModelErr.match(/"message"\s*:\s*"([^"]+)"/);
+    errorsByModel.push(`${model}: ${(msgMatch ? msgMatch[1] : lastModelErr).slice(0, 160)}`);
   }
 
-  const lastMsg = String(lastError?.message || JSON.stringify(lastError) || lastError);
-  if (
-    lastMsg.includes("429") ||
-    lastMsg.includes("RESOURCE_EXHAUSTED") ||
-    lastMsg.includes("Quota") ||
-    lastMsg.includes("quota") ||
-    lastMsg.includes("RATE_LIMIT")
-  ) {
+  if (sawQuota) {
     throw new Error("AI quota reached for the moment. Please wait a minute and try again, or enter details manually.");
   }
-
-  if (lastMsg.includes("503") || lastMsg.includes("HIGH DEMAND") || lastMsg.includes("UNAVAILABLE")) {
+  if (sawBusy) {
     throw new Error("AI service is temporarily busy (High Demand 503). Please wait a moment and try again.");
   }
-
-  // Not a quota/busy problem (e.g. model name not found, bad key): show the real reason
-  throw new Error(`AI request failed: ${lastMsg.slice(0, 200)}`);
+  // Not a quota/busy problem: show the real reason for every model that was tried
+  throw new Error(`AI request failed. ${errorsByModel.join(" | ")}`);
 }
 
 /**
@@ -274,7 +275,7 @@ Read ONLY what is actually printed on the label(s). Do NOT guess, infer or inven
 - alcohol: ABV if printed, otherwise "".`;
 
   const response = await generateWithRetryAndFallback(ai, {
-    model: "gemini-3.5-flash",
+    model: "gemini-3.8-flash",
     contents: [
       "Read this wine label. Return only what is printed.",
       { inlineData: { data: base64, mimeType } },
@@ -654,7 +655,7 @@ export async function fetchWineProfileByName(
   try {
     // Attempt A: with strict settings
     const r = await generateWithRetryAndFallback(ai, {
-      model: "gemini-3.5-flash",
+      model: "gemini-3.8-flash",
       contents: searchPrompt,
       config: {
         tools: [{ googleSearch: {} }],
@@ -668,7 +669,7 @@ export async function fetchWineProfileByName(
     try {
       // Attempt B: minimal config (some models reject extra settings together with search)
       const r = await generateWithRetryAndFallback(ai, {
-        model: "gemini-3.5-flash",
+        model: "gemini-3.8-flash",
         contents: searchPrompt,
         config: { tools: [{ googleSearch: {} }] },
       });
@@ -695,7 +696,7 @@ ${factualResearch}
 Return JSON with keys: producer, vintage ("${cleanVintage || ""}" unless the dossier proves otherwise; "NV" if non-vintage), classification, country, region, grapes (array), appearance, noseAromatics, palateStructure, finish, viticulture, winemaking, mainSummary (2-3 sentence tasting summary), suggestedFoodPairings (array of 2-4).`;
 
   const jsonStepResponse = await generateWithRetryAndFallback(ai, {
-    model: "gemini-3.5-flash",
+    model: "gemini-3.8-flash",
     contents: jsonPrompt,
     config: {
       systemInstruction: jsonSystemInstruction,
