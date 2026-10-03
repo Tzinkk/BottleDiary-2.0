@@ -23,7 +23,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { collection, query, where, doc, setDoc, deleteDoc, updateDoc, limit, getDocs } from 'firebase/firestore';
 import { auth, db, signInWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
 import { WineBottle, WineType, SortOption, GrapeVariety, QuizQuestion, WINE_TYPES, WINE_TYPE_CONFIG } from './types';
-import { analyzeWineLabel, generateQuizQuestion, refineTastingNotes, generateTastingNotesForBottle, fetchGrapeProfile, fetchWineProfileByName, compressImageForAI } from './services/aiService';
+import { analyzeWineLabel, generateQuizQuestion, refineTastingNotes, generateTastingNotesForBottle, fetchGrapeProfile, fetchWineProfileByName, parseWineType, compressImageForAI } from './services/aiService';
 import { WorldMap } from './components/WorldMap';
 import { TopHeader } from './components/TopHeader';
 import { DashboardGrid } from './components/DashboardGrid';
@@ -1361,7 +1361,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
   const [formData, setFormData] = useState({
     name: bottle?.name || '',
     producer: bottle?.producer || '',
-    year: bottle?.year || new Date().getFullYear().toString(),
+    year: bottle?.year || '',
     type: bottle?.type || 'Red' as WineType,
     region: bottle?.region || '',
     country: bottle?.country || '',
@@ -1408,39 +1408,19 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     setAutoFillByNameSuccess(false);
 
     try {
-      const defaultYear = new Date().getFullYear().toString();
-      const typedYear = formData.year && formData.year !== defaultYear ? formData.year : '';
-      const profile = await fetchWineProfileByName(formData.name.trim(), typedYear, formData.producer.trim());
+      const profile = await fetchWineProfileByName(
+        formData.name.trim(),
+        formData.producer.trim(),
+        formData.year.trim()
+      );
 
-      // Map classification to valid WineType
-      let resolvedType: WineType = formData.type;
-      const rawClass = (profile.classification || '').toUpperCase();
-      if (rawClass.includes('PET') || rawClass.includes('PÉT')) {
-        resolvedType = 'Pet Nat';
-      } else if (rawClass.includes('NATURAL WHITE')) {
-        resolvedType = 'Natural White';
-      } else if (rawClass.includes('NATURAL RED')) {
-        resolvedType = 'Natural Red';
-      } else if (rawClass.includes('SPARKLING')) {
-        resolvedType = 'Sparkling';
-      } else if (rawClass.includes('ORANGE') || rawClass.includes('AMBER')) {
-        resolvedType = 'Orange';
-      } else if (rawClass.includes('ROSÉ') || rawClass.includes('ROSE')) {
-        resolvedType = 'Rosé';
-      } else if (rawClass.includes('WHITE')) {
-        resolvedType = 'White';
-      } else if (rawClass.includes('RED')) {
-        resolvedType = 'Red';
-      } else if (rawClass.includes('SAKE')) {
-        resolvedType = 'Sake';
-      } else if (rawClass.includes('SATO')) {
-        resolvedType = 'Sato';
-      }
+      // Direct classification output mapping without heuristic keyword overrides
+      const resolvedType: WineType = parseWineType(profile.classification) || formData.type;
 
       setFormData(prev => ({
         ...prev,
         producer: profile.producer || prev.producer,
-        year: (profile.vintage && (prev.year === new Date().getFullYear().toString() || !prev.year)) ? profile.vintage : prev.year,
+        year: profile.vintage !== undefined && profile.vintage !== null ? profile.vintage : prev.year,
         type: resolvedType,
         region: profile.region || prev.region,
         country: profile.country || prev.country,
@@ -1459,14 +1439,8 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
       setTimeout(() => setAutoFillByNameSuccess(false), 3500);
     } catch (err: any) {
       console.error("Auto-fill by name error:", err);
-      const rawMsg = String(err?.message || JSON.stringify(err) || err);
-      let friendlyMsg = err?.message || "AI request failed. Please try again.";
-      if (rawMsg.includes("429") || rawMsg.includes("RESOURCE_EXHAUSTED") || rawMsg.toLowerCase().includes("quota")) {
-        friendlyMsg = "AI quota reached for the moment. Please wait a minute and try again.";
-      } else if (rawMsg.startsWith("{")) {
-        friendlyMsg = "AI request failed. Please try again.";
-      }
-      setAutoFillByNameWarning(friendlyMsg);
+      const rawMsg = err?.message || "Auto-fill failed. Please try again or enter details manually.";
+      setAutoFillByNameWarning(rawMsg);
       setTimeout(() => setAutoFillByNameWarning(null), 6000);
     } finally {
       setIsAutoFillingByName(false);

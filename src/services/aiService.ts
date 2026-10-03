@@ -143,7 +143,7 @@ async function generateWithRetryAndFallback(
     config?: any;
   }
 ) {
-  const model = options.model || "gemini-2.5-flash";
+  const model = options.model || "gemini-3.8-flash";
   let lastError: any = null;
 
   for (let attempt = 1; attempt <= 2; attempt++) {
@@ -236,12 +236,12 @@ export function parseWineType(typeStr?: string): WineType {
 }
 
 /**
- * Analyzes the wine label image directly using Gemini 2.5 Flash with strict Sommelier OCR.
+ * Analyzes the wine label image directly using Gemini 3.8 Flash with strict Sommelier OCR.
  * Transcribes what is physically printed without inventing unprinted grapes or tasting notes.
  * @param imageUri base64 Data URI or blob/remote URL
  */
 export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBottle> & { mainTastingNotes?: string; alcohol?: string }> {
-  console.log("[AI Service] Scanning label with precision Sommelier OCR (gemini-2.5-flash)...");
+  console.log("[AI Service] Scanning label with precision Sommelier OCR (gemini-3.8-flash)...");
   if (!imageUri || typeof imageUri !== "string") {
     console.error("[AI Service] Error: Invalid image URI provided to analyzeWineLabel.");
     throw new Error("Invalid image URI provided");
@@ -268,7 +268,7 @@ Carefully examine the physical wine bottle label and extract ONLY what is physic
 - Do NOT guess or invent tasting notes if the label does not contain them. If the back label contains foreign descriptive text (e.g. German, French, Italian), translate and synthesize into clean English sommelier tasting notes across fields (appearance, nose, palate, finish, winemakingPhilosophy, viticulture, foodPairing, tastingNotes). If no sensory text is printed, return empty strings.`;
 
   const response = await generateWithRetryAndFallback(ai, {
-    model: "gemini-2.5-flash",
+    model: "gemini-3.8-flash",
     contents: [
       "Transcribe all physically printed details from this wine label verbatim in structured JSON format.",
       {
@@ -280,7 +280,6 @@ Carefully examine the physical wine bottle label and extract ONLY what is physic
     ],
     config: {
       systemInstruction,
-      temperature: 0.0,
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
@@ -381,7 +380,7 @@ export async function generateQuizQuestion(): Promise<QuizQuestion> {
   const ai = getAIClient();
 
   const response = await generateWithRetryAndFallback(ai, {
-    model: "gemini-2.5-flash",
+    model: "gemini-3.8-flash",
     contents: "Generate a highly engaging, unique, and informative multiple choice question about wine. Topics can include wine history, grape varieties, regions, production techniques, or food pairings. Ensure the options are plausible but only one is correct. Provide a helpful, educational 1-2 sentence 'Did you know?' style explanation.",
     config: {
       systemInstruction: "You are an expert sommelier and dynamic wine quiz master. Your task is to generate one high-quality multiple choice question about wine in raw JSON format.",
@@ -413,7 +412,7 @@ export async function generateQuizQuestion(): Promise<QuizQuestion> {
 }
 
 /**
- * Recommends wines based on the existing user's wine diary directly using gemini-2.5-flash.
+ * Recommends wines based on the existing user's wine diary directly using gemini-3.8-flash.
  */
 export async function getWineRecommendations(bottles: WineBottle[]): Promise<Recommendation[]> {
   if (bottles.length === 0) return [];
@@ -425,7 +424,7 @@ export async function getWineRecommendations(bottles: WineBottle[]): Promise<Rec
     )}, suggest 3 wine recommendations that I would love. For each recommendation, provide name, producer, type, region, country, grape varieties, and a concise reason.`;
 
     const response = await generateWithRetryAndFallback(ai, {
-      model: "gemini-2.5-flash",
+      model: "gemini-3.8-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -466,7 +465,7 @@ export async function getWineRecommendations(bottles: WineBottle[]): Promise<Rec
 }
 
 /**
- * Rewrites raw bullet-point or rough tasting notes into a professional, elegant paragraph using gemini-2.5-flash.
+ * Rewrites raw bullet-point or rough tasting notes into a professional, elegant paragraph using gemini-3.8-flash.
  */
 export async function refineTastingNotes(rawNotes: string): Promise<string> {
   if (!rawNotes || !rawNotes.trim()) {
@@ -480,7 +479,7 @@ Rough notes:
 ${rawNotes}`;
 
   const response = await generateWithRetryAndFallback(ai, {
-    model: "gemini-2.5-flash",
+    model: "gemini-3.8-flash",
     contents: prompt,
   });
 
@@ -493,7 +492,7 @@ ${rawNotes}`;
 }
 
 /**
- * Generates tasting notes and analytical profile for a bottle that has no detailed notes using gemini-2.5-flash.
+ * Generates tasting notes and analytical profile for a bottle that has no detailed notes using gemini-3.8-flash.
  */
 export async function generateTastingNotesForBottle(bottle: WineBottle): Promise<Partial<WineBottle>> {
   console.log(`[AI Service] Generating tasting notes for ${bottle.name}...`);
@@ -508,7 +507,7 @@ export async function generateTastingNotesForBottle(bottle: WineBottle): Promise
   - Grape Varieties: ${bottle.grape ? (Array.isArray(bottle.grape) ? bottle.grape.join(', ') : bottle.grape) : 'Unknown'}`;
 
   const response = await generateWithRetryAndFallback(ai, {
-    model: "gemini-2.5-flash",
+    model: "gemini-3.8-flash",
     contents: prompt,
     config: {
       systemInstruction: "You are an expert sommelier. Generate detailed wine tasting profiles in raw JSON format.",
@@ -584,7 +583,7 @@ Return the data in structured JSON matching this schema:
 - additionalNotes: Historical origin, genetic parentage, or interesting sommelier trivia.`;
 
   const response = await generateWithRetryAndFallback(ai, {
-    model: "gemini-2.5-flash",
+    model: "gemini-3.8-flash",
     contents: prompt,
     config: {
       systemInstruction: "You are a master ampelographer and sommelier. Generate structured grape variety profile data in raw JSON format.",
@@ -687,7 +686,7 @@ export async function fetchWineProfileByName(
   let factualResearch = "";
   try {
     const searchStepResponse = await generateWithRetryAndFallback(ai, {
-      model: "gemini-2.5-flash",
+      model: "gemini-3.8-flash",
       contents: `Search Google for the official winery technical sheet, importer profile, grape varieties/percentages, vinification, and tasting notes for: '${queryStr}'. Provide detailed factual bullet points.`,
       config: {
         tools: [{ googleSearch: {} }],
@@ -699,7 +698,6 @@ Extract verified facts:
 4. Country, Region / Appellation, and Producer.
 5. Authentic sensory notes (appearance, nose, palate, finish), viticulture, winemaking, and food pairings directly from the tech sheet / sommelier notes.
 Synthesize all factual findings in clear, concise bullet points.`,
-        temperature: 0.0,
       },
     });
     factualResearch = searchStepResponse.text || "";
@@ -745,11 +743,10 @@ Required JSON Format:
   let resText = "";
   try {
     const jsonStepResponse = await generateWithRetryAndFallback(ai, {
-      model: "gemini-2.5-flash",
+      model: "gemini-3.8-flash",
       contents: jsonPrompt,
       config: {
         systemInstruction: jsonSystemInstruction,
-        temperature: 0.0,
         responseMimeType: "application/json",
       },
     });
@@ -880,11 +877,10 @@ At the very end of your response, if you recommended any specific bottles from t
   });
 
   const response = await generateWithRetryAndFallback(ai, {
-    model: "gemini-2.5-flash",
+    model: "gemini-3.8-flash",
     contents: conversationContents,
     config: {
       systemInstruction,
-      temperature: 0.7,
     }
   });
 
