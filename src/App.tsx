@@ -1366,22 +1366,16 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     region: bottle?.region || '',
     country: bottle?.country || '',
     grape: Array.isArray(bottle?.grape) ? bottle.grape : (typeof bottle?.grape === 'string' ? [bottle.grape] : []),
-    tastingNotes: bottle?.tastingNotes || '',
-    appearance: bottle?.appearance || '',
-    nose: bottle?.nose || '',
-    palate: bottle?.palate || '',
-    finish: bottle?.finish || '',
-    winemakingPhilosophy: bottle?.winemakingPhilosophy || '',
-    viticulture: bottle?.viticulture || '',
-    foodPairing: Array.isArray(bottle?.foodPairing) ? bottle.foodPairing : [],
-    additionalNote: bottle?.additionalNote || '',
+    abv: bottle?.abv || (bottle as any)?.alcohol || '',
+    body: (bottle?.body as any) || 'Medium',
     price: bottle?.price || 0,
     imageUrl: bottle?.imageUrl || '',
-    locationPurchased: bottle?.locationPurchased || '',
+    tastingNotes: bottle?.tastingSummary || bottle?.tastingNotes || '',
+    winemakingPhilosophy: bottle?.winemaking || bottle?.winemakingPhilosophy || '',
+    viticulture: bottle?.viticulture || '',
   });
 
   const [grapeInput, setGrapeInput] = useState('');
-  const [pairingInput, setPairingInput] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -1425,14 +1419,11 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
         region: profile.region || prev.region,
         country: profile.country || prev.country,
         grape: Array.isArray(profile.grapes) && profile.grapes.length > 0 ? profile.grapes : prev.grape,
-        appearance: profile.appearance || prev.appearance,
-        nose: profile.noseAromatics || prev.nose,
-        palate: profile.palateStructure || prev.palate,
-        finish: profile.finish || prev.finish,
+        abv: profile.abv || prev.abv,
+        body: (profile.body as any) || prev.body,
         viticulture: profile.viticulture || prev.viticulture,
         winemakingPhilosophy: profile.winemaking || prev.winemakingPhilosophy,
-        tastingNotes: profile.mainSummary || prev.tastingNotes,
-        foodPairing: Array.isArray(profile.suggestedFoodPairings) && profile.suggestedFoodPairings.length > 0 ? profile.suggestedFoodPairings : prev.foodPairing,
+        tastingNotes: profile.tastingSummary || profile.mainSummary || prev.tastingNotes,
       }));
 
       setAutoFillByNameSuccess(true);
@@ -1505,7 +1496,7 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
 
       const analysis = await analyzeWineLabel(targetUrl);
       
-      // Auto-populate all form fields from structured OCR extraction
+      // Auto-populate streamlined form fields from structured OCR extraction
       setFormData(prev => ({
         ...prev,
         name: analysis.name || prev.name,
@@ -1515,15 +1506,11 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
         region: analysis.region || prev.region,
         country: analysis.country || prev.country,
         grape: Array.isArray(analysis.grape) && analysis.grape.length > 0 ? analysis.grape : prev.grape,
-        appearance: analysis.appearance || prev.appearance,
-        nose: analysis.nose || prev.nose,
-        palate: analysis.palate || prev.palate,
-        finish: analysis.finish || prev.finish,
-        winemakingPhilosophy: analysis.winemakingPhilosophy || prev.winemakingPhilosophy,
+        abv: analysis.abv || analysis.alcohol || prev.abv,
+        body: (analysis.body as any) || prev.body,
+        winemakingPhilosophy: analysis.winemaking || analysis.winemakingPhilosophy || prev.winemakingPhilosophy,
         viticulture: analysis.viticulture || prev.viticulture,
-        foodPairing: Array.isArray(analysis.foodPairing) && analysis.foodPairing.length > 0 ? analysis.foodPairing : prev.foodPairing,
-        additionalNote: analysis.additionalNote || prev.additionalNote,
-        tastingNotes: analysis.mainTastingNotes || analysis.tastingNotes || prev.tastingNotes,
+        tastingNotes: analysis.tastingSummary || analysis.mainTastingNotes || analysis.tastingNotes || prev.tastingNotes,
       }));
       setUploadError(null);
       setAnalysisSuccess(true);
@@ -1613,11 +1600,6 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
           }
         } catch (err) {
           console.warn("Remote upload failed, using base64 fallback:", err);
-          // If remote upload fails (credentials etc.), fallback to base64
-          // We need the original file. Since we don't have it here easily, 
-          // let's try to fetch it from the blob URL or re-read it.
-          // Actually, we can just use the compressImage if we keep the file.
-          // Let's modify handleFileUpload to store the file in a ref.
           if (lastSelectedFileRef.current) {
             finalImageUrl = await compressImage(lastSelectedFileRef.current);
           } else {
@@ -1629,19 +1611,22 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
       const currentGrapes = Array.isArray(formData.grape) ? formData.grape : [];
       const finalGrapes = grapeInput.trim() ? [...currentGrapes, grapeInput.trim()] : currentGrapes;
       
-      const currentPairings = Array.isArray(formData.foodPairing) ? formData.foodPairing : [];
-      const finalPairings = pairingInput.trim() ? [...currentPairings, pairingInput.trim()] : currentPairings;
-      
       await onSave({ 
         ...formData, 
         imageUrl: finalImageUrl,
         grape: finalGrapes,
-        foodPairing: finalPairings,
         region: formData.region || '',
         country: formData.country || '',
         producer: formData.producer || '',
         year: formData.year || 'NV',
-        type: formData.type || 'Red'
+        type: formData.type || 'Red',
+        abv: formData.abv || '',
+        body: formData.body || 'Medium',
+        tastingSummary: formData.tastingNotes || '',
+        tastingNotes: formData.tastingNotes || '',
+        winemaking: formData.winemakingPhilosophy || '',
+        winemakingPhilosophy: formData.winemakingPhilosophy || '',
+        viticulture: formData.viticulture || '',
       });
     } catch (error: any) {
       console.error("Form submission failed:", error);
@@ -1664,22 +1649,6 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
     setFormData({
       ...formData,
       grape: currentGrapes.filter((_, i) => i !== index)
-    });
-  };
-
-  const addPairing = () => {
-    const currentPairings = Array.isArray(formData.foodPairing) ? formData.foodPairing : [];
-    if (pairingInput.trim() && !currentPairings.includes(pairingInput.trim())) {
-      setFormData({ ...formData, foodPairing: [...currentPairings, pairingInput.trim()] });
-      setPairingInput('');
-    }
-  };
-
-  const removePairing = (index: number) => {
-    const currentPairings = Array.isArray(formData.foodPairing) ? formData.foodPairing : [];
-    setFormData({
-      ...formData,
-      foodPairing: currentPairings.filter((_, i) => i !== index)
     });
   };
 
@@ -1876,20 +1845,55 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
                 )}
               </div>
             </div>
-            <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Price (฿)</label>
-              <input
-                type="number"
-                value={formData.price}
-                onChange={e => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })}
-                className="w-full bg-white border border-[#E5E0D8] rounded-xl px-3.5 py-2 text-stone-900 font-mono font-medium focus:outline-none focus:border-[#722F37] transition-all text-xs"
-              />
+            <div className="space-y-1.5 col-span-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Alcohol % (ABV)</label>
+                  <input
+                    type="text"
+                    value={formData.abv}
+                    onChange={e => setFormData({ ...formData, abv: e.target.value })}
+                    className="w-full bg-white border border-[#E5E0D8] rounded-xl px-3.5 py-2 text-stone-900 font-mono font-medium focus:outline-none focus:border-[#722F37] transition-all text-xs"
+                    placeholder="e.g. 12.5%"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Price (฿)</label>
+                  <input
+                    type="number"
+                    value={formData.price}
+                    onChange={e => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })}
+                    className="w-full bg-white border border-[#E5E0D8] rounded-xl px-3.5 py-2 text-stone-900 font-mono font-medium focus:outline-none focus:border-[#722F37] transition-all text-xs"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2 col-span-2">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Body</label>
+              <div className="grid grid-cols-5 gap-1.5">
+                {(['Light', 'Medium-Minus', 'Medium', 'Medium-Plus', 'Full'] as const).map(b => (
+                  <button
+                    key={b}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, body: b })}
+                    className={`py-2 px-1 text-center text-xs font-medium rounded-xl border transition-all cursor-pointer ${
+                      formData.body === b
+                        ? 'bg-[#722F37] text-white border-[#722F37] shadow-xs font-bold'
+                        : 'bg-white text-stone-700 border-[#E5E0D8] hover:bg-[#F7F5F0]'
+                    }`}
+                  >
+                    {b}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Bottle Photo (Optional Attachment)</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Bottle Photo</label>
               
               <div 
                 onDragOver={e => e.preventDefault()}
@@ -1991,82 +1995,9 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
             </div>
             
             <div className="space-y-4 pt-4 border-t border-[#EBE7DF]">
-              <div className="flex items-center gap-2">
-                <Sparkles size={16} className="text-[#722F37]" />
-                <label className="text-xs font-semibold uppercase tracking-wider text-[#722F37]">Tasting Diary (Detailed Sensory Profile)</label>
-              </div>
-              
-              <div className="space-y-3 p-4 bg-[#FAF8F3] border border-[#EBE7DF] rounded-xl">
-                <div className="space-y-1">
-                  <label className="text-xs uppercase tracking-wider text-stone-600 font-semibold">Appearance & Hue</label>
-                  <textarea
-                    rows={2}
-                    value={formData.appearance}
-                    onChange={e => setFormData({ ...formData, appearance: e.target.value })}
-                    className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 focus:outline-none focus:border-[#722F37]"
-                    placeholder="Describe the robe, clarity, and intensity..."
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs uppercase tracking-wider text-stone-600 font-semibold">The Nose (Aromatics)</label>
-                  <textarea
-                    rows={2}
-                    value={formData.nose}
-                    onChange={e => setFormData({ ...formData, nose: e.target.value })}
-                    className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 focus:outline-none focus:border-[#722F37]"
-                    placeholder="Primary fruits, secondary fermentation notes, tertiary age..."
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs uppercase tracking-wider text-stone-600 font-semibold">Palate & Structure</label>
-                <textarea
-                  rows={2}
-                  value={formData.palate}
-                  onChange={e => setFormData({ ...formData, palate: e.target.value })}
-                  className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 focus:outline-none focus:border-[#722F37]"
-                  placeholder="Body, acidity, tannins, alcohol, balance..."
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs uppercase tracking-wider text-stone-600 font-semibold">The Finish</label>
-                <textarea
-                  rows={2}
-                  value={formData.finish}
-                  onChange={e => setFormData({ ...formData, finish: e.target.value })}
-                  className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 focus:outline-none focus:border-[#722F37]"
-                  placeholder="Length, persistence, and final impressions..."
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs uppercase tracking-wider text-stone-600 font-semibold">Viticulture & Vineyard</label>
-                <textarea
-                  rows={2}
-                  value={formData.viticulture}
-                  onChange={e => setFormData({ ...formData, viticulture: e.target.value })}
-                  className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 focus:outline-none focus:border-[#722F37]"
-                  placeholder="Farming practices, soil type, vine age, elevation, organic/biodynamic..."
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs uppercase tracking-wider text-stone-600 font-semibold">Wine Making Philosophy</label>
-                <textarea
-                  rows={2}
-                  value={formData.winemakingPhilosophy}
-                  onChange={e => setFormData({ ...formData, winemakingPhilosophy: e.target.value })}
-                  className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 focus:outline-none focus:border-[#722F37]"
-                  placeholder="Fermentation method, oak aging, minimal intervention, wild yeast..."
-                />
-              </div>
-
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs uppercase tracking-wider text-stone-700 font-semibold">Main Tasting Summary</label>
+                  <label className="text-xs uppercase tracking-wider text-stone-700 font-semibold">Tasting Summary</label>
                   <button
                     type="button"
                     disabled={isRefiningNotes || !formData.tastingNotes.trim()}
@@ -2092,62 +2023,34 @@ const WineForm = ({ bottle, grapes, onSave, onClose }: WineFormProps) => {
                   value={formData.tastingNotes}
                   onChange={e => setFormData({ ...formData, tastingNotes: e.target.value })}
                   className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 focus:outline-none focus:border-[#722F37]"
-                  placeholder="The primary descriptive notes that will appear on the main card..."
+                  placeholder="Primary sensory, aromatic, and palate impressions..."
                 />
                 {refineError && (
                   <p className="text-xs text-rose-600 font-medium mt-1">{refineError}</p>
                 )}
               </div>
-            </div>
-            
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Suggested Food Pairings</label>
-              <div className="flex flex-wrap gap-2 mb-2 min-h-[32px]">
-                {Array.isArray(formData.foodPairing) && formData.foodPairing.map((p, i) => (
-                  <span key={i} className="flex items-center gap-1.5 px-3 py-1 bg-[#F0FDF4] border border-[#BBF7D0] rounded-lg text-xs font-medium text-[#15803D]">
-                    {p}
-                    <button 
-                      type="button" 
-                      onClick={() => removePairing(i)}
-                      className="hover:text-red-700 cursor-pointer"
-                    >
-                      <X size={12} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <div className="relative flex gap-2">
-                <input
-                  value={pairingInput}
-                  onChange={e => setPairingInput(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' || e.key === ',') {
-                      e.preventDefault();
-                      addPairing();
-                    }
-                  }}
-                  className="flex-1 bg-white border border-[#E5E0D8] rounded-xl px-3.5 py-2 text-stone-900 font-medium text-xs focus:outline-none focus:border-[#722F37]"
-                  placeholder="e.g. Grilled Scallops (Enter to add)"
+
+              <div className="space-y-1.5">
+                <label className="text-xs uppercase tracking-wider text-stone-700 font-semibold">Wine Making Philosophy</label>
+                <textarea
+                  rows={2}
+                  value={formData.winemakingPhilosophy}
+                  onChange={e => setFormData({ ...formData, winemakingPhilosophy: e.target.value })}
+                  className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 focus:outline-none focus:border-[#722F37]"
+                  placeholder="Fermentation method, oak aging, minimal intervention, wild yeast, sulfur..."
                 />
-                <button
-                  type="button"
-                  onClick={addPairing}
-                  className="px-3 rounded-xl border border-[#E5E0D8] bg-[#F7F5F0] hover:bg-[#EBE7DF] text-stone-700 font-semibold cursor-pointer"
-                >
-                  <Plus size={16} />
-                </button>
               </div>
-            </div>
-            
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-stone-700">Personal Notes / Storage Location</label>
-              <textarea
-                rows={2}
-                value={formData.additionalNote}
-                onChange={e => setFormData({ ...formData, additionalNote: e.target.value })}
-                className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 focus:outline-none focus:border-[#722F37]"
-                placeholder="Rack B2, purchased from importer, opened for anniversary..."
-              />
+
+              <div className="space-y-1.5">
+                <label className="text-xs uppercase tracking-wider text-stone-700 font-semibold">Viticulture & Vineyard</label>
+                <textarea
+                  rows={2}
+                  value={formData.viticulture}
+                  onChange={e => setFormData({ ...formData, viticulture: e.target.value })}
+                  className="w-full bg-white border border-[#E5E0D8] rounded-xl p-3 text-xs text-stone-900 focus:outline-none focus:border-[#722F37]"
+                  placeholder="Farming practices, soil type, vine age, elevation, organic/biodynamic..."
+                />
+              </div>
             </div>
           </div>
 

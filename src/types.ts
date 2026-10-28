@@ -1,4 +1,5 @@
 export type WineType = 'Red' | 'White' | 'Rosé' | 'Sparkling' | 'Natural Red' | 'Natural White' | 'Pet Nat' | 'Orange' | 'Sato' | 'Sake';
+export type WineBody = 'Light' | 'Medium-Minus' | 'Medium' | 'Medium-Plus' | 'Full';
 
 export interface WineBottle {
   id: string;
@@ -10,12 +11,16 @@ export interface WineBottle {
   country: string;
   grape: string[];
   tastingNotes: string;
+  tastingSummary?: string;
+  abv?: string;
+  body?: 'Light' | 'Medium-Minus' | 'Medium' | 'Medium-Plus' | 'Full' | string;
+  winemaking?: string;
+  winemakingPhilosophy?: string;
+  viticulture?: string;
   appearance?: string;
   nose?: string;
   palate?: string;
   finish?: string;
-  winemakingPhilosophy?: string;
-  viticulture?: string;
   additionalNote?: string;
   locationPurchased?: string;
   price?: number;

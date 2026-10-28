@@ -132,10 +132,17 @@ async function imageUriToData(imageUri: string): Promise<{ base64: string; mimeT
   });
 }
 
+export const PRIMARY_AI_MODEL = "gemini-3.8-flash";
+export const FALLBACK_AI_MODEL = "gemini-3.5-flash-lite";
+
 /**
- * Generates content using Gemini API with automatic retry and model fallbacks for 503 / 429 / high demand errors.
+ * Executes a Gemini API request with a resilient dual-model architecture:
+ * - Primary Model: gemini-3.8-flash
+ * - Fallback Model: gemini-3.5-flash-lite
+ * If the primary model returns 503 (High Demand / Service Unavailable) or 429 (Rate Limit / Quota),
+ * it seamlessly retries once using the fallback model before throwing a clean, informative error.
  */
-async function generateWithRetryAndFallback(
+export async function generateWithRetryAndFallback(
   ai: GoogleGenAI,
   options: {
     model?: string;
@@ -143,62 +150,64 @@ async function generateWithRetryAndFallback(
     config?: any;
   }
 ) {
-  const model = options.model || "gemini-3.8-flash";
-  let lastError: any = null;
+  const targetPrimary = options.model || PRIMARY_AI_MODEL;
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      console.log(`[AI Service] Calling Gemini API (${model}, attempt ${attempt})...`);
-      const result = await ai.models.generateContent({
-        ...options,
-        model,
-      });
-      return result;
-    } catch (err: any) {
-      lastError = err;
-      const errStr = String(err?.message || JSON.stringify(err) || err);
-      const isTransient =
-        errStr.includes("503") ||
-        errStr.includes("HIGH DEMAND") ||
-        errStr.includes("429") ||
-        errStr.includes("UNAVAILABLE") ||
-        errStr.includes("RESOURCE_EXHAUSTED") ||
-        errStr.includes("QUOTA") ||
-        errStr.includes("quota") ||
-        errStr.includes("RATE_LIMIT") ||
-        errStr.includes("TEMPORARY");
+  try {
+    console.log(`[AI Service] Executing Gemini request with primary model: ${targetPrimary}...`);
+    return await ai.models.generateContent({
+      ...options,
+      model: targetPrimary,
+    });
+  } catch (primaryErr: any) {
+    const errMsg = String(primaryErr?.message || JSON.stringify(primaryErr) || primaryErr);
+    console.warn(`[AI Service] Primary model (${targetPrimary}) encountered error:`, errMsg);
 
-      console.warn(`[AI Service] Model ${model} attempt ${attempt} failed:`, errStr);
+    const isRetryableError =
+      errMsg.includes("503") ||
+      errMsg.includes("HIGH DEMAND") ||
+      errMsg.includes("high demand") ||
+      errMsg.includes("429") ||
+      errMsg.includes("UNAVAILABLE") ||
+      errMsg.includes("unavailable") ||
+      errMsg.includes("RESOURCE_EXHAUSTED") ||
+      errMsg.includes("quota") ||
+      errMsg.includes("Quota") ||
+      errMsg.includes("RATE_LIMIT") ||
+      errMsg.includes("overloaded");
 
-      if (isTransient && attempt < 2) {
-        // Exponential backoff of 2 seconds
-        await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
-      } else {
-        break;
+    if (isRetryableError && targetPrimary !== FALLBACK_AI_MODEL) {
+      console.warn(`[AI Service] Seamlessly retrying with fallback model (${FALLBACK_AI_MODEL})...`);
+      // Brief 1.5s backoff before attempting fallback
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      try {
+        const fallbackRes = await ai.models.generateContent({
+          ...options,
+          model: FALLBACK_AI_MODEL,
+        });
+        console.log(`[AI Service] Fallback model (${FALLBACK_AI_MODEL}) succeeded!`);
+        return fallbackRes;
+      } catch (fallbackErr: any) {
+        console.error(`[AI Service] Fallback model (${FALLBACK_AI_MODEL}) also failed:`, fallbackErr);
+        const fbMsg = String(fallbackErr?.message || fallbackErr);
+        if (fbMsg.includes("503") || fbMsg.includes("HIGH DEMAND") || fbMsg.includes("UNAVAILABLE")) {
+          throw new Error("Google server high demand - please try again in a few seconds.");
+        }
+        if (fbMsg.includes("429") || fbMsg.includes("RESOURCE_EXHAUSTED") || fbMsg.includes("quota")) {
+          throw new Error("AI request quota reached. Please wait a moment and try again, or enter details manually.");
+        }
+        throw fallbackErr instanceof Error ? fallbackErr : new Error(fbMsg);
       }
     }
-  }
 
-  const lastMsg = String(lastError?.message || JSON.stringify(lastError) || lastError);
-  if (
-    lastMsg.includes("429") ||
-    lastMsg.includes("RESOURCE_EXHAUSTED") ||
-    lastMsg.includes("Quota") ||
-    lastMsg.includes("quota") ||
-    lastMsg.includes("RATE_LIMIT")
-  ) {
-    throw new Error(lastError?.message || "AI quota reached. Please wait a moment and try again.");
-  }
+    if (errMsg.includes("503") || errMsg.includes("HIGH DEMAND") || errMsg.includes("UNAVAILABLE")) {
+      throw new Error("Google server high demand - please try again in a few seconds.");
+    }
+    if (errMsg.includes("429") || errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("quota")) {
+      throw new Error("AI request quota reached. Please wait a moment and try again, or enter details manually.");
+    }
 
-  if (lastMsg.includes("503") || lastMsg.includes("HIGH DEMAND") || lastMsg.includes("UNAVAILABLE")) {
-    throw new Error(lastError?.message || "AI service is temporarily busy (503). Please wait a moment and try again.");
+    throw primaryErr instanceof Error ? primaryErr : new Error(errMsg);
   }
-
-  if (lastMsg.includes("Failed to fetch") || lastMsg.includes("NetworkError") || lastMsg.includes("network")) {
-    throw new Error(lastError?.message || "Network connection error. Please check your internet connection.");
-  }
-
-  throw lastError instanceof Error ? lastError : new Error(lastMsg || "AI request failed");
 }
 
 /**
@@ -236,41 +245,54 @@ export function parseWineType(typeStr?: string): WineType {
 }
 
 /**
- * Analyzes the wine label image directly using Gemini 3.8 Flash with strict Sommelier OCR.
- * Transcribes what is physically printed without inventing unprinted grapes or tasting notes.
- * @param imageUri base64 Data URI or blob/remote URL
+ * LABEL PHOTO OCR SCANNER (scanWineLabelImage):
+ * Reads physically printed text on the bottle label with extreme precision:
+ * Producer, Bottle Name, Vintage year / NV, Region, Appellation, Alcohol % ABV.
+ * If information is not visible on the label, leaves it empty rather than guessing or hallucinating.
+ * @param imageUri base64 Data URI, blob, or remote image URL
  */
-export async function analyzeWineLabel(imageUri: string): Promise<Partial<WineBottle> & { mainTastingNotes?: string; alcohol?: string }> {
-  console.log("[AI Service] Scanning label with precision Sommelier OCR (gemini-3.8-flash)...");
+export async function scanWineLabelImage(imageUri: string): Promise<Partial<WineBottle> & { 
+  bottleName?: string;
+  vintage?: string;
+  classification?: WineType;
+  grapes?: string[];
+  grapeVarieties?: string[];
+  alcohol?: string; 
+  mainTastingNotes?: string;
+}> {
+  console.log(`[AI Service] Scanning label photo with precision OCR (${PRIMARY_AI_MODEL})...`);
   if (!imageUri || typeof imageUri !== "string") {
-    console.error("[AI Service] Error: Invalid image URI provided to analyzeWineLabel.");
-    throw new Error("Invalid image URI provided");
+    console.error("[AI Service] Error: Invalid image URI provided to scanWineLabelImage.");
+    throw new Error("Invalid image data provided for label scan");
   }
 
   const { base64, mimeType } = await imageUriToData(imageUri);
   const ai = getAIClient();
 
-  const systemInstruction = `You are a precision OCR extraction engine and Master Sommelier for wine labels.
-Carefully examine the physical wine bottle label and extract ONLY what is physically printed or directly verifiable on the label:
+  const systemInstruction = `You are a precision wine label OCR scanner.
+Read visible text physically printed on the wine bottle label with extreme fidelity and accuracy.
 
-1. VERBATIM EXTRACTION:
-- name: Exact wine or cuvée name as printed on the label.
-- producer: Estate, château, winery, or vigneron name.
-- vintage: Harvest vintage year printed (e.g. "2021", "2019"). If non-vintage or unstated on label, return "" (empty string).
-- wineType: Classification strictly based on label indications: 'Red' | 'White' | 'Rosé' | 'Sparkling' | 'Natural Red' | 'Natural White' | 'Pet Nat' | 'Orange' | 'Sato' | 'Sake'.
-- country: Country of origin if printed or stated (e.g. France, Germany, Italy, Spain, USA, Australia, South Africa, Thailand).
+VISIBLE FIELD EXTRACTION:
+- bottleName: Cuvée or wine name as printed on the label.
+- producer: Estate, château, winery, or vigneron name printed.
+- vintage: Harvest vintage year printed (e.g. "2021", "2018"). If non-vintage or unstated, return "".
+- classification: Classification indicated on label ('Red' | 'White' | 'Rosé' | 'Sparkling' | 'Natural Red' | 'Natural White' | 'Pet Nat' | 'Orange' | 'Sato' | 'Sake'). If not stated, default to 'Red'.
 - region: Specific appellation or region if printed on the label. If not printed, return "".
-- grapes: Array of grape varieties ONLY if explicitly listed on the label. If unlisted, return [].
-- alcohol: Alcohol by volume percentage if printed (e.g. "12.5% vol").
+- country: Country of origin if printed. If not printed, return "".
+- grapeVarieties: Only grape varieties explicitly listed on the label. If unlisted, return [].
+- abv: Alcohol by volume percentage if printed (e.g. "12.5% vol"). If unstated, return "".
+- body: Body indicated on the label ('Light' | 'Medium-Minus' | 'Medium' | 'Medium-Plus' | 'Full') or 'Medium'.
+- tastingSummary: English translation/synthesis of back-label tasting impressions ONLY if physically printed; if not printed, return "".
+- winemaking: Winemaking method, fermentation, vessels, aging, or sulfite info ONLY if physically printed; if not, return "".
+- viticulture: Farming, vineyard, soil, or organic/biodynamic certification details ONLY if physically printed; if not, return "".
 
-2. STRICT FIDELITY:
-- Do NOT fabricate fictitious grapes or regions if they are not printed on the label.
-- Do NOT guess or invent tasting notes if the label does not contain them. If the back label contains foreign descriptive text (e.g. German, French, Italian), translate and synthesize into clean English sommelier tasting notes across fields (appearance, nose, palate, finish, winemakingPhilosophy, viticulture, foodPairing, tastingNotes). If no sensory text is printed, return empty strings.`;
+CRITICAL ANTI-HALLUCINATION RULE:
+If information is not physically visible on the label, leave it empty ("" or []) rather than guessing, hallucinating, or inventing facts.`;
 
   const response = await generateWithRetryAndFallback(ai, {
-    model: "gemini-3.8-flash",
+    model: PRIMARY_AI_MODEL,
     contents: [
-      "Transcribe all physically printed details from this wine label verbatim in structured JSON format.",
+      "Transcribe all physically printed details from this wine label accurately in structured JSON format.",
       {
         inlineData: {
           data: base64,
@@ -284,35 +306,33 @@ Carefully examine the physical wine bottle label and extract ONLY what is physic
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          name: { type: Type.STRING },
+          bottleName: { type: Type.STRING },
           producer: { type: Type.STRING },
           vintage: { type: Type.STRING },
-          wineType: { 
+          classification: { 
             type: Type.STRING, 
             enum: ['Red', 'White', 'Rosé', 'Sparkling', 'Natural Red', 'Natural White', 'Pet Nat', 'Orange', 'Sato', 'Sake'] 
           },
           country: { type: Type.STRING },
           region: { type: Type.STRING },
-          grapes: { type: Type.ARRAY, items: { type: Type.STRING } },
-          alcohol: { type: Type.STRING },
-          appearance: { type: Type.STRING },
-          nose: { type: Type.STRING },
-          palate: { type: Type.STRING },
-          finish: { type: Type.STRING },
-          winemakingPhilosophy: { type: Type.STRING },
+          grapeVarieties: { type: Type.ARRAY, items: { type: Type.STRING } },
+          abv: { type: Type.STRING },
+          body: { 
+            type: Type.STRING,
+            enum: ['Light', 'Medium-Minus', 'Medium', 'Medium-Plus', 'Full']
+          },
+          tastingSummary: { type: Type.STRING },
+          winemaking: { type: Type.STRING },
           viticulture: { type: Type.STRING },
-          foodPairing: { type: Type.ARRAY, items: { type: Type.STRING } },
-          tastingNotes: { type: Type.STRING },
-          additionalNote: { type: Type.STRING },
         },
-        required: ["name", "producer", "vintage", "wineType", "country", "region"],
+        required: ["bottleName", "producer", "vintage", "classification", "country", "region"],
       },
     },
   });
 
   const text = response.text;
   if (!text) {
-    throw new Error("No response from AI Sommelier OCR");
+    throw new Error("No response from AI label OCR scanner");
   }
 
   let cleanText = text.trim();
@@ -328,49 +348,51 @@ Carefully examine the physical wine bottle label and extract ONLY what is physic
   }
 
   // Extract clean fields
-  const wineName = sanitizeField(parsedData.name || parsedData.wineName);
+  const wineName = sanitizeField(parsedData.bottleName || parsedData.name || parsedData.wineName);
   const producer = sanitizeField(parsedData.producer);
   const vintage = sanitizeField(parsedData.vintage || parsedData.year);
   const country = sanitizeField(parsedData.country);
   const region = sanitizeField(parsedData.region);
-  const rawType = sanitizeField(parsedData.wineType || parsedData.type);
+  const rawType = sanitizeField(parsedData.classification || parsedData.wineType || parsedData.type);
+  const finalType = parseWineType(rawType);
 
-  // Grapes list sanitation
-  const rawGrapes = parsedData.grapes || parsedData.grapeVarieties || parsedData.grape || [];
+  const rawGrapes = parsedData.grapeVarieties || parsedData.grapes || parsedData.grape || [];
   const grapesList: string[] = (Array.isArray(rawGrapes) ? rawGrapes : (typeof rawGrapes === 'string' ? rawGrapes.split(',') : []))
     .map((g: any) => sanitizeField(g))
     .filter(Boolean);
 
-  // Directly trust AI's direct classification output without keyword/tasting note heuristics
-  const finalType = parseWineType(rawType);
-
-  // Food pairings
-  const rawPairings = parsedData.foodPairing || parsedData.foodPairings || [];
-  const pairingsList: string[] = (Array.isArray(rawPairings) ? rawPairings : (typeof rawPairings === 'string' ? [rawPairings] : []))
-    .map((p: any) => sanitizeField(p))
-    .filter(Boolean);
+  const abv = sanitizeField(parsedData.abv || parsedData.alcohol);
+  const body = sanitizeField(parsedData.body, 'Medium');
+  const tastingSummary = sanitizeField(parsedData.tastingSummary || parsedData.tastingNotes || parsedData.notes);
+  const winemaking = sanitizeField(parsedData.winemaking || parsedData.winemakingPhilosophy);
+  const viticulture = sanitizeField(parsedData.viticulture);
 
   return {
     name: wineName,
+    bottleName: wineName,
     producer: producer,
     year: vintage,
+    vintage: vintage,
     region: region,
     country: country,
     type: finalType,
+    classification: finalType,
     grape: grapesList,
-    tastingNotes: sanitizeField(parsedData.tastingNotes || parsedData.notes),
-    appearance: sanitizeField(parsedData.appearance),
-    nose: sanitizeField(parsedData.nose || parsedData.aromatics),
-    palate: sanitizeField(parsedData.palate),
-    finish: sanitizeField(parsedData.finish),
-    winemakingPhilosophy: sanitizeField(parsedData.winemakingPhilosophy),
-    viticulture: sanitizeField(parsedData.viticulture),
-    foodPairing: pairingsList,
-    additionalNote: sanitizeField(parsedData.additionalNote),
-    mainTastingNotes: sanitizeField(parsedData.tastingNotes || parsedData.notes),
-    alcohol: sanitizeField(parsedData.alcohol),
+    grapes: grapesList,
+    grapeVarieties: grapesList,
+    abv: abv,
+    alcohol: abv,
+    body: body,
+    tastingSummary: tastingSummary,
+    tastingNotes: tastingSummary,
+    mainTastingNotes: tastingSummary,
+    winemaking: winemaking,
+    winemakingPhilosophy: winemaking,
+    viticulture: viticulture,
   };
 }
+
+export const analyzeWineLabel = scanWineLabelImage;
 
 /**
  * Generates a random multiple choice question directly using gemini-3.5-flash.
@@ -635,27 +657,36 @@ Return the data in structured JSON matching this schema:
 }
 
 export interface AIWineNameProfile {
+  bottleName: string;
+  name?: string;
   producer: string;
   vintage: string;
+  year?: string;
   classification: string;
   country: string;
   region: string;
+  grapeVarieties: string[];
   grapes: string[];
-  appearance: string;
-  noseAromatics: string;
-  palateStructure: string;
-  finish: string;
-  viticulture: string;
+  grape?: string[];
+  abv: string;
+  alcohol?: string;
+  body: 'Light' | 'Medium-Minus' | 'Medium' | 'Medium-Plus' | 'Full' | string;
+  tastingSummary: string;
   winemaking: string;
-  mainSummary: string;
-  suggestedFoodPairings: string[];
+  viticulture: string;
+  mainSummary?: string;
+  tastingNotes?: string;
+  winemakingPhilosophy?: string;
 }
 
 /**
- * Auto-generates comprehensive sommelier profile for a wine by Name & Vintage using a 2-Step
- * Google Search Grounding & JSON synthesis pipeline.
+ * GOOGLE SEARCH GROUNDED AUTO-FILL (autoFillWineByName):
+ * Constructs search query: "{producer} {wineName} {vintage} wine technical sheet".
+ * Employs clean Gemini 3 generation config with tools: [{ googleSearch: {} }].
+ * Extracts verified facts: bottleName, producer, vintage, classification, region, country,
+ * grapeVarieties, abv, body, tastingSummary, winemaking, viticulture.
  */
-export async function fetchWineProfileByName(
+export async function autoFillWineByName(
   bottleName: string,
   producer?: string,
   vintage?: string
@@ -668,93 +699,104 @@ export async function fetchWineProfileByName(
   const cleanProducer = (producer || "").trim();
   const cleanVintage = (vintage || "").trim();
 
-  // Combine producer, cuvée name, and vintage cleanly for search grounding
-  const queryParts: string[] = [];
-  if (cleanProducer && !cleanName.toLowerCase().includes(cleanProducer.toLowerCase())) {
-    queryParts.push(cleanProducer);
+  // Search Query: "{producer} {wineName} {vintage} wine technical sheet"
+  const queryTokens: string[] = [];
+  if (cleanProducer) {
+    queryTokens.push(cleanProducer);
   }
-  queryParts.push(cleanName);
+  if (!cleanProducer || !cleanName.toLowerCase().includes(cleanProducer.toLowerCase())) {
+    queryTokens.push(cleanName);
+  } else {
+    queryTokens.push(cleanName);
+  }
   if (cleanVintage && cleanVintage !== "NV" && !cleanName.includes(cleanVintage)) {
-    queryParts.push(cleanVintage);
+    queryTokens.push(cleanVintage);
   }
-  const queryStr = queryParts.join(" ").trim();
+  queryTokens.push("wine technical sheet");
+  const searchQuery = queryTokens.join(" ").trim();
 
-  console.log(`[AI Service] Starting 2-step grounded wine profile extraction for: "${queryStr}"...`);
+  console.log(`[AI Service] Grounded Wine Search starting: "${searchQuery}" (${PRIMARY_AI_MODEL})...`);
   const ai = getAIClient();
 
-  // STEP 1: FACTUAL GOOGLE SEARCH (No JSON schema/MIME constraints)
+  // STEP 1: FACTUAL GOOGLE SEARCH (tools: [{ googleSearch: {} }])
   let factualResearch = "";
   try {
     const searchStepResponse = await generateWithRetryAndFallback(ai, {
-      model: "gemini-3.8-flash",
-      contents: `Search Google for the official winery technical sheet, importer profile, grape varieties/percentages, vinification, and tasting notes for: '${queryStr}'. Provide detailed factual bullet points.`,
+      model: PRIMARY_AI_MODEL,
+      contents: `Search Google for the technical sheet: "${searchQuery}". Extract verified facts from winemaker technical sheets or importer portfolios.`,
       config: {
         tools: [{ googleSearch: {} }],
-        systemInstruction: `You are a meticulous wine researcher. Given a wine query, search Google thoroughly for its official technical sheet, producer notes, or importer profiles (e.g. Kermit Lynch, Becky Wasserman, Soma Vines, Different Drop, etc.).
+        systemInstruction: `You are a technical wine data researcher. Search Google thoroughly using the search tool for: "${searchQuery}".
 Extract verified facts:
-1. Producer / Estate and Cuvée name.
-2. Real grape varietal composition and percentages (do NOT guess classic varieties if the producer uses an unusual blend).
-3. Actual wine classification (strictly: 'Red', 'White', 'Rosé', 'Sparkling', 'Natural Red', 'Natural White', 'Pet Nat', 'Orange', 'Sato', 'Sake').
-4. Country, Region / Appellation, and Producer.
-5. Authentic sensory notes (appearance, nose, palate, finish), viticulture, winemaking, and food pairings directly from the tech sheet / sommelier notes.
-Synthesize all factual findings in clear, concise bullet points.`,
+1. bottleName: Cuvée or wine name.
+2. producer: Winery or estate name.
+3. vintage: Harvest year.
+4. classification: Strictly one of: RED, WHITE, ROSÉ, SPARKLING, NATURAL RED, NATURAL WHITE, PET NAT, ORANGE, SATO, SAKE.
+5. region & country: Specific Appellation/Region and Country of origin.
+6. grapeVarieties: Real grape varietal composition and percentages (do NOT guess or invent varieties).
+7. abv: Alcohol % by volume (e.g. "12.5%").
+8. body: Body profile ('Light' | 'Medium-Minus' | 'Medium' | 'Medium-Plus' | 'Full').
+9. tastingSummary: Concise summary of verified tasting impressions from real importer/sommelier notes.
+10. winemaking: Fermentation, vessels, maceration, sulfur, oak, aging details.
+11. viticulture: Soil type, farming practices, elevation, organic/biodynamic certifications.
+Synthesize all factual findings in concise bullet points.`,
       },
     });
     factualResearch = searchStepResponse.text || "";
-    console.log(`[AI Service] Step 1 Google Search Grounding completed (${factualResearch.length} chars)`);
+    console.log(`[AI Service] Step 1 Google Search completed (${factualResearch.length} chars)`);
   } catch (searchErr: any) {
-    console.warn("[AI Service] Step 1 search grounding notice, proceeding with direct sommelier synthesis:", searchErr?.message);
-    factualResearch = `Wine: ${queryStr}`;
+    console.warn("[AI Service] Step 1 search notice, proceeding with direct synthesis:", searchErr?.message);
+    factualResearch = `Wine: ${searchQuery}`;
   }
 
-  // STEP 2: STRUCTURED JSON SYNTHESIZER (No tools, responseMimeType: "application/json")
-  const jsonSystemInstruction = `You are a master sommelier data serializer. Convert the factual wine technical dossier into the required JSON schema accurately.
+  // STEP 2: STRUCTURED JSON SYNTHESIS (Clean JSON serialization without tools)
+  const jsonSystemInstruction = `You are a master sommelier data serializer. Convert the wine technical research into clean, structured JSON.
 CRITICAL RULES:
-- Map accurately: producer, vintage (use "${cleanVintage}" if not specified in dossier), classification ('Red', 'White', 'Rosé', 'Sparkling', 'Natural Red', 'Natural White', 'Pet Nat', 'Orange', 'Sato', 'Sake'), country, region, and grapes.
-- Do not invent, guess, or substitute fictional grape varieties that are not in the dossier.
-- Return authentic English sommelier descriptions for appearance, noseAromatics, palateStructure, finish, viticulture, winemaking, mainSummary, and suggestedFoodPairings.
+- bottleName: "${cleanName}".
+- producer: "${cleanProducer || 'Producer name'}".
+- vintage: "${cleanVintage}".
+- classification must be one of: 'RED', 'WHITE', 'ROSÉ', 'SPARKLING', 'NATURAL RED', 'NATURAL WHITE', 'PET NAT', 'ORANGE', 'SATO', 'SAKE'.
+- grapeVarieties must contain real grape varieties extracted from research. Do NOT fabricate fictitious grapes.
+- abv: e.g. "12.5%".
+- body must be one of: 'Light', 'Medium-Minus', 'Medium', 'Medium-Plus', 'Full'.
+- tastingSummary: concise real tasting notes summary.
+- winemaking: vinification, fermentation, oak, sulfur, aging details.
+- viticulture: soil, farming practices, organic/biodynamic details.
 - Format output strictly as JSON.`;
 
-  const jsonPrompt = `Convert the following wine technical research into structured JSON:
+  const jsonPrompt = `Convert the following wine research into structured JSON:
 
-Wine Query: ${queryStr}
+Target Query: ${searchQuery}
 
 Research Dossier:
-${factualResearch || `Wine: ${queryStr}`}
+${factualResearch || `Wine: ${searchQuery}`}
 
-Required JSON Format:
+Required JSON Schema:
 {
-  "producer": "Estate / Winemaker name",
+  "bottleName": "${cleanName}",
+  "producer": "${cleanProducer || 'Producer name'}",
   "vintage": "${cleanVintage}",
-  "classification": "Red / White / Rosé / Sparkling / Natural Red / Natural White / Pet Nat / Orange / Sato / Sake",
-  "country": "Country of origin",
+  "classification": "RED | WHITE | ROSÉ | SPARKLING | NATURAL RED | NATURAL WHITE | PET NAT | ORANGE | SATO | SAKE",
   "region": "Specific Appellation or Region",
-  "grapes": ["Verified Grape 1", "Verified Grape 2"],
-  "appearance": "Visual description, color, hue, clarity",
-  "noseAromatics": "Vivid aromatics, fruit, floral, terroir notes",
-  "palateStructure": "Structure, acidity, texture, body, tannins",
-  "finish": "Length, minerality, finish notes",
-  "viticulture": "Farming practices, terroir, harvest details",
-  "winemaking": "Maceration, fermentation, ancestral method, aging, sulfites",
-  "mainSummary": "Comprehensive editorial sommelier tasting summary",
-  "suggestedFoodPairings": ["Pairing 1", "Pairing 2", "Pairing 3"]
+  "country": "Country of origin",
+  "grapeVarieties": ["Grape 1", "Grape 2"],
+  "abv": "Alcohol % (e.g. 12.5%)",
+  "body": "Light | Medium-Minus | Medium | Medium-Plus | Full",
+  "tastingSummary": "Concise summary of verified tasting notes",
+  "winemaking": "Fermentation, vessels, oak, aging, and sulfur details",
+  "viticulture": "Soil type, farming practices, organic or biodynamic info"
 }`;
 
-  let resText = "";
-  try {
-    const jsonStepResponse = await generateWithRetryAndFallback(ai, {
-      model: "gemini-3.8-flash",
-      contents: jsonPrompt,
-      config: {
-        systemInstruction: jsonSystemInstruction,
-        responseMimeType: "application/json",
-      },
-    });
-    resText = jsonStepResponse.text || "";
-  } catch (synthErr: any) {
-    throw synthErr;
-  }
+  const jsonStepResponse = await generateWithRetryAndFallback(ai, {
+    model: PRIMARY_AI_MODEL,
+    contents: jsonPrompt,
+    config: {
+      systemInstruction: jsonSystemInstruction,
+      responseMimeType: "application/json",
+    },
+  });
 
+  const resText = jsonStepResponse.text || "";
   if (!resText) {
     throw new Error("No response received from wine data serializer.");
   }
@@ -782,37 +824,49 @@ Required JSON Format:
     throw new Error("Failed to parse wine technical data from AI response.");
   }
 
-  const grapesList: string[] = Array.isArray(parsed.grapes)
-    ? parsed.grapes
-    : typeof parsed.grapes === "string"
-    ? parsed.grapes.split(",")
-    : [];
+  const rawGrapes = parsed.grapeVarieties || parsed.grapes || [];
+  const grapeVarieties: string[] = (Array.isArray(rawGrapes)
+    ? rawGrapes
+    : typeof rawGrapes === "string"
+    ? rawGrapes.split(",")
+    : []
+  ).map((g) => sanitizeField(g)).filter(Boolean);
 
-  const pairingsList: string[] = Array.isArray(parsed.suggestedFoodPairings)
-    ? parsed.suggestedFoodPairings
-    : Array.isArray(parsed.foodPairing)
-    ? parsed.foodPairing
-    : [];
+  const bottleNameOut = sanitizeField(parsed.bottleName || parsed.name, cleanName);
+  const producerOut = sanitizeField(parsed.producer, cleanProducer);
+  const vintageOut = sanitizeField(parsed.vintage || parsed.year, cleanVintage);
+  const rawClass = sanitizeField(parsed.classification, "RED").toUpperCase();
+  const tastingSummary = sanitizeField(parsed.tastingSummary || parsed.mainSummary || parsed.tastingNotes);
+  const winemaking = sanitizeField(parsed.winemaking || parsed.winemakingPhilosophy);
+  const viticulture = sanitizeField(parsed.viticulture);
+  const abv = sanitizeField(parsed.abv || parsed.alcohol);
+  const body = sanitizeField(parsed.body, "Medium");
 
   return {
-    producer: sanitizeField(parsed.producer, cleanProducer),
-    vintage: sanitizeField(parsed.vintage, cleanVintage),
-    classification: sanitizeField(parsed.classification, "Red"),
+    bottleName: bottleNameOut,
+    name: bottleNameOut,
+    producer: producerOut,
+    vintage: vintageOut,
+    year: vintageOut,
+    classification: rawClass,
     country: sanitizeField(parsed.country),
     region: sanitizeField(parsed.region),
-    grapes: grapesList.map((g) => sanitizeField(g)).filter(Boolean),
-    appearance: sanitizeField(parsed.appearance),
-    noseAromatics: sanitizeField(parsed.noseAromatics || parsed.nose),
-    palateStructure: sanitizeField(parsed.palateStructure || parsed.palate),
-    finish: sanitizeField(parsed.finish),
-    viticulture: sanitizeField(parsed.viticulture),
-    winemaking: sanitizeField(parsed.winemaking || parsed.winemakingPhilosophy),
-    mainSummary: sanitizeField(parsed.mainSummary || parsed.tastingNotes),
-    suggestedFoodPairings: pairingsList.map((p) => sanitizeField(p)).filter(Boolean),
+    grapeVarieties,
+    grapes: grapeVarieties,
+    grape: grapeVarieties,
+    abv,
+    alcohol: abv,
+    body,
+    tastingSummary,
+    tastingNotes: tastingSummary,
+    mainSummary: tastingSummary,
+    winemaking,
+    winemakingPhilosophy: winemaking,
+    viticulture,
   };
 }
 
-export const autoFillWineByName = fetchWineProfileByName;
+export const fetchWineProfileByName = autoFillWineByName;
 
 export interface ChatMessage {
   id: string;
